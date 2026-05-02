@@ -1,4 +1,10 @@
-create extension if not exists pgcrypto;
+-- ============================================================
+-- Agente WhatsApp — Schema Supabase
+-- Ejecutar completo en: Supabase Dashboard → SQL Editor → Run
+-- Es idempotente: se puede ejecutar varias veces sin errores.
+-- ============================================================
+
+create extension if not exists "pgcrypto";
 
 do $$
 begin
@@ -133,3 +139,22 @@ create index if not exists idx_outbox_pending
 
 create index if not exists idx_whatsapp_sessions_instance
   on whatsapp_sessions (business_id, instance_name);
+
+-- ---- worker_commands ----
+-- Historial de órdenes enviadas al worker. El flujo principal usa
+-- desired_action en whatsapp_sessions; esta tabla es para auditoría
+-- y extensión futura (múltiples comandos en cola, reintentos, etc.).
+create table if not exists worker_commands (
+  id            uuid        primary key default gen_random_uuid(),
+  business_id   uuid        not null references businesses(id) on delete cascade,
+  instance_name text        not null,
+  command       text        not null, -- 'disconnect' | 'restart' | 'qr_refresh'
+  payload       jsonb,
+  executed      boolean     not null default false,
+  executed_at   timestamptz,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists idx_worker_commands_pending
+  on worker_commands (business_id, instance_name, executed, created_at)
+  where executed = false;

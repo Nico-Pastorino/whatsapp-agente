@@ -1,0 +1,21 @@
+# nixpacks-worker.toml
+# Configuración para deployar SOLO el worker Baileys en VPS/EasyPanel/Coolify/Railway.
+# Usar este archivo cuando el servidor solo corre el worker (no el dashboard).
+# El dashboard va en Vercel con el nixpacks.toml estándar.
+
+providers = ["node"]
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "python3", "gcc", "gnumake"]
+
+[phases.install]
+cmds = ["npm ci --include=dev"]
+
+[phases.build]
+cmds = ["echo 'Worker — no build step needed'"]
+
+[start]
+cmd = "npm run start:worker"
