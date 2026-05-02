@@ -1,0 +1,45 @@
+{
+  "name": "agente-whatsapp",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "backfill:sqlite": "tsx scripts/migrate-sqlite-to-supabase.ts",
+    "start:worker": "tsx scripts/start-bot.ts",
+    "start:bot": "npm run start:worker",
+    "start:all": "concurrently --kill-others --names WORKER,WEB --prefix-colors yellow,cyan \"npm run start:worker\" \"npm run start\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.1",
+    "@whiskeysockets/baileys": "^6.7.18",
+    "better-sqlite3": "^11.10.0",
+    "concurrently": "^9.1.2",
+    "next": "^15.3.1",
+    "openai": "^4.100.0",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tsx": "^4.19.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.5",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.3",
+    "@types/qrcode": "^1.5.5",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "eslint": "^9.26.0",
+    "eslint-config-next": "^15.3.1",
+    "tailwindcss": "^4.1.5",
+    "typescript": "^5.8.3"
+  }
+}

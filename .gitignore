@@ -1,0 +1,31 @@
+# dependencias
+node_modules/
+
+# next.js
+.next/
+out/
+
+# producción
+build/
+
+# datos locales — contienen sesiones de WhatsApp y mensajes privados
+auth/
+data/
+
+# variables de entorno
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+tsconfig.tsbuildinfo
+
+# sistema operativo
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
