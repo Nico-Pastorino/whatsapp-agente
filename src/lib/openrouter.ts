@@ -4,17 +4,15 @@ import { SYSTEM_PROMPT } from "./system-prompt";
 import type { Message } from "./db";
 
 const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY ?? "",
-  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENAI_API_KEY ?? "",
 });
 
-const MODEL = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini";
+const MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
 async function buildSystemPrompt(): Promise<string> {
   const profile = await getBusinessProfile().catch(() => null);
   if (!profile) return SYSTEM_PROMPT;
 
-  // Si no hay datos del negocio cargados, usar el prompt base
   if (
     !profile.name &&
     !profile.description &&
@@ -36,12 +34,9 @@ async function buildSystemPrompt(): Promise<string> {
     lines.push("", profile.description);
   }
 
-  // Catálogo de productos/servicios
-  const products = profile.products;
-
-  if (products.length > 0) {
+  if (profile.products.length > 0) {
     lines.push("", "CATÁLOGO DE PRODUCTOS / SERVICIOS:");
-    for (const p of products) {
+    for (const p of profile.products) {
       let item = `• ${p.name}`;
       if (p.price) item += ` — ${p.price}`;
       if (p.description) item += `: ${p.description}`;
