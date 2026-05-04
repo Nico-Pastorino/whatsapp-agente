@@ -28,6 +28,7 @@ import {
   getRequestedSessionAction,
   getPendingOutbox,
   markOutboxSent,
+  resolvePreferredTargetJidForConversation,
   setConnectionState,
   updateWorkerHeartbeat,
 } from "../src/lib/db";
@@ -67,16 +68,22 @@ setInterval(async () => {
   const pending = await getPendingOutbox(20).catch(() => []);
   for (const item of pending) {
     try {
-      const jid = item.phone.includes("@")
+      console.log(`[outbox] original phone_jid=${item.phone}`);
+      const preferred = await resolvePreferredTargetJidForConversation(item.conversation_id);
+      const targetJid = preferred.targetJid || (item.phone.includes("@")
         ? item.phone
-        : `${item.phone}@s.whatsapp.net`;
-      await handle.sock.sendMessage(jid, { text: item.content });
+        : `${item.phone}@s.whatsapp.net`);
+
+      console.log(`[outbox] resolved targetJid=${targetJid}`);
+      if (targetJid.endsWith("@lid")) {
+        console.warn("[outbox] warning: intentando enviar a @lid porque no hay pn_jid disponible");
+      }
+
+      await handle.sock.sendMessage(targetJid, { text: item.content });
       await markOutboxSent(item.id);
-      console.log(
-        `[worker] → Outbox enviado a ${item.phone}: "${item.content.slice(0, 60)}"`
-      );
+      console.log(`[outbox] sent ok=${item.id}`);
     } catch (err) {
-      console.error(`[worker] Error enviando outbox ${item.id}:`, err);
+      console.error(`[outbox] sent error=${item.id}:`, err);
     }
   }
 }, 2000);

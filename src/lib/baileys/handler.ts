@@ -8,6 +8,7 @@ import {
   getRecentHistory,
   recordAiReplyUsage,
   recordInboundMessageUsage,
+  resolvePreferredTargetJidForConversation,
 } from "../db";
 import { generateReply } from "../openrouter";
 
@@ -111,7 +112,7 @@ async function processMessage(
   await insertMessage(convo.id, "assistant", reply);
   await recordAiReplyUsage();
 
-  // Enviar siempre al remoteJid original (WhatsApp lo enruta correctamente)
-  await sock.sendMessage(remoteJid, { text: reply });
-  console.log(`[bot] → Enviado a ${remoteJid}`);
+  const preferredTarget = await resolvePreferredTargetJidForConversation(convo.id);
+  await sock.sendMessage(preferredTarget.targetJid, { text: reply });
+  console.log(`[bot] → Enviado a ${preferredTarget.targetJid} (${preferredTarget.targetType})`);
 }

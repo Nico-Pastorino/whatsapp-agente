@@ -117,6 +117,11 @@ interface ResolvedContactIdentity {
   canonicalTargetJid: string;
 }
 
+interface PreferredTargetJidResult {
+  targetJid: string;
+  targetType: "pn_jid" | "primary_jid" | "lid_jid" | "raw_jid" | "phone_fallback" | "conversation_phone_jid";
+}
+
 interface ResolveContactIdentityInput {
   businessId?: string;
   rawJid: string;
@@ -374,32 +379,54 @@ async function upsertIdentityForContact(
   if (error) throw error;
 }
 
-async function getBestTargetJidForContact(
+async function getContactIdentities(
   businessId: string,
-  contact: ContactRow
-): Promise<string> {
-  if (contact.primary_jid) return contact.primary_jid;
-
+  contactId: string
+): Promise<ContactIdentityRow[]> {
   const supabase = getSupabaseAdminClient();
-  const { data: identities, error } = await supabase
+  const { data, error } = await supabase
     .from("contact_identities")
-    .select("identity_type, identity_value")
+    .select("id, contact_id, identity_type, identity_value")
     .eq("business_id", businessId)
-    .eq("contact_id", contact.id);
+    .eq("contact_id", contactId);
 
   if (error) throw error;
+  return (data ?? []) as ContactIdentityRow[];
+}
 
-  const pnJid = identities?.find((identity) => identity.identity_type === "pn_jid")?.identity_value;
-  if (pnJid) return pnJid;
+async function getPreferredTargetJidForContact(
+  businessId: string,
+  contact: ContactRow
+): Promise<PreferredTargetJidResult> {
+  const identities = await getContactIdentities(businessId, contact.id);
 
-  const lidJid = identities?.find((identity) => identity.identity_type === "lid_jid")?.identity_value;
-  if (lidJid) return lidJid;
+  const pnJid = identities.find((identity) => identity.identity_type === "pn_jid")?.identity_value;
+  if (pnJid) {
+    return { targetJid: pnJid, targetType: "pn_jid" };
+  }
 
-  const rawJid = identities?.find((identity) => identity.identity_type === "raw_jid")?.identity_value;
-  if (rawJid) return rawJid;
+  if (contact.primary_jid?.endsWith("@s.whatsapp.net")) {
+    return { targetJid: contact.primary_jid, targetType: "primary_jid" };
+  }
 
-  if (contact.phone_number) return `${contact.phone_number}@s.whatsapp.net`;
-  return "";
+  const lidJid = identities.find((identity) => identity.identity_type === "lid_jid")?.identity_value;
+  if (lidJid) {
+    return { targetJid: lidJid, targetType: "lid_jid" };
+  }
+
+  const rawJid = identities.find((identity) => identity.identity_type === "raw_jid")?.identity_value;
+  if (rawJid) {
+    return { targetJid: rawJid, targetType: "raw_jid" };
+  }
+
+  if (contact.phone_number) {
+    return {
+      targetJid: `${contact.phone_number}@s.whatsapp.net`,
+      targetType: "phone_fallback",
+    };
+  }
+
+  return { targetJid: "", targetType: "conversation_phone_jid" };
 }
 
 async function updateContactMetadata(
@@ -453,6 +480,7 @@ export async function resolveContactIdentity(
   const identityCandidates = buildIdentityCandidates(input.rawJid, phoneNumberIfKnown);
 
   console.log("[identity] rawJid:", input.rawJid);
+  console.log("[identity] type:", parsed.identityType);
 
   for (const candidate of identityCandidates) {
     const { data: identity, error } = await supabase
@@ -490,7 +518,7 @@ export async function resolveContactIdentity(
       );
     }
 
-    const canonicalTargetJid = await getBestTargetJidForContact(businessId, updated);
+    const canonicalTarget = await getPreferredTargetJidForContact(businessId, updated);
     console.log("[identity] resolved contact_id:", updated.id);
     console.log(
       "[identity] identities found:",
@@ -502,8 +530,58 @@ export async function resolveContactIdentity(
       contact: updated,
       identitiesFound: identityCandidates.map((item) => item.value),
       phoneNumber: updated.phone_number ?? phoneNumberIfKnown,
-      canonicalTargetJid,
+      canonicalTargetJid: canonicalTarget.targetJid,
     };
+  }
+
+  if (input.pushName?.trim()) {
+    const normalizedName = input.pushName.trim();
+    const { data: contactByName, error } = await supabase
+      .from("contacts")
+      .select("id, display_name, phone_number, primary_jid")
+      .eq("business_id", businessId)
+      .eq("display_name", normalizedName)
+      .like("primary_jid", "%@s.whatsapp.net")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (contactByName) {
+      const updated = await updateContactMetadata(businessId, contactByName, {
+        display_name: normalizedName,
+        phone_number: phoneNumberIfKnown ?? contactByName.phone_number,
+        primary_jid:
+          parsed.identityType === "pn_jid"
+            ? parsed.normalizedJid
+            : contactByName.primary_jid,
+      });
+
+      for (const nextCandidate of identityCandidates) {
+        await upsertIdentityForContact(
+          businessId,
+          updated.id,
+          nextCandidate.type,
+          nextCandidate.value
+        );
+      }
+
+      const canonicalTarget = await getPreferredTargetJidForContact(businessId, updated);
+      console.log("[identity] resolved contact_id:", updated.id);
+      console.log(
+        "[identity] identities found:",
+        identityCandidates.map((item) => `${item.type}:${item.value}`).join(", ")
+      );
+
+      return {
+        contactId: updated.id,
+        contact: updated,
+        identitiesFound: identityCandidates.map((item) => item.value),
+        phoneNumber: updated.phone_number ?? phoneNumberIfKnown,
+        canonicalTargetJid: canonicalTarget.targetJid,
+      };
+    }
   }
 
   if (phoneNumberIfKnown) {
@@ -537,7 +615,7 @@ export async function resolveContactIdentity(
         );
       }
 
-      const canonicalTargetJid = await getBestTargetJidForContact(businessId, updated);
+      const canonicalTarget = await getPreferredTargetJidForContact(businessId, updated);
       console.log("[identity] resolved contact_id:", updated.id);
       console.log(
         "[identity] identities found:",
@@ -549,7 +627,7 @@ export async function resolveContactIdentity(
         contact: updated,
         identitiesFound: identityCandidates.map((item) => item.value),
         phoneNumber: updated.phone_number,
-        canonicalTargetJid,
+        canonicalTargetJid: canonicalTarget.targetJid,
       };
     }
   }
@@ -590,7 +668,7 @@ export async function resolveContactIdentity(
     contact: created,
     identitiesFound: identityCandidates.map((item) => item.value),
     phoneNumber: created.phone_number,
-    canonicalTargetJid: await getBestTargetJidForContact(businessId, created),
+    canonicalTargetJid: (await getPreferredTargetJidForContact(businessId, created)).targetJid,
   };
 }
 
@@ -785,7 +863,10 @@ export async function getOrCreateConversation(input: {
     const { error: updateError } = await supabase
       .from("conversations")
       .update({
-        phone_jid: targetJid || existing.phone_jid,
+        phone_jid:
+          targetJid.endsWith("@s.whatsapp.net") || !existing.phone_jid.endsWith("@s.whatsapp.net")
+            ? targetJid || existing.phone_jid
+            : existing.phone_jid,
         display_name: nextDisplayName,
         updated_at: now,
       })
@@ -796,11 +877,17 @@ export async function getOrCreateConversation(input: {
     console.log("[conversation] reused conversation_id:", existing.id);
     return mapConversationRow({
       ...existing,
-      phone_jid: targetJid || existing.phone_jid,
+      phone_jid:
+        targetJid.endsWith("@s.whatsapp.net") || !existing.phone_jid.endsWith("@s.whatsapp.net")
+          ? targetJid || existing.phone_jid
+          : existing.phone_jid,
       display_name: nextDisplayName,
       contact: {
         ...resolved.contact,
-        primary_jid: targetJid || resolved.contact.primary_jid,
+        primary_jid:
+          targetJid.endsWith("@s.whatsapp.net")
+            ? targetJid || resolved.contact.primary_jid
+            : resolved.contact.primary_jid,
       },
     } as ConversationRow);
   }
@@ -883,7 +970,26 @@ export async function listConversations(): Promise<ConversationWithPreview[]> {
 
   if (conversationsError) throw conversationsError;
 
-  const mapped = (conversations ?? []).map((row) => mapConversationRow(row as ConversationRow));
+  const grouped = new Map<string, ConversationRow[]>();
+  for (const row of (conversations ?? []) as ConversationRow[]) {
+    const key = row.contact_id ?? `conversation:${row.id}`;
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(row);
+    grouped.set(key, bucket);
+  }
+
+  const selectedRows = Array.from(grouped.values()).map((rows) =>
+    rows.sort((a, b) => {
+      const aPhonePreferred = a.phone_jid.endsWith("@s.whatsapp.net") ? 1 : 0;
+      const bPhonePreferred = b.phone_jid.endsWith("@s.whatsapp.net") ? 1 : 0;
+      if (bPhonePreferred !== aPhonePreferred) return bPhonePreferred - aPhonePreferred;
+      const aTime = toUnixSeconds(a.last_message_at) ?? toUnixSeconds(a.created_at) ?? 0;
+      const bTime = toUnixSeconds(b.last_message_at) ?? toUnixSeconds(b.created_at) ?? 0;
+      return bTime - aTime;
+    })[0]!
+  );
+
+  const mapped = selectedRows.map((row) => mapConversationRow(row));
   if (mapped.length === 0) return [];
 
   const previews = await Promise.all(
@@ -1084,16 +1190,19 @@ export async function enqueueOutbox(
     throw new Error(`Conversation not found for outbox: ${conversationId}`);
   }
 
-  const targetJid =
-    asSingleContact(conversation.contact)?.primary_jid ??
-    conversation.phone_jid;
+  const preferred = await resolvePreferredTargetJidForConversation(conversationId);
+
+  console.log("[dashboard-send] conversation_id:", conversationId);
+  console.log("[dashboard-send] contact_id:", conversation.contact_id);
+  console.log("[dashboard-send] selected targetJid:", preferred.targetJid);
+  console.log("[dashboard-send] target type:", preferred.targetType);
 
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("outbox_messages").insert({
     business_id: businessId,
     conversation_id: conversation.id,
     contact_id: conversation.contact_id,
-    phone_jid: targetJid,
+    phone_jid: preferred.targetJid,
     content,
   });
 
@@ -1139,6 +1248,26 @@ export async function markOutboxSent(id: string): Promise<void> {
     .eq("business_id", getBusinessId());
 
   if (error) throw error;
+}
+
+export async function resolvePreferredTargetJidForConversation(
+  conversationId: string
+): Promise<PreferredTargetJidResult> {
+  const conversation = await getConversationRowById(conversationId);
+  if (!conversation) {
+    throw new Error(`Conversation not found: ${conversationId}`);
+  }
+
+  const contact = asSingleContact(conversation.contact);
+  if (conversation.contact_id && contact) {
+    const preferred = await getPreferredTargetJidForContact(getBusinessId(), contact);
+    if (preferred.targetJid) return preferred;
+  }
+
+  return {
+    targetJid: conversation.phone_jid,
+    targetType: "conversation_phone_jid",
+  };
 }
 
 export async function requestWhatsappDisconnect(): Promise<void> {

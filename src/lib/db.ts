@@ -30,6 +30,7 @@ export {
   recordHumanMessageUsage,
   recordInboundMessageUsage,
   requestWhatsappDisconnect,
+  resolvePreferredTargetJidForConversation,
   resolveContactIdentity,
   setBusinessProfile,
   setConnectionState,
