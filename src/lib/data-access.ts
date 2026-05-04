@@ -409,9 +409,51 @@ export async function getOrCreateConversation(
   const businessId = getBusinessId();
   const now = new Date().toISOString();
 
-  // Intentar INSERT directo. Si hay violación de unique constraint (código 23505)
-  // significa que la conversación ya existe (race condition entre dos mensajes
-  // simultáneos) — en ese caso hacemos SELECT.
+  // ── Paso 1: buscar por JID exacto ──────────────────────────────────────────
+  const { data: byJid, error: jidError } = await supabase
+    .from("conversations")
+    .select("id, phone_jid, display_name, mode, last_message_at, created_at")
+    .eq("business_id", businessId)
+    .eq("phone_jid", phoneJid)
+    .maybeSingle();
+
+  if (jidError) throw jidError;
+
+  if (byJid) {
+    console.log(`[db] conversación por JID: ${phoneJid} → ${byJid.id}`);
+    if (name && name !== byJid.display_name) {
+      await supabase
+        .from("conversations")
+        .update({ display_name: name, updated_at: now })
+        .eq("id", byJid.id);
+      byJid.display_name = name;
+    }
+    return mapConversationRow(byJid);
+  }
+
+  // ── Paso 2: si es @lid y tenemos nombre, buscar por display_name ───────────
+  // WhatsApp Web usa @lid en vez de @s.whatsapp.net para el mismo contacto.
+  // Si ya existe una conversación con ese nombre (del teléfono), la reutilizamos.
+  if (phoneJid.endsWith("@lid") && name) {
+    const { data: byName, error: nameError } = await supabase
+      .from("conversations")
+      .select("id, phone_jid, display_name, mode, last_message_at, created_at")
+      .eq("business_id", businessId)
+      .eq("display_name", name)
+      .not("phone_jid", "like", "%@lid") // preferir la conversación de teléfono
+      .order("last_message_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!nameError && byName) {
+      console.log(
+        `[db] @lid "${phoneJid}" mapeado a conversación existente de "${name}" → ${byName.id} (${byName.phone_jid})`
+      );
+      return mapConversationRow(byName);
+    }
+  }
+
+  // ── Paso 3: crear nueva conversación ────────────────────────────────────────
   const { data: created, error: insertError } = await supabase
     .from("conversations")
     .insert({
@@ -430,32 +472,19 @@ export async function getOrCreateConversation(
     return mapConversationRow(created);
   }
 
-  // Fila ya existe (unique constraint) o cualquier otro error — buscar por JID
-  const { data: existing, error: fetchError } = await supabase
+  // Race condition: otro proceso insertó entre nuestro SELECT y este INSERT
+  const { data: retried, error: retryError } = await supabase
     .from("conversations")
     .select("id, phone_jid, display_name, mode, last_message_at, created_at")
     .eq("business_id", businessId)
     .eq("phone_jid", phoneJid)
     .maybeSingle();
 
-  if (fetchError) throw fetchError;
+  if (retryError) throw retryError;
+  if (retried) return mapConversationRow(retried);
 
-  if (existing) {
-    console.log(`[db] conversación EXISTENTE: ${phoneJid} → ${existing.id}`);
-    // Actualizar display_name si cambió
-    if (name && name !== existing.display_name) {
-      await supabase
-        .from("conversations")
-        .update({ display_name: name, updated_at: now })
-        .eq("id", existing.id);
-      existing.display_name = name;
-    }
-    return mapConversationRow(existing);
-  }
-
-  // Si llegamos aquí con un error de insert y no encontramos la fila, propagar
   if (insertError) throw insertError;
-  throw new Error(`getOrCreateConversation: no se pudo crear ni encontrar conversación para ${phoneJid}`);
+  throw new Error(`getOrCreateConversation: fallo inesperado para ${phoneJid}`);
 }
 
 export async function getConversationById(id: string): Promise<Conversation | null> {

@@ -79,14 +79,30 @@ async function run(): Promise<void> {
   }
   console.log("");
 
-  // 2. Agrupar por número canónico
+  // 2. Agrupar por número canónico O por display_name (para @lid vs @s.whatsapp.net)
+  //    WhatsApp asigna @lid a mensajes de WA Web y @s.whatsapp.net al teléfono.
+  //    Ambos representan el mismo contacto físico.
   const groups = new Map<string, ConvRow[]>();
 
   for (const conv of allConvs as ConvRow[]) {
     const canonical = normalizeWhatsAppJid(conv.phone_jid);
-    const key = getPhoneFromJid(canonical); // agrupa @lid y @s.whatsapp.net del mismo número
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(conv);
+    const numericKey = getPhoneFromJid(canonical);
+
+    // Si es @lid y tiene display_name, intentar agrupar con el @s.whatsapp.net del mismo nombre
+    if (conv.phone_jid.endsWith("@lid") && conv.display_name) {
+      const nameKey = `name:${conv.display_name.trim().toLowerCase()}`;
+      if (!groups.has(nameKey)) groups.set(nameKey, []);
+      groups.get(nameKey)!.push(conv);
+    } else if (conv.display_name) {
+      // Para @s.whatsapp.net: registrar también por name para que el @lid lo encuentre
+      const nameKey = `name:${conv.display_name.trim().toLowerCase()}`;
+      if (!groups.has(nameKey)) groups.set(nameKey, []);
+      groups.get(nameKey)!.push(conv);
+    } else {
+      // Sin nombre: agrupar solo por número canónico
+      if (!groups.has(numericKey)) groups.set(numericKey, []);
+      groups.get(numericKey)!.push(conv);
+    }
   }
 
   // 3. Identificar grupos con duplicados
@@ -115,11 +131,14 @@ async function run(): Promise<void> {
     }
 
     // Elegir conversación principal:
-    // 1. Si alguna está en HUMAN, preferirla (es la que el operador usó)
-    // 2. Entre las candidatas, la que tenga más mensajes
-    // 3. En empate, la más antigua
+    // 1. Preferir @s.whatsapp.net sobre @lid (número real sobre LID anónimo)
+    // 2. Si alguna está en HUMAN, preferirla (es la que el operador usó)
+    // 3. Entre las candidatas, la que tenga más mensajes
+    // 4. En empate, la más antigua
+    const phoneConvs = withCounts.filter(c => !c.phone_jid.endsWith("@lid"));
     const humanConvs = withCounts.filter(c => c.mode === "HUMAN");
-    const candidates = humanConvs.length > 0 ? humanConvs : withCounts;
+    let candidates = phoneConvs.length > 0 ? phoneConvs : withCounts;
+    if (humanConvs.length > 0) candidates = humanConvs;
     const primary = candidates.reduce((best, curr) =>
       (curr.msg_count ?? 0) > (best.msg_count ?? 0) ? curr : best
     );
