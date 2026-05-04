@@ -1,68 +1,72 @@
-/**
- * Utilidades de normalización de JIDs de WhatsApp.
- *
- * Problema: WhatsApp envía el mismo contacto con distintos formatos:
- *   5492355472157@s.whatsapp.net       ← formato base
- *   5492355472157:3@s.whatsapp.net     ← con sufijo de dispositivo
- *   27518073606199@lid                 ← formato LID (Linked ID)
- *   5492355472157                      ← número sin dominio
- *
- * Si no normalizamos, se crean múltiples conversaciones para el mismo contacto.
- */
+export type IdentityType = "phone" | "pn_jid" | "lid_jid" | "raw_jid";
 
-/**
- * Devuelve el JID canónico para un contacto de WhatsApp.
- *
- * Reglas:
- *  - JIDs @lid se conservan tal cual (no se puede mapear a teléfono).
- *  - Se elimina el sufijo de dispositivo :N antes del @.
- *  - Se elimina el + inicial del número.
- *  - Si el input es solo un número, se le agrega @s.whatsapp.net.
- *
- * Ejemplos:
- *   "5492355472157:3@s.whatsapp.net" → "5492355472157@s.whatsapp.net"
- *   "5492355472157@s.whatsapp.net"   → "5492355472157@s.whatsapp.net"
- *   "27518073606199@lid"             → "27518073606199@lid"
- *   "5492355472157"                  → "5492355472157@s.whatsapp.net"
- *   "+5492355472157"                 → "5492355472157@s.whatsapp.net"
- */
-export function normalizeWhatsAppJid(input: string): string {
-  const raw = input.trim();
-
-  // JIDs @lid: no se puede normalizar a teléfono — conservar tal cual
-  if (raw.endsWith("@lid")) {
-    return raw;
-  }
-
-  const atIdx = raw.indexOf("@");
-
-  let number: string;
-  let domain: string;
-
-  if (atIdx !== -1) {
-    domain = raw.slice(atIdx); // "@s.whatsapp.net" u otro
-    const localPart = raw.slice(0, atIdx);
-    // Quitar sufijo de dispositivo: "5492355472157:3" → "5492355472157"
-    const colonIdx = localPart.indexOf(":");
-    number = colonIdx !== -1 ? localPart.slice(0, colonIdx) : localPart;
-  } else {
-    domain = "@s.whatsapp.net";
-    number = raw;
-  }
-
-  // Limpiar el número: quitar +, espacios y guiones
-  number = number.replace(/[+\s\-]/g, "");
-
-  return `${number}${domain}`;
+export interface ParsedWhatsAppIdentity {
+  rawJid: string;
+  normalizedJid: string;
+  localPart: string;
+  identityType: IdentityType;
+  phoneNumber: string | null;
 }
 
-/**
- * Extrae el número de teléfono limpio desde un JID normalizado.
- *
- * Ejemplos:
- *   "5492355472157@s.whatsapp.net" → "5492355472157"
- *   "27518073606199@lid"           → "27518073606199"
- */
+function stripDeviceSuffix(localPart: string): string {
+  const colonIdx = localPart.indexOf(":");
+  return colonIdx === -1 ? localPart : localPart.slice(0, colonIdx);
+}
+
+function cleanPhoneCandidate(input: string): string {
+  return input.replace(/[^\d]/g, "");
+}
+
+export function parseWhatsAppIdentity(rawInput: string): ParsedWhatsAppIdentity {
+  const rawJid = rawInput.trim();
+  const atIdx = rawJid.indexOf("@");
+  const domain = atIdx === -1 ? "" : rawJid.slice(atIdx);
+  const localPart = stripDeviceSuffix(atIdx === -1 ? rawJid : rawJid.slice(0, atIdx));
+  const cleanedLocal = cleanPhoneCandidate(localPart);
+
+  if (domain === "@lid") {
+    return {
+      rawJid,
+      normalizedJid: `${localPart}@lid`,
+      localPart,
+      identityType: "lid_jid",
+      phoneNumber: null,
+    };
+  }
+
+  if (domain === "@s.whatsapp.net" || atIdx === -1) {
+    const phoneNumber = cleanedLocal || null;
+    const normalizedJid = phoneNumber
+      ? `${phoneNumber}@s.whatsapp.net`
+      : `${localPart}@s.whatsapp.net`;
+    return {
+      rawJid,
+      normalizedJid,
+      localPart,
+      identityType: atIdx === -1 ? "phone" : "pn_jid",
+      phoneNumber,
+    };
+  }
+
+  return {
+    rawJid,
+    normalizedJid: atIdx === -1 ? rawJid : `${localPart}${domain}`,
+    localPart,
+    identityType: "raw_jid",
+    phoneNumber: cleanedLocal || null,
+  };
+}
+
+export function normalizeWhatsAppJid(input: string): string {
+  return parseWhatsAppIdentity(input).normalizedJid;
+}
+
 export function getPhoneFromJid(jid: string): string {
-  return jid.split("@")[0].split(":")[0];
+  return parseWhatsAppIdentity(jid).phoneNumber ?? parseWhatsAppIdentity(jid).localPart;
+}
+
+export function extractPhoneNumberIfKnown(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const cleaned = cleanPhoneCandidate(value);
+  return cleaned.length >= 7 ? cleaned : null;
 }

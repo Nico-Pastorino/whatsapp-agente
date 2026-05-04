@@ -1,6 +1,7 @@
 import type { WASocket } from "@whiskeysockets/baileys";
 import {
   canUseAssistant,
+  derivePhoneNumberFromMessage,
   getOrCreateConversation,
   getConversationById,
   insertMessage,
@@ -9,7 +10,6 @@ import {
   recordInboundMessageUsage,
 } from "../db";
 import { generateReply } from "../openrouter";
-import { normalizeWhatsAppJid } from "../whatsapp-jid";
 
 export function setupMessageHandler(sock: WASocket): void {
   console.log("[bot] Handler de mensajes registrado");
@@ -74,17 +74,16 @@ async function processMessage(
     return;
   }
 
-  // Normalizar JID para evitar duplicados por sufijo de dispositivo (:N)
-  const phoneJid = normalizeWhatsAppJid(remoteJid);
   const pushName: string | undefined = msg.pushName;
+  const phoneNumberIfKnown = derivePhoneNumberFromMessage(msg);
 
-  console.log(`[bot] ← remoteJid recibido : ${remoteJid}`);
-  console.log(`[bot]   phone_jid canónico : ${phoneJid}`);
+  console.log(`[identity] rawJid: ${remoteJid}`);
 
-  const convo = await getOrCreateConversation(phoneJid, pushName);
-  console.log(
-    `[bot]   conversation_id   : ${convo.id} (${convo.id === phoneJid ? "nueva" : "existente"})`
-  );
+  const convo = await getOrCreateConversation({
+    rawJid: remoteJid,
+    pushName,
+    phoneNumberIfKnown,
+  });
 
   await insertMessage(convo.id, "user", text);
   await recordInboundMessageUsage();
@@ -114,5 +113,5 @@ async function processMessage(
 
   // Enviar siempre al remoteJid original (WhatsApp lo enruta correctamente)
   await sock.sendMessage(remoteJid, { text: reply });
-  console.log(`[bot] → Enviado a ${remoteJid} (jid canónico: ${phoneJid})`);
+  console.log(`[bot] → Enviado a ${remoteJid}`);
 }
