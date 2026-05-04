@@ -72,7 +72,12 @@ async function run(): Promise<void> {
     return;
   }
 
-  console.log(`Total conversaciones: ${allConvs.length}\n`);
+  console.log(`Total conversaciones: ${allConvs.length}`);
+  for (const conv of allConvs as ConvRow[]) {
+    const canonical = normalizeWhatsAppJid(conv.phone_jid);
+    console.log(`  • ${conv.phone_jid} → canónico: ${canonical} | name="${conv.display_name}" | mode=${conv.mode}`);
+  }
+  console.log("");
 
   // 2. Agrupar por número canónico
   const groups = new Map<string, ConvRow[]>();
