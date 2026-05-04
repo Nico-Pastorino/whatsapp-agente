@@ -77,6 +77,18 @@ async function processMessage(
 
   const pushName: string | undefined = msg.pushName;
   const phoneNumberIfKnown = derivePhoneNumberFromMessage(msg);
+  if (remoteJid.endsWith("@lid")) {
+    console.log(
+      `[identity] lid metadata keys=${Object.keys(msg ?? {}).join(",")}`
+    );
+    console.log(
+      `[identity] lid key fields=${Object.keys(msg.key ?? {}).join(",")}`
+    );
+    console.log(
+      `[identity] lid message fields=${Object.keys(msg.message ?? {}).join(",")}`
+    );
+    console.log(`[identity] derived phone from metadata=${phoneNumberIfKnown ?? ""}`);
+  }
 
   const convo = await getOrCreateConversation({
     rawJid: remoteJid,
@@ -109,7 +121,8 @@ async function processMessage(
 
   const preferredTarget = await getBestOutgoingJidForConversation(convo.id);
   if (!preferredTarget.targetJid) {
-    console.warn("[bot] No hay JID telefónico seguro para responder automáticamente");
+    console.warn(`[ai-send] contact_id=${convo.contact_id}`);
+    console.warn("[ai-send] contacto sin pn_jid, no se envía respuesta");
     return;
   }
 

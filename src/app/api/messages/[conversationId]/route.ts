@@ -47,9 +47,21 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   const target = await getBestOutgoingJidForConversation(id);
+  console.log(`[send] contact_id=${conv.contact_id}`);
+  console.log(`[send] has pn_jid=${Boolean(target.targetJid)}`);
+  console.log(`[send] target_jid=${target.targetJid || ""}`);
+  console.log(
+    `[send] blocked_reason=${target.targetJid ? "" : target.reason ?? "missing_safe_phone_jid"}`
+  );
   if (!target.targetJid) {
     return NextResponse.json(
-      { error: "No hay JID telefónico disponible para enviar de forma segura." },
+      {
+        error: "needs_phone_mapping",
+        message:
+          "Este contacto necesita asociar un número de WhatsApp antes de responder.",
+        contactId: conv.contact_id,
+        needsPhoneMapping: true,
+      },
       { status: 409 }
     );
   }

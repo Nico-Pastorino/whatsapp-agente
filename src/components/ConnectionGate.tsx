@@ -11,10 +11,27 @@ interface Conversation {
   id: string;
   contact_id: string;
   phone: string;
+  phone_number: string | null;
+  primary_jid: string | null;
   name: string | null;
   mode: "AI" | "HUMAN";
+  outgoing_jid: string | null;
+  safe_outgoing_jid: string | null;
+  has_safe_outgoing_jid: boolean;
+  needs_phone_mapping: boolean;
   last_message_at: number | null;
   last_message_preview: string | null;
+}
+
+interface ConversationUpdate {
+  id: string;
+  phone: string;
+  phone_number: string | null;
+  primary_jid: string | null;
+  outgoing_jid: string | null;
+  safe_outgoing_jid: string | null;
+  has_safe_outgoing_jid: boolean;
+  needs_phone_mapping: boolean;
 }
 
 type ActiveView = "conversations" | "business";
@@ -117,6 +134,14 @@ export default function ConnectionGate() {
     );
   }
 
+  function handleConversationUpdate(next: ConversationUpdate) {
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.id === next.id ? { ...conversation, ...next } : conversation
+      )
+    );
+  }
+
   function handleDeleteConversation() {
     setConversations((prev) => prev.filter((c) => c.id !== selectedId));
     setSelectedId(null);
@@ -170,6 +195,7 @@ export default function ConnectionGate() {
                 key={selectedConv.id}
                 conversation={selectedConv}
                 onModeChange={handleModeChange}
+                onConversationUpdate={handleConversationUpdate}
                 onDelete={handleDeleteConversation}
               />
             ) : (

@@ -28,6 +28,7 @@ export {
   getRequestedSessionAction,
   insertMessage,
   listConversations,
+  linkPhoneToContact,
   markOutboxSent,
   recordAiReplyUsage,
   recordHumanMessageUsage,

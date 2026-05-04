@@ -76,10 +76,7 @@ setInterval(async () => {
 
       console.log(`[outbox] resolved targetJid=${targetJid}`);
       if (!preferred.targetJid) {
-        await setOutboxError(
-          item.id,
-          "No hay JID telefónico disponible para enviar de forma segura."
-        );
+        await setOutboxError(item.id, "needs_phone_mapping");
         console.error(`[outbox] send error=${item.id}`);
         continue;
       }

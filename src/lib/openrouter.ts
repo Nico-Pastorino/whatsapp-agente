@@ -3,11 +3,13 @@ import { getBusinessProfile } from "./db";
 import { SYSTEM_PROMPT } from "./system-prompt";
 import type { Message } from "./db";
 
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim() || "";
+
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY ?? "",
+  apiKey: OPENAI_API_KEY,
 });
 
-const MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
 
 async function buildSystemPrompt(): Promise<string> {
   const profile = await getBusinessProfile().catch(() => null);
@@ -59,6 +61,10 @@ async function buildSystemPrompt(): Promise<string> {
 }
 
 export async function generateReply(history: Message[]): Promise<string> {
+  if (!OPENAI_API_KEY) {
+    throw new Error("Missing OpenAI API key. Set OPENAI_API_KEY in the worker environment.");
+  }
+
   const systemPrompt = await buildSystemPrompt();
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [

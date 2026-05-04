@@ -30,8 +30,14 @@ export interface Conversation {
   id: string;
   contact_id: string;
   phone: string;
+  phone_number: string | null;
+  primary_jid: string | null;
   name: string | null;
   mode: "AI" | "HUMAN";
+  outgoing_jid: string | null;
+  safe_outgoing_jid: string | null;
+  has_safe_outgoing_jid: boolean;
+  needs_phone_mapping: boolean;
   last_message_at: number | null;
   created_at: number;
 }
@@ -71,6 +77,8 @@ export interface OutboxItem {
 
 export interface BestOutgoingJidResult {
   targetJid: string;
+  hasSafeOutgoingJid: boolean;
+  reason: "needs_phone_mapping" | "contact_not_found" | "unavailable" | null;
   targetType:
     | "pn_jid"
     | "primary_jid"
@@ -164,8 +172,14 @@ function mapConversationRow(row: ConversationRow): Conversation {
     id: row.id,
     contact_id: row.contact_id,
     phone: row.phone_jid ?? contact?.primary_jid ?? "",
+    phone_number: contact?.phone_number ?? null,
+    primary_jid: contact?.primary_jid ?? null,
     name: contact?.display_name ?? row.display_name,
     mode: row.mode,
+    outgoing_jid: null,
+    safe_outgoing_jid: null,
+    has_safe_outgoing_jid: false,
+    needs_phone_mapping: false,
     last_message_at: toUnixSeconds(row.last_message_at),
     created_at: toUnixSeconds(row.created_at) ?? 0,
   };
@@ -351,6 +365,39 @@ async function updateContactRow(contactId: string, patch: Partial<ContactRow>): 
   return data as ContactRow;
 }
 
+async function promoteContactPhoneIdentity(
+  contactId: string,
+  phoneNumber: string | null | undefined,
+  fallbackDisplayName?: string | null
+): Promise<ContactRow> {
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  let contact = await getContactById(contactId);
+  if (!contact) {
+    throw new Error("Contacto no encontrado.");
+  }
+
+  const patch: Partial<ContactRow> = {};
+  if (fallbackDisplayName && !contact.display_name) {
+    patch.display_name = fallbackDisplayName;
+  }
+
+  if (normalizedPhone) {
+    patch.phone_number = normalizedPhone;
+    patch.primary_jid = `${normalizedPhone}@s.whatsapp.net`;
+  }
+
+  if (Object.keys(patch).length > 0) {
+    contact = await updateContactRow(contactId, patch);
+  }
+
+  if (normalizedPhone) {
+    await upsertContactIdentity(contactId, "phone", normalizedPhone);
+    await upsertContactIdentity(contactId, "pn_jid", `${normalizedPhone}@s.whatsapp.net`);
+  }
+
+  return contact;
+}
+
 async function createContact(params: {
   displayName?: string | null;
   phoneNumber?: string | null;
@@ -386,39 +433,88 @@ async function getConversationRowById(conversationId: string): Promise<Conversat
   return data as ConversationRow | null;
 }
 
+async function enrichConversationDeliveryState(conversation: Conversation): Promise<Conversation> {
+  const best = await getBestOutgoingJidForContact(conversation.contact_id);
+  const contact = await getContactById(conversation.contact_id);
+  return {
+    ...conversation,
+    phone_number: contact?.phone_number ?? conversation.phone_number,
+    primary_jid: contact?.primary_jid ?? conversation.primary_jid,
+    outgoing_jid: best.targetJid || null,
+    safe_outgoing_jid: best.targetJid || null,
+    has_safe_outgoing_jid: best.hasSafeOutgoingJid,
+    needs_phone_mapping: best.reason === "needs_phone_mapping",
+  };
+}
+
 export async function getBestOutgoingJidForContact(contactId: string): Promise<BestOutgoingJidResult> {
   const contact = await getContactById(contactId);
   if (!contact) {
-    return { targetJid: "", targetType: "unavailable" };
+    return {
+      targetJid: "",
+      hasSafeOutgoingJid: false,
+      reason: "contact_not_found",
+      targetType: "unavailable",
+    };
   }
 
   const identities = await getContactIdentities(contactId);
 
   const pnJid = identities.find((item) => item.identity_type === "pn_jid")?.identity_value;
   if (pnJid) {
-    return { targetJid: pnJid, targetType: "pn_jid" };
+    return {
+      targetJid: pnJid,
+      hasSafeOutgoingJid: true,
+      reason: null,
+      targetType: "pn_jid",
+    };
   }
 
   if (contact.primary_jid?.endsWith("@s.whatsapp.net")) {
-    return { targetJid: contact.primary_jid, targetType: "primary_jid" };
+    return {
+      targetJid: contact.primary_jid,
+      hasSafeOutgoingJid: true,
+      reason: null,
+      targetType: "primary_jid",
+    };
   }
 
   const anyPhoneJid = identities.find((item) => item.identity_value.endsWith("@s.whatsapp.net"))?.identity_value;
   if (anyPhoneJid) {
-    return { targetJid: anyPhoneJid, targetType: "other_phone_jid" };
+    return {
+      targetJid: anyPhoneJid,
+      hasSafeOutgoingJid: true,
+      reason: null,
+      targetType: "other_phone_jid",
+    };
   }
 
   const lidJid = identities.find((item) => item.identity_type === "lid_jid")?.identity_value;
   if (lidJid) {
-    return { targetJid: "", targetType: "lid_jid" };
+    return {
+      targetJid: "",
+      hasSafeOutgoingJid: false,
+      reason: "needs_phone_mapping",
+      targetType: "lid_jid",
+    };
   }
 
   const rawJid = identities.find((item) => item.identity_type === "raw_jid")?.identity_value;
   if (rawJid?.endsWith("@s.whatsapp.net")) {
-    return { targetJid: rawJid, targetType: "raw_jid" };
+    return {
+      targetJid: rawJid,
+      hasSafeOutgoingJid: true,
+      reason: null,
+      targetType: "raw_jid",
+    };
   }
 
-  return { targetJid: "", targetType: "unavailable" };
+  return {
+    targetJid: "",
+    hasSafeOutgoingJid: false,
+    reason: "unavailable",
+    targetType: "unavailable",
+  };
 }
 
 export async function getBestOutgoingJidForConversation(
@@ -426,7 +522,12 @@ export async function getBestOutgoingJidForConversation(
 ): Promise<BestOutgoingJidResult> {
   const conversation = await getConversationRowById(conversationId);
   if (!conversation) {
-    return { targetJid: "", targetType: "unavailable" };
+    return {
+      targetJid: "",
+      hasSafeOutgoingJid: false,
+      reason: "unavailable",
+      targetType: "unavailable",
+    };
   }
   return getBestOutgoingJidForContact(conversation.contact_id);
 }
@@ -444,9 +545,12 @@ export async function resolveContactIdentity(
     normalizePhoneNumber(params.phoneNumberIfKnown) ?? parsed.phoneNumber;
 
   console.log(`[identity] rawJid=${params.rawJid}`);
-  console.log(`[identity] jidType=${parsed.jidType}`);
   console.log(`[identity] pushName=${pushName ?? ""}`);
-  console.log(`[identity] phoneNumberIfKnown=${phoneNumberIfKnown ?? ""}`);
+  console.log(`[identity] jidType=${parsed.jidType}`);
+  console.log(`[identity] possiblePhoneNumber=${phoneNumberIfKnown ?? ""}`);
+  console.log(
+    `[identity] possiblePnJid=${phoneNumberIfKnown ? `${phoneNumberIfKnown}@s.whatsapp.net` : ""}`
+  );
 
   const identityCandidates = buildIdentityCandidates(params.rawJid);
 
@@ -469,8 +573,19 @@ export async function resolveContactIdentity(
         primary_jid: parsed.normalizedJid,
         display_name: contact.display_name ?? pushName,
       });
-    } else if (!contact.display_name && pushName) {
-      contact = await updateContactRow(contact.id, { display_name: pushName });
+    } else {
+      if (phoneNumberIfKnown) {
+        contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName);
+      } else {
+        const patch: Partial<ContactRow> = {};
+        if (!contact.display_name && pushName) patch.display_name = pushName;
+        if (!contact.primary_jid && parsed.jidType !== "lid_jid") {
+          patch.primary_jid = parsed.normalizedJid;
+        }
+        if (Object.keys(patch).length > 0) {
+          contact = await updateContactRow(contact.id, patch);
+        }
+      }
     }
 
     for (const identity of identityCandidates) {
@@ -483,6 +598,7 @@ export async function resolveContactIdentity(
     const identities = await getContactIdentities(contact.id);
     const preferred = await getBestOutgoingJidForContact(contact.id);
     console.log(`[identity] contact_id=${contact.id}`);
+    console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
     return {
       contact_id: contact.id,
       contact,
@@ -502,12 +618,18 @@ export async function resolveContactIdentity(
       .maybeSingle();
     if (error) throw error;
     if (data) {
-      let contact = await updateContactRow(data.id, {
-        display_name: data.display_name ?? pushName,
-        phone_number: phoneNumberIfKnown,
-        primary_jid:
-          parsed.jidType === "pn_jid" ? parsed.normalizedJid : data.primary_jid,
-      });
+      let contact =
+        parsed.jidType === "pn_jid"
+          ? await updateContactRow(data.id, {
+              display_name: data.display_name ?? pushName,
+              phone_number: phoneNumberIfKnown,
+              primary_jid: parsed.normalizedJid,
+            })
+          : await promoteContactPhoneIdentity(
+              data.id,
+              phoneNumberIfKnown,
+              data.display_name ?? pushName
+            );
       for (const identity of identityCandidates) {
         await upsertContactIdentity(contact.id, identity.type, identity.value);
       }
@@ -515,6 +637,7 @@ export async function resolveContactIdentity(
       const identities = await getContactIdentities(contact.id);
       const preferred = await getBestOutgoingJidForContact(contact.id);
       console.log(`[identity] contact_id=${contact.id}`);
+      console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
       return {
         contact_id: contact.id,
         contact,
@@ -543,10 +666,8 @@ export async function resolveContactIdentity(
 
     if (matchingContacts.length === 1) {
       let contact = matchingContacts[0]!;
-      if (phoneNumberIfKnown && !contact.phone_number) {
-        contact = await updateContactRow(contact.id, {
-          phone_number: phoneNumberIfKnown,
-        });
+      if (phoneNumberIfKnown) {
+        contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName);
       }
       for (const identity of identityCandidates) {
         await upsertContactIdentity(contact.id, identity.type, identity.value);
@@ -557,6 +678,7 @@ export async function resolveContactIdentity(
       const identities = await getContactIdentities(contact.id);
       const preferred = await getBestOutgoingJidForContact(contact.id);
       console.log(`[identity] contact_id=${contact.id}`);
+      console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
       return {
         contact_id: contact.id,
         contact,
@@ -569,7 +691,12 @@ export async function resolveContactIdentity(
   let contact = await createContact({
     displayName: pushName,
     phoneNumber: phoneNumberIfKnown,
-    primaryJid: parsed.jidType === "pn_jid" ? parsed.normalizedJid : null,
+    primaryJid:
+      parsed.jidType === "pn_jid"
+        ? parsed.normalizedJid
+        : phoneNumberIfKnown
+          ? `${phoneNumberIfKnown}@s.whatsapp.net`
+          : null,
   });
 
   for (const identity of identityCandidates) {
@@ -583,11 +710,17 @@ export async function resolveContactIdentity(
       phone_number: phoneNumberIfKnown,
       primary_jid: parsed.normalizedJid,
     });
+    if (phoneNumberIfKnown) {
+      await upsertContactIdentity(contact.id, "pn_jid", parsed.normalizedJid);
+    }
+  } else if (phoneNumberIfKnown) {
+    contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName);
   }
 
   const identities = await getContactIdentities(contact.id);
   const preferred = await getBestOutgoingJidForContact(contact.id);
   console.log(`[identity] contact_id=${contact.id}`);
+  console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
   return {
     contact_id: contact.id,
     contact,
@@ -759,13 +892,13 @@ export async function getOrCreateConversation(input: {
       updated_at: new Date().toISOString(),
     }).eq("id", existing.id);
     console.log(`[conversation] reused=${existing.id}`);
-    return mapConversationRow({
+    return enrichConversationDeliveryState(mapConversationRow({
       ...(existing as ConversationRow),
       phone_jid: nextPhoneJid,
       display_name:
         resolved.contact.display_name ?? input.pushName ?? existing.display_name,
       contact: resolved.contact,
-    });
+    }));
   }
 
   const { data: created, error: createError } = await supabase
@@ -785,12 +918,12 @@ export async function getOrCreateConversation(input: {
     .single();
   if (createError || !created) throw createError ?? new Error("conversation insert failed");
   console.log(`[conversation] created=${created.id}`);
-  return mapConversationRow(created as ConversationRow);
+  return enrichConversationDeliveryState(mapConversationRow(created as ConversationRow));
 }
 
 export async function getConversationById(conversationId: string): Promise<Conversation | null> {
   const row = await getConversationRowById(conversationId);
-  return row ? mapConversationRow(row) : null;
+  return row ? enrichConversationDeliveryState(mapConversationRow(row)) : null;
 }
 
 export async function setMode(
@@ -847,8 +980,9 @@ export async function listConversations(): Promise<ConversationWithPreview[]> {
         .limit(1)
         .maybeSingle();
       if (previewError) throw previewError;
+      const conversation = await enrichConversationDeliveryState(mapConversationRow(row));
       return {
-        ...mapConversationRow(row),
+        ...conversation,
         last_message_preview: preview?.content ?? null,
       };
     })
@@ -1012,6 +1146,55 @@ export async function enqueueOutbox(conversationId: string, content: string): Pr
   if (error) throw error;
 }
 
+export async function linkPhoneToContact(
+  contactId: string,
+  phoneNumber: string
+): Promise<{
+  contact: ContactRow;
+  identities: ContactIdentityRow[];
+  safe_outgoing_jid: string;
+  has_safe_outgoing_jid: true;
+  needsPhoneMapping: boolean;
+}> {
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  if (!normalizedPhone) {
+    throw new Error("Número de WhatsApp inválido.");
+  }
+
+  const pnJid = `${normalizedPhone}@s.whatsapp.net`;
+  let contact = await getContactById(contactId);
+  if (!contact) {
+    throw new Error("Contacto no encontrado.");
+  }
+
+  contact = await updateContactRow(contactId, {
+    phone_number: normalizedPhone,
+    primary_jid: pnJid,
+  });
+
+  await upsertContactIdentity(contactId, "phone", normalizedPhone);
+  await upsertContactIdentity(contactId, "pn_jid", pnJid);
+
+  const supabase = getSupabaseAdminClient();
+  await supabase
+    .from("conversations")
+    .update({
+      phone_jid: pnJid,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("business_id", getBusinessId())
+    .eq("contact_id", contactId);
+
+  const identities = await getContactIdentities(contactId);
+  return {
+    contact,
+    identities,
+    safe_outgoing_jid: pnJid,
+    has_safe_outgoing_jid: true,
+    needsPhoneMapping: false,
+  };
+}
+
 export async function getPendingOutbox(limit = 20): Promise<OutboxItem[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
@@ -1105,11 +1288,22 @@ export function derivePhoneNumberFromMessage(
   const candidates: unknown[] = [
     msg.key?.participant,
     msg.key?.remoteJid,
+    msg.key?.id,
     msg.participant,
+    msg.sender,
+    msg.senderPn,
+    msg.verifiedBizName,
+    msg.message?.senderKeyDistributionMessage?.groupId,
     msg.message?.messageContextInfo?.participant,
     msg.message?.messageContextInfo?.remoteJid,
+    msg.message?.messageContextInfo?.deviceListMetadata?.senderKeyHash,
+    msg.message?.messageContextInfo?.stanzaId,
     msg.message?.extendedTextMessage?.contextInfo?.participant,
     msg.message?.extendedTextMessage?.contextInfo?.remoteJid,
+    msg.message?.contactMessage?.vcard,
+    msg.message?.contactsArrayMessage?.contacts?.[0]?.vcard,
+    msg.message?.documentWithCaptionMessage?.message?.extendedTextMessage?.contextInfo?.participant,
+    msg.message?.documentWithCaptionMessage?.message?.extendedTextMessage?.contextInfo?.remoteJid,
     msg.pushName,
   ];
 

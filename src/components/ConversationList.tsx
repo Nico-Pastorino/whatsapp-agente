@@ -4,8 +4,14 @@ interface Conversation {
   id: string;
   contact_id: string;
   phone: string;
+  phone_number: string | null;
+  primary_jid: string | null;
   name: string | null;
   mode: "AI" | "HUMAN";
+  outgoing_jid: string | null;
+  safe_outgoing_jid: string | null;
+  has_safe_outgoing_jid: boolean;
+  needs_phone_mapping: boolean;
   last_message_at: number | null;
   last_message_preview: string | null;
 }
