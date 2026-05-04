@@ -9,6 +9,7 @@ import BusinessConfig from "./BusinessConfig";
 
 interface Conversation {
   id: string;
+  contact_id: string;
   phone: string;
   name: string | null;
   mode: "AI" | "HUMAN";
@@ -17,6 +18,42 @@ interface Conversation {
 }
 
 type ActiveView = "conversations" | "business";
+
+function pickPreferredConversation(a: Conversation, b: Conversation): Conversation {
+  const aPhone = a.phone.endsWith("@s.whatsapp.net") ? 1 : 0;
+  const bPhone = b.phone.endsWith("@s.whatsapp.net") ? 1 : 0;
+  if (bPhone !== aPhone) return bPhone > aPhone ? b : a;
+
+  if (a.mode !== b.mode) {
+    if (a.mode === "HUMAN") return a;
+    if (b.mode === "HUMAN") return b;
+  }
+
+  const aTime = a.last_message_at ?? 0;
+  const bTime = b.last_message_at ?? 0;
+  return bTime > aTime ? b : a;
+}
+
+function dedupeConversationsByContact(conversations: Conversation[]): Conversation[] {
+  const grouped = new Map<string, Conversation>();
+  for (const conversation of conversations) {
+    const existing = grouped.get(conversation.contact_id);
+    if (!existing) {
+      grouped.set(conversation.contact_id, conversation);
+      continue;
+    }
+    grouped.set(
+      conversation.contact_id,
+      pickPreferredConversation(existing, conversation)
+    );
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => {
+    const aTime = a.last_message_at ?? 0;
+    const bTime = b.last_message_at ?? 0;
+    return bTime - aTime;
+  });
+}
 
 export default function ConnectionGate() {
   const [phone, setPhone] = useState<string | null>(null);
@@ -52,7 +89,13 @@ export default function ConnectionGate() {
       const res = await fetch("/api/conversations");
       if (res.ok) {
         const data: Conversation[] = await res.json();
-        setConversations(data);
+        const deduped = dedupeConversationsByContact(data);
+        setConversations(deduped);
+        setSelectedId((current) =>
+          current && deduped.some((conversation) => conversation.id === current)
+            ? current
+            : deduped[0]?.id ?? null
+        );
       }
     } catch {}
   }

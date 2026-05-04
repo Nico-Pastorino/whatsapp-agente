@@ -1,11 +1,7 @@
 export type IdentityType = "phone" | "pn_jid" | "lid_jid" | "raw_jid";
 
-export interface ParsedWhatsAppIdentity {
-  rawJid: string;
-  normalizedJid: string;
-  localPart: string;
-  identityType: IdentityType;
-  phoneNumber: string | null;
+function cleanInput(input: string): string {
+  return input.trim().replace(/[+\s\-()]/g, "");
 }
 
 function stripDeviceSuffix(localPart: string): string {
@@ -13,60 +9,76 @@ function stripDeviceSuffix(localPart: string): string {
   return colonIdx === -1 ? localPart : localPart.slice(0, colonIdx);
 }
 
-function cleanPhoneCandidate(input: string): string {
-  return input.replace(/[^\d]/g, "");
-}
-
-export function parseWhatsAppIdentity(rawInput: string): ParsedWhatsAppIdentity {
-  const rawJid = rawInput.trim();
-  const atIdx = rawJid.indexOf("@");
-  const domain = atIdx === -1 ? "" : rawJid.slice(atIdx);
-  const localPart = stripDeviceSuffix(atIdx === -1 ? rawJid : rawJid.slice(0, atIdx));
-  const cleanedLocal = cleanPhoneCandidate(localPart);
-
-  if (domain === "@lid") {
-    return {
-      rawJid,
-      normalizedJid: `${localPart}@lid`,
-      localPart,
-      identityType: "lid_jid",
-      phoneNumber: null,
-    };
-  }
-
-  if (domain === "@s.whatsapp.net" || atIdx === -1) {
-    const phoneNumber = cleanedLocal || null;
-    const normalizedJid = phoneNumber
-      ? `${phoneNumber}@s.whatsapp.net`
-      : `${localPart}@s.whatsapp.net`;
-    return {
-      rawJid,
-      normalizedJid,
-      localPart,
-      identityType: atIdx === -1 ? "phone" : "pn_jid",
-      phoneNumber,
-    };
-  }
-
-  return {
-    rawJid,
-    normalizedJid: atIdx === -1 ? rawJid : `${localPart}${domain}`,
-    localPart,
-    identityType: "raw_jid",
-    phoneNumber: cleanedLocal || null,
-  };
+export function getJidType(jid: string): IdentityType {
+  const normalized = cleanInput(jid);
+  if (normalized.endsWith("@s.whatsapp.net")) return "pn_jid";
+  if (normalized.endsWith("@lid")) return "lid_jid";
+  if (!normalized.includes("@")) return "phone";
+  return "raw_jid";
 }
 
 export function normalizeWhatsAppJid(input: string): string {
-  return parseWhatsAppIdentity(input).normalizedJid;
+  const cleaned = cleanInput(input);
+  const type = getJidType(cleaned);
+
+  if (type === "phone") {
+    return `${cleaned}@s.whatsapp.net`;
+  }
+
+  const atIdx = cleaned.indexOf("@");
+  const localPart = stripDeviceSuffix(cleaned.slice(0, atIdx));
+  const domain = cleaned.slice(atIdx);
+
+  if (type === "pn_jid") {
+    return `${localPart}@s.whatsapp.net`;
+  }
+
+  if (type === "lid_jid") {
+    return `${localPart}@lid`;
+  }
+
+  return `${localPart}${domain}`;
 }
 
-export function getPhoneFromJid(jid: string): string {
-  return parseWhatsAppIdentity(jid).phoneNumber ?? parseWhatsAppIdentity(jid).localPart;
+export function extractPhoneFromJid(input: string): string | null {
+  const normalized = normalizeWhatsAppJid(input);
+  const type = getJidType(normalized);
+
+  if (type === "lid_jid") {
+    return null;
+  }
+
+  const localPart = normalized.split("@")[0] ?? "";
+  const digits = localPart.replace(/[^\d]/g, "");
+  return digits.length >= 7 ? digits : null;
+}
+
+export interface ParsedWhatsAppIdentity {
+  rawJid: string;
+  normalizedJid: string;
+  jidType: IdentityType;
+  phoneNumber: string | null;
+  localPart: string;
+}
+
+export function parseWhatsAppIdentity(rawInput: string): ParsedWhatsAppIdentity {
+  const rawJid = cleanInput(rawInput);
+  const normalizedJid = normalizeWhatsAppJid(rawJid);
+  const jidType = getJidType(normalizedJid);
+  const phoneNumber = extractPhoneFromJid(normalizedJid);
+  const localPart = normalizedJid.split("@")[0] ?? "";
+
+  return {
+    rawJid,
+    normalizedJid,
+    jidType,
+    phoneNumber,
+    localPart,
+  };
 }
 
 export function extractPhoneNumberIfKnown(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const cleaned = cleanPhoneCandidate(value);
+  const cleaned = value.replace(/[^\d]/g, "");
   return cleaned.length >= 7 ? cleaned : null;
 }

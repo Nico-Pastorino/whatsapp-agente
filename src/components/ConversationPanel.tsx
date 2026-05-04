@@ -13,6 +13,7 @@ interface Message {
 
 interface Conversation {
   id: string;
+  contact_id: string;
   phone: string;
   name: string | null;
   mode: "AI" | "HUMAN";
@@ -33,6 +34,7 @@ export default function ConversationPanel({
   const [mode, setMode] = useState<"AI" | "HUMAN">(conversation.mode);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -71,13 +73,22 @@ export default function ConversationPanel({
     if (!text || sending) return;
 
     setSending(true);
+    setSendError(null);
     setInput("");
 
-    await fetch(`/api/messages/${conversation.id}`, {
+    const res = await fetch(`/api/messages/${conversation.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: text }),
     });
+
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+      setSendError(payload?.error ?? "No se pudo enviar el mensaje.");
+      setInput(text);
+      setSending(false);
+      return;
+    }
 
     await loadMessages();
     setSending(false);
@@ -135,23 +146,28 @@ export default function ConversationPanel({
             El bot responde automáticamente en modo IA
           </p>
         ) : (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Escribe un mensaje..."
-              disabled={sending}
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={sending || !input.trim()}
-              className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors"
-            >
-              {sending ? "..." : "Enviar"}
-            </button>
+          <div className="space-y-2">
+            {sendError ? (
+              <p className="text-sm text-red-500">{sendError}</p>
+            ) : null}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                placeholder="Escribe un mensaje..."
+                disabled={sending}
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50"
+              />
+              <button
+                onClick={sendMessage}
+                disabled={sending || !input.trim()}
+                className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-40 transition-colors"
+              >
+                {sending ? "..." : "Enviar"}
+              </button>
+            </div>
           </div>
         )}
       </div>

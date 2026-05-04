@@ -2,13 +2,13 @@ import type { WASocket } from "@whiskeysockets/baileys";
 import {
   canUseAssistant,
   derivePhoneNumberFromMessage,
+  getBestOutgoingJidForConversation,
   getOrCreateConversation,
   getConversationById,
   insertMessage,
   getRecentHistory,
   recordAiReplyUsage,
   recordInboundMessageUsage,
-  resolvePreferredTargetJidForConversation,
 } from "../db";
 import { generateReply } from "../openrouter";
 
@@ -78,8 +78,6 @@ async function processMessage(
   const pushName: string | undefined = msg.pushName;
   const phoneNumberIfKnown = derivePhoneNumberFromMessage(msg);
 
-  console.log(`[identity] rawJid: ${remoteJid}`);
-
   const convo = await getOrCreateConversation({
     rawJid: remoteJid,
     pushName,
@@ -109,10 +107,15 @@ async function processMessage(
   const elapsed = Date.now() - t0;
   console.log(`[bot] LLM respondió en ${elapsed}ms`);
 
+  const preferredTarget = await getBestOutgoingJidForConversation(convo.id);
+  if (!preferredTarget.targetJid) {
+    console.warn("[bot] No hay JID telefónico seguro para responder automáticamente");
+    return;
+  }
+
   await insertMessage(convo.id, "assistant", reply);
   await recordAiReplyUsage();
 
-  const preferredTarget = await resolvePreferredTargetJidForConversation(convo.id);
   await sock.sendMessage(preferredTarget.targetJid, { text: reply });
   console.log(`[bot] → Enviado a ${preferredTarget.targetJid} (${preferredTarget.targetType})`);
 }

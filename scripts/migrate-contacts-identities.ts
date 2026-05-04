@@ -1,6 +1,6 @@
 import "./env-loader";
 import { createClient } from "@supabase/supabase-js";
-import { getPhoneFromJid, parseWhatsAppIdentity } from "../src/lib/whatsapp-jid";
+import { extractPhoneFromJid, parseWhatsAppIdentity } from "../src/lib/whatsapp-jid";
 
 const APPLY = process.argv.includes("--apply");
 
@@ -76,12 +76,12 @@ async function upsertIdentity(
 async function createOrReuseContact(key: string, rows: ConversationRow[]): Promise<ContactRow> {
   const first = rows[0];
   const parsed = parseWhatsAppIdentity(first.phone_jid);
-  const phoneNumber = rows.map((row) => parseWhatsAppIdentity(row.phone_jid).phoneNumber).find(Boolean) ?? null;
+  const phoneNumber = rows.map((row) => extractPhoneFromJid(row.phone_jid)).find(Boolean) ?? null;
   const displayName = rows.map((row) => row.display_name?.trim()).find(Boolean) ?? null;
   const primaryJid =
     rows
       .map((row) => parseWhatsAppIdentity(row.phone_jid))
-      .find((candidate) => candidate.identityType === "pn_jid")
+      .find((candidate) => candidate.jidType === "pn_jid")
       ?.normalizedJid ??
     parsed.normalizedJid;
 
@@ -179,7 +179,7 @@ async function run(): Promise<void> {
 
     for (const row of rows) {
       const parsed = parseWhatsAppIdentity(row.phone_jid);
-      await upsertIdentity(contact.id, parsed.identityType, parsed.normalizedJid);
+      await upsertIdentity(contact.id, parsed.jidType, parsed.normalizedJid);
       if (parsed.rawJid !== parsed.normalizedJid) {
         await upsertIdentity(contact.id, "raw_jid", parsed.rawJid);
       }
@@ -212,7 +212,7 @@ async function run(): Promise<void> {
         .update({
           conversation_id: primary.id,
           contact_id: contact.id,
-          phone_jid: canonicalJid,
+          target_jid: canonicalJid,
         })
         .eq("conversation_id", duplicate.id);
       if (moveOutboxError) throw moveOutboxError;

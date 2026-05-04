@@ -2,6 +2,7 @@
 
 interface Conversation {
   id: string;
+  contact_id: string;
   phone: string;
   name: string | null;
   mode: "AI" | "HUMAN";

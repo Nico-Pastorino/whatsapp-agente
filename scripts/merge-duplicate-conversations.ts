@@ -14,7 +14,7 @@
 
 import "./env-loader";
 import { createClient } from "@supabase/supabase-js";
-import { normalizeWhatsAppJid, getPhoneFromJid } from "../src/lib/whatsapp-jid";
+import { normalizeWhatsAppJid, extractPhoneFromJid } from "../src/lib/whatsapp-jid";
 
 const DRY_RUN = !process.argv.includes("--execute");
 
@@ -86,7 +86,7 @@ async function run(): Promise<void> {
 
   for (const conv of allConvs as ConvRow[]) {
     const canonical = normalizeWhatsAppJid(conv.phone_jid);
-    const numericKey = getPhoneFromJid(canonical);
+    const numericKey = extractPhoneFromJid(canonical) ?? canonical;
 
     // Si es @lid y tiene display_name, intentar agrupar con el @s.whatsapp.net del mismo nombre
     if (conv.phone_jid.endsWith("@lid") && conv.display_name) {
@@ -173,7 +173,7 @@ async function run(): Promise<void> {
       // 3. Mover outbox_messages pendientes
       const { error: outboxErr } = await supabase
         .from("outbox_messages")
-        .update({ conversation_id: primary.id, phone_jid: canonicalJid })
+        .update({ conversation_id: primary.id, target_jid: canonicalJid })
         .eq("conversation_id", dup.id)
         .eq("sent", false);
       if (outboxErr) throw new Error(`Error moviendo outbox de ${dup.id}: ${outboxErr.message}`);

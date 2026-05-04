@@ -2,10 +2,12 @@ import "./env-loader";
 import fs from "node:fs";
 import {
   clearRequestedSessionAction,
+  getBestOutgoingJidForConversation,
   getConnectionState,
   getRequestedSessionAction,
   getPendingOutbox,
   markOutboxSent,
+  setOutboxError,
   setConnectionState,
   updateWorkerHeartbeat,
 } from "../src/lib/db";
@@ -40,15 +42,34 @@ setInterval(async () => {
   const pending = await getPendingOutbox(20);
   for (const item of pending) {
     try {
-      // phone almacena el JID completo (e.g. "123@lid" o "549...@s.whatsapp.net")
-      const jid = item.phone.includes("@") ? item.phone : `${item.phone}@s.whatsapp.net`;
-      await handle.sock.sendMessage(jid, { text: item.content });
+      console.log(`[outbox] id=${item.id}`);
+      console.log(`[outbox] original targetJid=${item.target_jid}`);
+      const preferred = await getBestOutgoingJidForConversation(item.conversation_id);
+      const targetJid = preferred.targetJid || item.target_jid;
+
+      console.log(`[outbox] resolved targetJid=${targetJid}`);
+      if (!preferred.targetJid) {
+        await setOutboxError(
+          item.id,
+          "No hay JID telefónico disponible para enviar de forma segura."
+        );
+        console.error(`[outbox] send error=${item.id}`);
+        continue;
+      }
+
+      if (targetJid.endsWith("@lid")) {
+        console.warn("[outbox] warning: intentando enviar a @lid porque no hay pn_jid disponible");
+      }
+
+      await handle.sock.sendMessage(targetJid, { text: item.content });
       await markOutboxSent(item.id);
-      console.log(
-        `[worker] → Outbox enviado a ${item.phone}: "${item.content.slice(0, 50)}"`
-      );
+      console.log(`[outbox] sent ok=${item.id}`);
     } catch (err) {
-      console.error(`[worker] Error enviando outbox ${item.id}:`, err);
+      await setOutboxError(
+        item.id,
+        err instanceof Error ? err.message : "Error enviando outbox"
+      ).catch(() => undefined);
+      console.error(`[outbox] sent error=${item.id}:`, err);
     }
   }
 }, 2000);

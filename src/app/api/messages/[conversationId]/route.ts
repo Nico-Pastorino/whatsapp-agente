@@ -3,6 +3,7 @@ import {
   getMessages,
   insertMessage,
   enqueueOutbox,
+  getBestOutgoingJidForConversation,
   getConversationById,
   recordHumanMessageUsage,
 } from "@/lib/db";
@@ -43,6 +44,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   if (!content) {
     return NextResponse.json({ error: "Contenido vacío" }, { status: 400 });
+  }
+
+  const target = await getBestOutgoingJidForConversation(id);
+  if (!target.targetJid) {
+    return NextResponse.json(
+      { error: "No hay JID telefónico disponible para enviar de forma segura." },
+      { status: 409 }
+    );
   }
 
   const message = await insertMessage(id, "human", content);
