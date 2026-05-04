@@ -1137,7 +1137,8 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 export async function insertMessage(
   conversationId: string,
   role: "user" | "assistant" | "human",
-  content: string
+  content: string,
+  externalMessageId?: string | null
 ): Promise<Message> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
@@ -1148,6 +1149,7 @@ export async function insertMessage(
       conversation_id: conversationId,
       role,
       content,
+      external_message_id: externalMessageId ?? null,
       created_at: now,
     })
     .select("id, conversation_id, role, content, created_at")
@@ -1161,6 +1163,47 @@ export async function insertMessage(
   if (conversationError) throw conversationError;
 
   return mapMessageRow(data);
+}
+
+export async function isExternalMessageDuplicate(externalMessageId: string): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  const [msgResult, outboxResult] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", getBusinessId())
+      .eq("external_message_id", externalMessageId),
+    supabase
+      .from("outbox_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", getBusinessId())
+      .eq("external_message_id", externalMessageId),
+  ]);
+  return (msgResult.count ?? 0) > 0 || (outboxResult.count ?? 0) > 0;
+}
+
+export async function setMessageExternalId(
+  messageId: string,
+  externalMessageId: string
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  await supabase
+    .from("messages")
+    .update({ external_message_id: externalMessageId })
+    .eq("business_id", getBusinessId())
+    .eq("id", messageId);
+}
+
+export async function setOutboxExternalId(
+  outboxId: string,
+  externalMessageId: string
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  await supabase
+    .from("outbox_messages")
+    .update({ external_message_id: externalMessageId })
+    .eq("business_id", getBusinessId())
+    .eq("id", outboxId);
 }
 
 export async function getMessages(conversationId: string, limit = 50): Promise<Message[]> {

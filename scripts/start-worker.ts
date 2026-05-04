@@ -30,6 +30,7 @@ import {
   getPendingOutbox,
   markOutboxSent,
   setOutboxError,
+  setOutboxExternalId,
   setConnectionState,
   updateWorkerHeartbeat,
 } from "../src/lib/db";
@@ -85,9 +86,14 @@ setInterval(async () => {
         console.warn("[outbox] warning: intentando enviar a @lid porque no hay pn_jid disponible");
       }
 
-      await handle.sock.sendMessage(targetJid, { text: item.content });
+      const sentResult = await handle.sock.sendMessage(targetJid, { text: item.content });
+      // Save Baileys key.id so the fromMe echo is deduplicated by handler.
+      const sentId = sentResult?.key?.id;
+      if (sentId) {
+        await setOutboxExternalId(item.id, sentId).catch(() => undefined);
+      }
       await markOutboxSent(item.id);
-      console.log(`[outbox] sent ok=${item.id}`);
+      console.log(`[outbox] sent ok=${item.id} externalId=${sentId ?? ""}`);
     } catch (err) {
       await setOutboxError(
         item.id,

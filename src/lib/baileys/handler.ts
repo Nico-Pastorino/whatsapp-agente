@@ -6,6 +6,8 @@ import {
   getOrCreateConversation,
   getConversationById,
   insertMessage,
+  isExternalMessageDuplicate,
+  setMessageExternalId,
   getRecentHistory,
   recordAiReplyUsage,
   recordInboundMessageUsage,
@@ -42,12 +44,11 @@ async function processMessage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   msg: any
 ): Promise<void> {
-  if (msg.key.fromMe) {
-    console.log("[bot] Ignorado: fromMe=true");
-    return;
-  }
-
   const remoteJid: string = msg.key.remoteJid ?? "";
+  const fromMe: boolean = !!msg.key.fromMe;
+  const externalId: string | undefined = msg.key.id || undefined;
+
+  console.log(`[baileys] id=${externalId ?? ""} fromMe=${fromMe} remoteJid=${remoteJid}`);
 
   if (remoteJid.endsWith("@g.us") || remoteJid.endsWith("@newsletter")) {
     console.log("[bot] Ignorado: grupo / newsletter");
@@ -75,12 +76,21 @@ async function processMessage(
     return;
   }
 
+  // Deduplication: skip if this Baileys message ID was already stored
+  // (covers echoes of dashboard messages and AI replies).
+  if (externalId) {
+    const isDup = await isExternalMessageDuplicate(externalId);
+    if (isDup) {
+      console.log(`[baileys] skipped duplicate external_message_id=${externalId}`);
+      return;
+    }
+  }
+
   const pushName: string | undefined = msg.pushName;
   let phoneNumberIfKnown = derivePhoneNumberFromMessage(msg);
 
   // For @lid messages, reject "phone numbers" that are actually just the LID
   // local part (e.g. senderPn=119142476693596 when remoteJid=119142476693596@lid).
-  // LIDs are WhatsApp-internal identifiers, not dialable phone numbers.
   if (remoteJid.endsWith("@lid") && phoneNumberIfKnown) {
     const lidLocalPart = remoteJid.split("@")[0] ?? "";
     if (phoneNumberIfKnown === lidLocalPart) {
@@ -108,7 +118,16 @@ async function processMessage(
     phoneNumberIfKnown,
   });
 
-  await insertMessage(convo.id, "user", text);
+  // ── fromMe=true: mensaje enviado desde el celular/web del dueño ──
+  if (fromMe) {
+    await insertMessage(convo.id, "human", text, externalId);
+    console.log(`[baileys] saved manual phone message id=${externalId ?? ""} conv=${convo.id}`);
+    return;
+  }
+
+  // ── fromMe=false: mensaje entrante del cliente ──
+  console.log(`[baileys] classified role=user conv=${convo.id}`);
+  await insertMessage(convo.id, "user", text, externalId);
   await recordInboundMessageUsage();
 
   const fresh = await getConversationById(convo.id);
@@ -138,9 +157,15 @@ async function processMessage(
     return;
   }
 
-  await insertMessage(convo.id, "assistant", reply);
+  const assistantMsg = await insertMessage(convo.id, "assistant", reply);
   await recordAiReplyUsage();
 
-  await sock.sendMessage(preferredTarget.targetJid, { text: reply });
+  const sentResult = await sock.sendMessage(preferredTarget.targetJid, { text: reply });
   console.log(`[bot] → Enviado a ${preferredTarget.targetJid} (${preferredTarget.targetType})`);
+
+  // Save Baileys key.id so the fromMe echo is deduplicated later.
+  const sentId = sentResult?.key?.id;
+  if (sentId) {
+    await setMessageExternalId(assistantMsg.id, sentId).catch(() => undefined);
+  }
 }
