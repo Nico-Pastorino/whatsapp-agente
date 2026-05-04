@@ -54,11 +54,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     `[send] blocked_reason=${target.targetJid ? "" : target.reason ?? "missing_safe_phone_jid"}`
   );
   if (!target.targetJid) {
+    const message =
+      target.reason === "self_target"
+        ? "Este contacto quedó asociado al mismo número del agente. Corregí el número antes de responder."
+        : "Este contacto necesita asociar un número de WhatsApp antes de responder.";
     return NextResponse.json(
       {
         error: "needs_phone_mapping",
-        message:
-          "Este contacto necesita asociar un número de WhatsApp antes de responder.",
+        message,
         contactId: conv.contact_id,
         needsPhoneMapping: true,
       },

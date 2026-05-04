@@ -24,8 +24,29 @@ export default function DashboardHeader({
       )
     )
       return;
-    await fetch("/api/connection/disconnect", { method: "POST" });
-    onDisconnect();
+    const res = await fetch("/api/connection/disconnect", { method: "POST" });
+    if (!res.ok) {
+      alert("No se pudo solicitar la desconexión de WhatsApp.");
+      return;
+    }
+
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 15000) {
+      try {
+        const statusRes = await fetch("/api/connection/status", { cache: "no-store" });
+        if (statusRes.ok) {
+          const status = (await statusRes.json()) as { status?: string };
+          if (status.status === "disconnected" || status.status === "qr") {
+            onDisconnect();
+            return;
+          }
+        }
+      } catch {}
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    alert("La desconexión sigue en proceso. Espera unos segundos y vuelve a intentar.");
   }
 
   async function handleLogout() {

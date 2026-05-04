@@ -78,7 +78,7 @@ export interface OutboxItem {
 export interface BestOutgoingJidResult {
   targetJid: string;
   hasSafeOutgoingJid: boolean;
-  reason: "needs_phone_mapping" | "contact_not_found" | "unavailable" | null;
+  reason: "needs_phone_mapping" | "contact_not_found" | "self_target" | "unavailable" | null;
   targetType:
     | "pn_jid"
     | "primary_jid"
@@ -159,6 +159,15 @@ function normalizePhoneNumber(value: string | null | undefined): string | null {
   if (!value) return null;
   const cleaned = value.replace(/[^\d]/g, "");
   return cleaned.length >= 7 ? cleaned : null;
+}
+
+async function getAgentPhoneNumber(): Promise<string | null> {
+  try {
+    const state = await getConnectionState();
+    return normalizePhoneNumber(state.phone);
+  } catch {
+    return null;
+  }
 }
 
 function asSingleContact(contact: ContactRow | ContactRow[] | null | undefined): ContactRow | null {
@@ -459,8 +468,18 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
   }
 
   const identities = await getContactIdentities(contactId);
+  const agentPhoneNumber = await getAgentPhoneNumber();
 
   if (contact.primary_jid?.endsWith("@s.whatsapp.net")) {
+    const targetPhone = extractPhoneFromJid(contact.primary_jid);
+    if (agentPhoneNumber && targetPhone === agentPhoneNumber) {
+      return {
+        targetJid: "",
+        hasSafeOutgoingJid: false,
+        reason: "self_target",
+        targetType: "primary_jid",
+      };
+    }
     return {
       targetJid: contact.primary_jid,
       hasSafeOutgoingJid: true,
@@ -471,6 +490,15 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
 
   const pnJid = identities.find((item) => item.identity_type === "pn_jid")?.identity_value;
   if (pnJid) {
+    const targetPhone = extractPhoneFromJid(pnJid);
+    if (agentPhoneNumber && targetPhone === agentPhoneNumber) {
+      return {
+        targetJid: "",
+        hasSafeOutgoingJid: false,
+        reason: "self_target",
+        targetType: "pn_jid",
+      };
+    }
     return {
       targetJid: pnJid,
       hasSafeOutgoingJid: true,
@@ -481,6 +509,15 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
 
   const anyPhoneJid = identities.find((item) => item.identity_value.endsWith("@s.whatsapp.net"))?.identity_value;
   if (anyPhoneJid) {
+    const targetPhone = extractPhoneFromJid(anyPhoneJid);
+    if (agentPhoneNumber && targetPhone === agentPhoneNumber) {
+      return {
+        targetJid: "",
+        hasSafeOutgoingJid: false,
+        reason: "self_target",
+        targetType: "other_phone_jid",
+      };
+    }
     return {
       targetJid: anyPhoneJid,
       hasSafeOutgoingJid: true,
@@ -501,6 +538,15 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
 
   const rawJid = identities.find((item) => item.identity_type === "raw_jid")?.identity_value;
   if (rawJid?.endsWith("@s.whatsapp.net")) {
+    const targetPhone = extractPhoneFromJid(rawJid);
+    if (agentPhoneNumber && targetPhone === agentPhoneNumber) {
+      return {
+        targetJid: "",
+        hasSafeOutgoingJid: false,
+        reason: "self_target",
+        targetType: "raw_jid",
+      };
+    }
     return {
       targetJid: rawJid,
       hasSafeOutgoingJid: true,
@@ -1159,6 +1205,11 @@ export async function linkPhoneToContact(
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
   if (!normalizedPhone) {
     throw new Error("Número de WhatsApp inválido.");
+  }
+
+  const agentPhoneNumber = await getAgentPhoneNumber();
+  if (agentPhoneNumber && normalizedPhone === agentPhoneNumber) {
+    throw new Error("No podés asociar el mismo número del agente a un contacto.");
   }
 
   const pnJid = `${normalizedPhone}@s.whatsapp.net`;
