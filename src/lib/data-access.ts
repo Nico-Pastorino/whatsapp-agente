@@ -575,6 +575,37 @@ export async function getBestOutgoingJidForConversation(
       targetType: "unavailable",
     };
   }
+
+  // Legacy conversations (pre-contacts migration) have contact_id = null.
+  // Fall back to phone_jid directly so human replies still work.
+  if (!conversation.contact_id) {
+    const phoneJid = conversation.phone_jid;
+    if (phoneJid?.endsWith("@s.whatsapp.net")) {
+      const agentPhoneNumber = await getAgentPhoneNumber();
+      const targetPhone = extractPhoneFromJid(phoneJid);
+      if (agentPhoneNumber && targetPhone === agentPhoneNumber) {
+        return {
+          targetJid: "",
+          hasSafeOutgoingJid: false,
+          reason: "self_target",
+          targetType: "raw_jid",
+        };
+      }
+      return {
+        targetJid: phoneJid,
+        hasSafeOutgoingJid: true,
+        reason: null,
+        targetType: "raw_jid",
+      };
+    }
+    return {
+      targetJid: "",
+      hasSafeOutgoingJid: false,
+      reason: "unavailable",
+      targetType: "unavailable",
+    };
+  }
+
   return getBestOutgoingJidForContact(conversation.contact_id);
 }
 
@@ -945,6 +976,50 @@ export async function getOrCreateConversation(input: {
         resolved.contact.display_name ?? input.pushName ?? existing.display_name,
       contact: resolved.contact,
     }));
+  }
+
+  // Fallback: find a legacy conversation (contact_id IS NULL) by phone_jid
+  // and backfill its contact_id instead of creating a new conversation.
+  const legacyJids = [...new Set(
+    [preferredPhoneJid, normalizeWhatsAppJid(input.rawJid)].filter(Boolean)
+  )];
+  for (const jid of legacyJids) {
+    const { data: legacy } = await supabase
+      .from("conversations")
+      .select(
+        "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      )
+      .eq("business_id", businessId)
+      .eq("phone_jid", jid)
+      .is("contact_id", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (legacy) {
+      const nextPhoneJid = preferredPhoneJid || legacy.phone_jid;
+      const { error: backfillErr } = await supabase
+        .from("conversations")
+        .update({
+          contact_id: resolved.contact_id,
+          phone_jid: nextPhoneJid,
+          display_name: resolved.contact.display_name ?? input.pushName ?? legacy.display_name,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", legacy.id);
+
+      if (!backfillErr) {
+        console.log(`[conversation] backfilled legacy=${legacy.id} contact_id=${resolved.contact_id}`);
+        return enrichConversationDeliveryState(mapConversationRow({
+          ...(legacy as ConversationRow),
+          contact_id: resolved.contact_id,
+          phone_jid: nextPhoneJid,
+          display_name: resolved.contact.display_name ?? input.pushName ?? legacy.display_name,
+          contact: resolved.contact,
+        }));
+      }
+      console.warn(`[conversation] backfill failed for legacy=${legacy.id}, will create new`);
+    }
   }
 
   const { data: created, error: createError } = await supabase
