@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getBusinessId, getWorkerInstanceName } from "./env";
 import { getSupabaseAdminClient } from "./supabase";
+import { normalizeWhatsAppJid } from "./whatsapp-jid";
 
 export interface ProductItem {
   id?: string;
@@ -401,6 +402,9 @@ export async function getOrCreateConversation(
 ): Promise<Conversation> {
   await ensureBusinessBootstrap();
 
+  // Normalización defensiva: garantiza JID canónico sin sufijo de dispositivo
+  const phoneJid = normalizeWhatsAppJid(phone);
+
   const supabase = getSupabaseAdminClient();
   const businessId = getBusinessId();
 
@@ -408,7 +412,7 @@ export async function getOrCreateConversation(
     .from("conversations")
     .select("id, phone_jid, display_name, mode, last_message_at, created_at")
     .eq("business_id", businessId)
-    .eq("phone_jid", phone)
+    .eq("phone_jid", phoneJid)
     .maybeSingle();
 
   if (existingError) throw existingError;
@@ -435,7 +439,7 @@ export async function getOrCreateConversation(
     .from("conversations")
     .insert({
       business_id: businessId,
-      phone_jid: phone,
+      phone_jid: phoneJid,
       display_name: name ?? null,
       mode: "AI",
       created_at: now,

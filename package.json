@@ -15,6 +15,7 @@
     "start:worker": "tsx scripts/start-worker.ts",
     "start:bot": "npm run start:worker",
     "bootstrap:supabase": "tsx scripts/bootstrap-supabase.ts",
+    "merge:duplicates": "tsx scripts/merge-duplicate-conversations.ts",
     "start:all": "concurrently --kill-others --names WORKER,WEB --prefix-colors yellow,cyan \"npm run start:worker\" \"npm run start\""
   },
   "dependencies": {
