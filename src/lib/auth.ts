@@ -1,9 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getDashboardCredentials } from "./env";
+import { COOKIE_NAME, TOKEN_NONCE, redactToken } from "./auth-shared";
 
-// Nonce fijo — cambiarlo invalida todas las sesiones activas
-const TOKEN_NONCE = "whatsapp-agent-session-v1";
-export const COOKIE_NAME = "wa_session";
+export { COOKIE_NAME, redactToken };
 
 export function getAuthCredentials(): { user: string; password: string } | null {
   const credentials = getDashboardCredentials();
