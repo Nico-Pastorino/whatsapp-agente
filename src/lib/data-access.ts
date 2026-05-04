@@ -736,7 +736,15 @@ export async function resolveContactIdentity(
     const matchingContacts: ContactRow[] = [];
     for (const candidate of candidates) {
       const best = await getBestOutgoingJidForContact(candidate.id);
-      if (best.targetType === "pn_jid" || best.targetType === "primary_jid" || best.targetType === "other_phone_jid") {
+      if (
+        best.targetType === "pn_jid" ||
+        best.targetType === "primary_jid" ||
+        best.targetType === "other_phone_jid" ||
+        // @lid-only contact: include it if the current message provides a phone
+        // so we can promote the @lid contact to a full phone contact instead of
+        // creating a duplicate.
+        (best.reason === "needs_phone_mapping" && !!phoneNumberIfKnown)
+      ) {
         matchingContacts.push(candidate);
       }
     }

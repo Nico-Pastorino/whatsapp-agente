@@ -76,7 +76,19 @@ async function processMessage(
   }
 
   const pushName: string | undefined = msg.pushName;
-  const phoneNumberIfKnown = derivePhoneNumberFromMessage(msg);
+  let phoneNumberIfKnown = derivePhoneNumberFromMessage(msg);
+
+  // For @lid messages, reject "phone numbers" that are actually just the LID
+  // local part (e.g. senderPn=119142476693596 when remoteJid=119142476693596@lid).
+  // LIDs are WhatsApp-internal identifiers, not dialable phone numbers.
+  if (remoteJid.endsWith("@lid") && phoneNumberIfKnown) {
+    const lidLocalPart = remoteJid.split("@")[0] ?? "";
+    if (phoneNumberIfKnown === lidLocalPart) {
+      console.log(`[identity] rechazando senderPn=${phoneNumberIfKnown} — coincide con LID local, no es teléfono real`);
+      phoneNumberIfKnown = null;
+    }
+  }
+
   if (remoteJid.endsWith("@lid")) {
     console.log(
       `[identity] lid metadata keys=${Object.keys(msg ?? {}).join(",")}`
