@@ -460,6 +460,15 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
 
   const identities = await getContactIdentities(contactId);
 
+  if (contact.primary_jid?.endsWith("@s.whatsapp.net")) {
+    return {
+      targetJid: contact.primary_jid,
+      hasSafeOutgoingJid: true,
+      reason: null,
+      targetType: "primary_jid",
+    };
+  }
+
   const pnJid = identities.find((item) => item.identity_type === "pn_jid")?.identity_value;
   if (pnJid) {
     return {
@@ -467,15 +476,6 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
       hasSafeOutgoingJid: true,
       reason: null,
       targetType: "pn_jid",
-    };
-  }
-
-  if (contact.primary_jid?.endsWith("@s.whatsapp.net")) {
-    return {
-      targetJid: contact.primary_jid,
-      hasSafeOutgoingJid: true,
-      reason: null,
-      targetType: "primary_jid",
     };
   }
 
@@ -1172,10 +1172,28 @@ export async function linkPhoneToContact(
     primary_jid: pnJid,
   });
 
+  const supabase = getSupabaseAdminClient();
+  const { error: deletePhoneIdentityError } = await supabase
+    .from("contact_identities")
+    .delete()
+    .eq("business_id", getBusinessId())
+    .eq("contact_id", contactId)
+    .eq("identity_type", "phone")
+    .neq("identity_value", normalizedPhone);
+  if (deletePhoneIdentityError) throw deletePhoneIdentityError;
+
+  const { error: deletePnIdentityError } = await supabase
+    .from("contact_identities")
+    .delete()
+    .eq("business_id", getBusinessId())
+    .eq("contact_id", contactId)
+    .eq("identity_type", "pn_jid")
+    .neq("identity_value", pnJid);
+  if (deletePnIdentityError) throw deletePnIdentityError;
+
   await upsertContactIdentity(contactId, "phone", normalizedPhone);
   await upsertContactIdentity(contactId, "pn_jid", pnJid);
 
-  const supabase = getSupabaseAdminClient();
   await supabase
     .from("conversations")
     .update({
@@ -1184,6 +1202,16 @@ export async function linkPhoneToContact(
     })
     .eq("business_id", getBusinessId())
     .eq("contact_id", contactId);
+
+  await supabase
+    .from("outbox_messages")
+    .update({
+      target_jid: pnJid,
+      error: null,
+    })
+    .eq("business_id", getBusinessId())
+    .eq("contact_id", contactId)
+    .eq("sent", false);
 
   const identities = await getContactIdentities(contactId);
   return {

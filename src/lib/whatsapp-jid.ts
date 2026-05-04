@@ -79,6 +79,24 @@ export function parseWhatsAppIdentity(rawInput: string): ParsedWhatsAppIdentity 
 
 export function extractPhoneNumberIfKnown(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[^\d]/g, "");
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.includes("@")) {
+    const parsed = parseWhatsAppIdentity(trimmed);
+    return parsed.jidType === "pn_jid" ? parsed.phoneNumber : null;
+  }
+
+  const telMatch = trimmed.match(/TEL[^:\d+]*:([+\d\s\-()]+)/i);
+  if (telMatch?.[1]) {
+    const cleanedTel = telMatch[1].replace(/[^\d]/g, "");
+    return cleanedTel.length >= 7 ? cleanedTel : null;
+  }
+
+  if (!/^[+\d\s\-()]+$/.test(trimmed)) {
+    return null;
+  }
+
+  const cleaned = trimmed.replace(/[^\d]/g, "");
   return cleaned.length >= 7 ? cleaned : null;
 }
