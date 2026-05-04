@@ -402,40 +402,17 @@ export async function getOrCreateConversation(
 ): Promise<Conversation> {
   await ensureBusinessBootstrap();
 
-  // Normalización defensiva: garantiza JID canónico sin sufijo de dispositivo
+  // Normalización defensiva: garantiza JID canónico sin sufijo de dispositivo (:N)
   const phoneJid = normalizeWhatsAppJid(phone);
 
   const supabase = getSupabaseAdminClient();
   const businessId = getBusinessId();
-
-  const { data: existing, error: existingError } = await supabase
-    .from("conversations")
-    .select("id, phone_jid, display_name, mode, last_message_at, created_at")
-    .eq("business_id", businessId)
-    .eq("phone_jid", phoneJid)
-    .maybeSingle();
-
-  if (existingError) throw existingError;
-
-  if (existing) {
-    if (name && name !== existing.display_name) {
-      const { error: updateError } = await supabase
-        .from("conversations")
-        .update({
-          display_name: name,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-
-      if (updateError) throw updateError;
-      existing.display_name = name;
-    }
-
-    return mapConversationRow(existing);
-  }
-
   const now = new Date().toISOString();
-  const { data: created, error: createError } = await supabase
+
+  // Intentar INSERT directo. Si hay violación de unique constraint (código 23505)
+  // significa que la conversación ya existe (race condition entre dos mensajes
+  // simultáneos) — en ese caso hacemos SELECT.
+  const { data: created, error: insertError } = await supabase
     .from("conversations")
     .insert({
       business_id: businessId,
@@ -446,10 +423,39 @@ export async function getOrCreateConversation(
       updated_at: now,
     })
     .select("id, phone_jid, display_name, mode, last_message_at, created_at")
-    .single();
+    .maybeSingle();
 
-  if (createError) throw createError;
-  return mapConversationRow(requireSingleRow(created, "conversations"));
+  if (!insertError && created) {
+    console.log(`[db] conversación CREADA: ${phoneJid} → ${created.id}`);
+    return mapConversationRow(created);
+  }
+
+  // Fila ya existe (unique constraint) o cualquier otro error — buscar por JID
+  const { data: existing, error: fetchError } = await supabase
+    .from("conversations")
+    .select("id, phone_jid, display_name, mode, last_message_at, created_at")
+    .eq("business_id", businessId)
+    .eq("phone_jid", phoneJid)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+
+  if (existing) {
+    console.log(`[db] conversación EXISTENTE: ${phoneJid} → ${existing.id}`);
+    // Actualizar display_name si cambió
+    if (name && name !== existing.display_name) {
+      await supabase
+        .from("conversations")
+        .update({ display_name: name, updated_at: now })
+        .eq("id", existing.id);
+      existing.display_name = name;
+    }
+    return mapConversationRow(existing);
+  }
+
+  // Si llegamos aquí con un error de insert y no encontramos la fila, propagar
+  if (insertError) throw insertError;
+  throw new Error(`getOrCreateConversation: no se pudo crear ni encontrar conversación para ${phoneJid}`);
 }
 
 export async function getConversationById(id: string): Promise<Conversation | null> {
@@ -498,6 +504,7 @@ export async function listConversations(): Promise<ConversationWithPreview[]> {
     .from("conversations")
     .select("id, phone_jid, display_name, mode, last_message_at, created_at")
     .eq("business_id", businessId)
+    .not("phone_jid", "is", null)       // ignorar filas sin JID (datos huérfanos)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 
@@ -525,7 +532,26 @@ export async function listConversations(): Promise<ConversationWithPreview[]> {
     })
   );
 
-  return previews;
+  // Deduplicar por número canónico: si hay dos conversaciones del mismo contacto
+  // (ej: una con :5@s.whatsapp.net y otra sin sufijo), conservar la más reciente.
+  const deduped = new Map<string, ConversationWithPreview>();
+  for (const conv of previews) {
+    const canonical = normalizeWhatsAppJid(conv.phone);
+    const existing = deduped.get(canonical);
+    const convTime = conv.last_message_at ?? conv.created_at ?? 0;
+    const existingTime = existing
+      ? existing.last_message_at ?? existing.created_at ?? 0
+      : -1;
+    if (!existing || convTime > existingTime) {
+      deduped.set(canonical, conv);
+    }
+  }
+
+  return [...deduped.values()].sort((a, b) => {
+    const ta = a.last_message_at ?? a.created_at ?? 0;
+    const tb = b.last_message_at ?? b.created_at ?? 0;
+    return tb > ta ? 1 : tb < ta ? -1 : 0;
+  });
 }
 
 export async function deleteConversation(id: string): Promise<void> {
