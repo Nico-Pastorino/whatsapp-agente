@@ -9,8 +9,9 @@ out/
 build/
 
 # datos locales — contienen sesiones de WhatsApp y mensajes privados
-auth/
-data/
+# /auth/ = credenciales de Baileys en la raíz del proyecto (NO src/app/api/auth)
+/auth/
+/data/
 
 # variables de entorno
 .env
