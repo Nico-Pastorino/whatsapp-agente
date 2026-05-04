@@ -30,8 +30,21 @@ export interface BotHandle {
 
 let handle: BotHandle | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let manualDisconnectInProgress = false;
+
+function clearReconnectTimer(): void {
+  if (!reconnectTimer) return;
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+}
+
+export function beginManualDisconnect(): void {
+  manualDisconnectInProgress = true;
+  clearReconnectTimer();
+}
 
 export async function start(): Promise<void> {
+  manualDisconnectInProgress = false;
   const authDir = getAuthDir();
 
   if (!fs.existsSync(authDir)) {
@@ -61,9 +74,14 @@ export async function start(): Promise<void> {
   handle = {
     sock,
     shutdown: async () => {
+      beginManualDisconnect();
       try {
+        console.log("[worker] Ejecutando logout de WhatsApp...");
         await sock.logout();
-      } catch {}
+        console.log("[worker] Logout de WhatsApp completado");
+      } catch (error) {
+        console.error("[worker] Logout de WhatsApp falló:", error);
+      }
       try {
         sock.end(undefined);
       } catch {}
@@ -116,6 +134,17 @@ export async function start(): Promise<void> {
         ?.output?.statusCode;
       console.log(`[worker] Conexión cerrada, código: ${code}`);
 
+      if (manualDisconnectInProgress) {
+        console.log("[worker] Cierre manual en progreso — no se reconecta automáticamente");
+        await setConnectionState({
+          status: "disconnected",
+          qr_string: null,
+          phone: null,
+          auth_path: authDir,
+        });
+        return;
+      }
+
       if (code === DisconnectReason.loggedOut) {
         console.log("[worker] Sesión cerrada (loggedOut). No se reconecta.");
         await setConnectionState({
@@ -136,6 +165,7 @@ export async function start(): Promise<void> {
 }
 
 function scheduleReconnect(code: number | undefined): void {
+  if (manualDisconnectInProgress) return;
   if (reconnectTimer) return;
   // Code 440 = connectionReplaced — esperar más para evitar loop
   const delay = code === 440 ? 15000 : 5000;

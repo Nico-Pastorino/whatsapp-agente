@@ -11,7 +11,7 @@ import {
   setConnectionState,
   updateWorkerHeartbeat,
 } from "../src/lib/db";
-import { start, getAuthDir, getHandle } from "../src/lib/baileys/client";
+import { start, getAuthDir, getHandle, beginManualDisconnect } from "../src/lib/baileys/client";
 
 const AUTH_DIR = getAuthDir();
 
@@ -82,6 +82,7 @@ setInterval(async () => {
   const handle = getHandle();
   if (handle) {
     try {
+      beginManualDisconnect();
       await handle.shutdown();
     } catch {}
   }
