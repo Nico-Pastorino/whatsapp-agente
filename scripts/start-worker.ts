@@ -34,10 +34,12 @@ import {
   setConnectionState,
   updateWorkerHeartbeat,
 } from "../src/lib/db";
-import { start, getAuthDir, getHandle, beginManualDisconnect } from "../src/lib/baileys/client";
+import { getWhatsAppProvider } from "../src/lib/whatsapp";
+import { getAuthDir, getHandle } from "../src/lib/baileys/client";
 
 const INSTANCE = process.env.WORKER_INSTANCE_NAME ?? "main";
 const AUTH_DIR = getAuthDir();
+const provider = getWhatsAppProvider();
 
 console.log(`[worker] Iniciando — instance=${INSTANCE}`);
 console.log(`[worker] Auth dir: ${AUTH_DIR}`);
@@ -51,7 +53,7 @@ setConnectionState({
 }).catch((err) => console.error("[worker] Error limpiando estado inicial:", err));
 
 // Inicia Baileys
-start().catch((err) => {
+provider.start().catch((err) => {
   console.error("[worker] Error fatal al iniciar:", err);
   process.exit(1);
 });
@@ -86,9 +88,7 @@ setInterval(async () => {
         console.warn("[outbox] warning: intentando enviar a @lid porque no hay pn_jid disponible");
       }
 
-      const sentResult = await handle.sock.sendMessage(targetJid, { text: item.content });
-      // Save Baileys key.id so the fromMe echo is deduplicated by handler.
-      const sentId = sentResult?.key?.id;
+      const sentId = await provider.sendText(targetJid, item.content);
       if (sentId) {
         await setOutboxExternalId(item.id, sentId).catch(() => undefined);
       }
@@ -119,8 +119,7 @@ setInterval(async () => {
   const handle = getHandle();
   if (handle) {
     try {
-      beginManualDisconnect();
-      await handle.shutdown();
+      await provider.disconnect();
     } catch {}
   }
 
@@ -139,7 +138,7 @@ setInterval(async () => {
 
   console.log("[worker] Reiniciando en 2s para generar nuevo QR...");
   setTimeout(() => {
-    start().catch((err) => console.error("[worker] Error al reiniciar:", err));
+    provider.start().catch((err) => console.error("[worker] Error al reiniciar:", err));
   }, 2000);
 }, 2000);
 

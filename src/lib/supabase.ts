@@ -31,6 +31,7 @@ function validateServiceRoleKey(key: string): void {
 }
 
 let adminClient: SupabaseClient | null = null;
+let authClient: SupabaseClient | null = null;
 
 export function getSupabaseAdminClient(): SupabaseClient {
   if (adminClient) return adminClient;
@@ -64,4 +65,18 @@ export function getSupabasePublicConfig(): { url: string; anonKey: string } {
     url: normalizeSupabaseUrl(getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL")),
     anonKey: getRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
   };
+}
+
+export function getSupabaseAuthClient(): SupabaseClient {
+  if (authClient) return authClient;
+
+  const { url, anonKey } = getSupabasePublicConfig();
+  authClient = createClient(url, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  return authClient;
 }

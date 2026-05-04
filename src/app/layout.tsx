@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Agente WhatsApp",
-  description: "Dashboard de agente WhatsApp con IA",
+  title: "Agente WhatsApp Comercial",
+  description: "Landing pública y dashboard comercial para automatizar WhatsApp con IA.",
 };
 
 export default function RootLayout({

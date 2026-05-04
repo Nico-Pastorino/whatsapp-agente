@@ -115,9 +115,12 @@ interface ConversationRow {
 }
 
 interface SubscriptionRow {
+  plan_code?: string | null;
   status: "trial" | "active" | "past_due" | "canceled";
   monthly_message_limit: number | null;
   monthly_ai_reply_limit: number | null;
+  current_period_start?: string | null;
+  current_period_end?: string | null;
 }
 
 interface UsageRow {
@@ -125,6 +128,26 @@ interface UsageRow {
   inbound_messages_count: number;
   ai_replies_count: number;
   human_messages_count: number;
+}
+
+export interface PlanSummary {
+  plan_code: string;
+  plan_name: string;
+  status: SubscriptionRow["status"];
+  current_period_start: number | null;
+  current_period_end: number | null;
+  monthly_message_limit: number | null;
+  monthly_ai_reply_limit: number | null;
+  inbound_messages_count: number;
+  ai_replies_count: number;
+  human_messages_count: number;
+  conversation_limit: number | null;
+  product_limit: number | null;
+  users_limit: number | null;
+  whatsapp_numbers_limit: number | null;
+  price_monthly: number | null;
+  currency: string;
+  features: Record<string, unknown> | null;
 }
 
 export interface ResolveContactIdentityParams {
@@ -231,9 +254,8 @@ function buildIdentityCandidates(rawJid: string): Array<{ type: IdentityType; va
   );
 }
 
-async function ensureBusinessBootstrap(): Promise<void> {
+async function ensureBusinessBootstrap(businessId = getBusinessId()): Promise<void> {
   const supabase = getSupabaseAdminClient();
-  const businessId = getBusinessId();
   const instanceName = getWorkerInstanceName();
   const now = new Date().toISOString();
 
@@ -280,8 +302,8 @@ async function ensureBusinessBootstrap(): Promise<void> {
   );
 }
 
-async function getCurrentUsage(): Promise<UsageRow> {
-  await ensureBusinessBootstrap();
+async function getCurrentUsage(businessId = getBusinessId()): Promise<UsageRow> {
+  await ensureBusinessBootstrap(businessId);
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
 
@@ -289,7 +311,7 @@ async function getCurrentUsage(): Promise<UsageRow> {
     .from("usage_monthly")
     .upsert(
       {
-        business_id: getBusinessId(),
+        business_id: businessId,
         month_start: monthStartIso(),
         updated_at: now,
       },
@@ -303,9 +325,10 @@ async function getCurrentUsage(): Promise<UsageRow> {
 }
 
 async function incrementUsage(
-  field: "inbound_messages_count" | "ai_replies_count" | "human_messages_count"
+  field: "inbound_messages_count" | "ai_replies_count" | "human_messages_count",
+  businessId = getBusinessId()
 ): Promise<void> {
-  const usage = await getCurrentUsage();
+  const usage = await getCurrentUsage(businessId);
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("usage_monthly")
@@ -317,24 +340,30 @@ async function incrementUsage(
   if (error) throw error;
 }
 
-async function getContactById(contactId: string): Promise<ContactRow | null> {
+async function getContactById(
+  contactId: string,
+  businessId = getBusinessId()
+): Promise<ContactRow | null> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("contacts")
     .select("id, display_name, phone_number, primary_jid")
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", contactId)
     .maybeSingle();
   if (error) throw error;
   return data as ContactRow | null;
 }
 
-async function getContactIdentities(contactId: string): Promise<ContactIdentityRow[]> {
+async function getContactIdentities(
+  contactId: string,
+  businessId = getBusinessId()
+): Promise<ContactIdentityRow[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("contact_identities")
     .select("id, contact_id, identity_type, identity_value")
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("contact_id", contactId);
   if (error) throw error;
   return (data ?? []) as ContactIdentityRow[];
@@ -343,12 +372,13 @@ async function getContactIdentities(contactId: string): Promise<ContactIdentityR
 async function upsertContactIdentity(
   contactId: string,
   identityType: IdentityType,
-  identityValue: string
+  identityValue: string,
+  businessId = getBusinessId()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("contact_identities").upsert(
     {
-      business_id: getBusinessId(),
+      business_id: businessId,
       contact_id: contactId,
       identity_type: identityType,
       identity_value: identityValue,
@@ -358,7 +388,11 @@ async function upsertContactIdentity(
   if (error) throw error;
 }
 
-async function updateContactRow(contactId: string, patch: Partial<ContactRow>): Promise<ContactRow> {
+async function updateContactRow(
+  contactId: string,
+  patch: Partial<ContactRow>,
+  businessId = getBusinessId()
+): Promise<ContactRow> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("contacts")
@@ -366,7 +400,7 @@ async function updateContactRow(contactId: string, patch: Partial<ContactRow>): 
       ...patch,
       updated_at: new Date().toISOString(),
     })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", contactId)
     .select("id, display_name, phone_number, primary_jid")
     .single();
@@ -377,10 +411,11 @@ async function updateContactRow(contactId: string, patch: Partial<ContactRow>): 
 async function promoteContactPhoneIdentity(
   contactId: string,
   phoneNumber: string | null | undefined,
-  fallbackDisplayName?: string | null
+  fallbackDisplayName?: string | null,
+  businessId = getBusinessId()
 ): Promise<ContactRow> {
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
-  let contact = await getContactById(contactId);
+  let contact = await getContactById(contactId, businessId);
   if (!contact) {
     throw new Error("Contacto no encontrado.");
   }
@@ -396,12 +431,12 @@ async function promoteContactPhoneIdentity(
   }
 
   if (Object.keys(patch).length > 0) {
-    contact = await updateContactRow(contactId, patch);
+    contact = await updateContactRow(contactId, patch, businessId);
   }
 
   if (normalizedPhone) {
-    await upsertContactIdentity(contactId, "phone", normalizedPhone);
-    await upsertContactIdentity(contactId, "pn_jid", `${normalizedPhone}@s.whatsapp.net`);
+    await upsertContactIdentity(contactId, "phone", normalizedPhone, businessId);
+    await upsertContactIdentity(contactId, "pn_jid", `${normalizedPhone}@s.whatsapp.net`, businessId);
   }
 
   return contact;
@@ -411,12 +446,12 @@ async function createContact(params: {
   displayName?: string | null;
   phoneNumber?: string | null;
   primaryJid?: string | null;
-}): Promise<ContactRow> {
+}, businessId = getBusinessId()): Promise<ContactRow> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("contacts")
     .insert({
-      business_id: getBusinessId(),
+      business_id: businessId,
       display_name: params.displayName ?? null,
       phone_number: normalizePhoneNumber(params.phoneNumber),
       primary_jid: params.primaryJid ?? null,
@@ -428,23 +463,29 @@ async function createContact(params: {
   return data as ContactRow;
 }
 
-async function getConversationRowById(conversationId: string): Promise<ConversationRow | null> {
+async function getConversationRowById(
+  conversationId: string,
+  businessId = getBusinessId()
+): Promise<ConversationRow | null> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("conversations")
     .select(
       "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", conversationId)
     .maybeSingle();
   if (error) throw error;
   return data as ConversationRow | null;
 }
 
-async function enrichConversationDeliveryState(conversation: Conversation): Promise<Conversation> {
-  const best = await getBestOutgoingJidForContact(conversation.contact_id);
-  const contact = await getContactById(conversation.contact_id);
+async function enrichConversationDeliveryState(
+  conversation: Conversation,
+  businessId = getBusinessId()
+): Promise<Conversation> {
+  const best = await getBestOutgoingJidForContact(conversation.contact_id, businessId);
+  const contact = await getContactById(conversation.contact_id, businessId);
   return {
     ...conversation,
     phone_number: contact?.phone_number ?? conversation.phone_number,
@@ -456,8 +497,11 @@ async function enrichConversationDeliveryState(conversation: Conversation): Prom
   };
 }
 
-export async function getBestOutgoingJidForContact(contactId: string): Promise<BestOutgoingJidResult> {
-  const contact = await getContactById(contactId);
+export async function getBestOutgoingJidForContact(
+  contactId: string,
+  businessId = getBusinessId()
+): Promise<BestOutgoingJidResult> {
+  const contact = await getContactById(contactId, businessId);
   if (!contact) {
     return {
       targetJid: "",
@@ -467,7 +511,7 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
     };
   }
 
-  const identities = await getContactIdentities(contactId);
+  const identities = await getContactIdentities(contactId, businessId);
   const agentPhoneNumber = await getAgentPhoneNumber();
 
   if (contact.primary_jid?.endsWith("@s.whatsapp.net")) {
@@ -564,9 +608,10 @@ export async function getBestOutgoingJidForContact(contactId: string): Promise<B
 }
 
 export async function getBestOutgoingJidForConversation(
-  conversationId: string
+  conversationId: string,
+  businessId = getBusinessId()
 ): Promise<BestOutgoingJidResult> {
-  const conversation = await getConversationRowById(conversationId);
+  const conversation = await getConversationRowById(conversationId, businessId);
   if (!conversation) {
     return {
       targetJid: "",
@@ -606,7 +651,7 @@ export async function getBestOutgoingJidForConversation(
     };
   }
 
-  return getBestOutgoingJidForContact(conversation.contact_id);
+  return getBestOutgoingJidForContact(conversation.contact_id, businessId);
 }
 
 export async function resolveContactIdentity(
@@ -641,39 +686,39 @@ export async function resolveContactIdentity(
     if (error) throw error;
     if (!data) continue;
 
-    let contact = await getContactById(data.contact_id);
+      let contact = await getContactById(data.contact_id, businessId);
     if (!contact) break;
 
     if (parsed.jidType === "pn_jid") {
-      contact = await updateContactRow(contact.id, {
-        phone_number: phoneNumberIfKnown ?? contact.phone_number,
-        primary_jid: parsed.normalizedJid,
-        display_name: contact.display_name ?? pushName,
-      });
-    } else {
-      if (phoneNumberIfKnown) {
-        contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName);
+        contact = await updateContactRow(contact.id, {
+          phone_number: phoneNumberIfKnown ?? contact.phone_number,
+          primary_jid: parsed.normalizedJid,
+          display_name: contact.display_name ?? pushName,
+        }, businessId);
       } else {
-        const patch: Partial<ContactRow> = {};
-        if (!contact.display_name && pushName) patch.display_name = pushName;
-        if (!contact.primary_jid && parsed.jidType !== "lid_jid") {
-          patch.primary_jid = parsed.normalizedJid;
-        }
-        if (Object.keys(patch).length > 0) {
-          contact = await updateContactRow(contact.id, patch);
+        if (phoneNumberIfKnown) {
+          contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName, businessId);
+        } else {
+          const patch: Partial<ContactRow> = {};
+          if (!contact.display_name && pushName) patch.display_name = pushName;
+          if (!contact.primary_jid && parsed.jidType !== "lid_jid") {
+            patch.primary_jid = parsed.normalizedJid;
+          }
+          if (Object.keys(patch).length > 0) {
+            contact = await updateContactRow(contact.id, patch, businessId);
+          }
         }
       }
-    }
 
-    for (const identity of identityCandidates) {
-      await upsertContactIdentity(contact.id, identity.type, identity.value);
-    }
-    if (phoneNumberIfKnown) {
-      await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown);
-    }
+      for (const identity of identityCandidates) {
+        await upsertContactIdentity(contact.id, identity.type, identity.value, businessId);
+      }
+      if (phoneNumberIfKnown) {
+        await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown, businessId);
+      }
 
-    const identities = await getContactIdentities(contact.id);
-    const preferred = await getBestOutgoingJidForContact(contact.id);
+      const identities = await getContactIdentities(contact.id, businessId);
+      const preferred = await getBestOutgoingJidForContact(contact.id, businessId);
     console.log(`[identity] contact_id=${contact.id}`);
     console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
     return {
@@ -701,18 +746,19 @@ export async function resolveContactIdentity(
               display_name: data.display_name ?? pushName,
               phone_number: phoneNumberIfKnown,
               primary_jid: parsed.normalizedJid,
-            })
+            }, businessId)
           : await promoteContactPhoneIdentity(
               data.id,
               phoneNumberIfKnown,
-              data.display_name ?? pushName
+              data.display_name ?? pushName,
+              businessId
             );
       for (const identity of identityCandidates) {
-        await upsertContactIdentity(contact.id, identity.type, identity.value);
+        await upsertContactIdentity(contact.id, identity.type, identity.value, businessId);
       }
-      await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown);
-      const identities = await getContactIdentities(contact.id);
-      const preferred = await getBestOutgoingJidForContact(contact.id);
+      await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown, businessId);
+      const identities = await getContactIdentities(contact.id, businessId);
+      const preferred = await getBestOutgoingJidForContact(contact.id, businessId);
       console.log(`[identity] contact_id=${contact.id}`);
       console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
       return {
@@ -735,7 +781,7 @@ export async function resolveContactIdentity(
     const candidates = (data ?? []) as ContactRow[];
     const matchingContacts: ContactRow[] = [];
     for (const candidate of candidates) {
-      const best = await getBestOutgoingJidForContact(candidate.id);
+      const best = await getBestOutgoingJidForContact(candidate.id, businessId);
       if (
         best.targetType === "pn_jid" ||
         best.targetType === "primary_jid" ||
@@ -752,16 +798,16 @@ export async function resolveContactIdentity(
     if (matchingContacts.length === 1) {
       let contact = matchingContacts[0]!;
       if (phoneNumberIfKnown) {
-        contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName);
+        contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName, businessId);
       }
       for (const identity of identityCandidates) {
-        await upsertContactIdentity(contact.id, identity.type, identity.value);
+        await upsertContactIdentity(contact.id, identity.type, identity.value, businessId);
       }
       if (phoneNumberIfKnown) {
-        await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown);
+        await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown, businessId);
       }
-      const identities = await getContactIdentities(contact.id);
-      const preferred = await getBestOutgoingJidForContact(contact.id);
+      const identities = await getContactIdentities(contact.id, businessId);
+      const preferred = await getBestOutgoingJidForContact(contact.id, businessId);
       console.log(`[identity] contact_id=${contact.id}`);
       console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
       return {
@@ -782,28 +828,28 @@ export async function resolveContactIdentity(
         : phoneNumberIfKnown
           ? `${phoneNumberIfKnown}@s.whatsapp.net`
           : null,
-  });
+  }, businessId);
 
   for (const identity of identityCandidates) {
-    await upsertContactIdentity(contact.id, identity.type, identity.value);
+    await upsertContactIdentity(contact.id, identity.type, identity.value, businessId);
   }
   if (phoneNumberIfKnown) {
-    await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown);
+    await upsertContactIdentity(contact.id, "phone", phoneNumberIfKnown, businessId);
   }
   if (parsed.jidType === "pn_jid") {
     contact = await updateContactRow(contact.id, {
       phone_number: phoneNumberIfKnown,
       primary_jid: parsed.normalizedJid,
-    });
+    }, businessId);
     if (phoneNumberIfKnown) {
-      await upsertContactIdentity(contact.id, "pn_jid", parsed.normalizedJid);
+      await upsertContactIdentity(contact.id, "pn_jid", parsed.normalizedJid, businessId);
     }
   } else if (phoneNumberIfKnown) {
-    contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName);
+    contact = await promoteContactPhoneIdentity(contact.id, phoneNumberIfKnown, pushName, businessId);
   }
 
-  const identities = await getContactIdentities(contact.id);
-  const preferred = await getBestOutgoingJidForContact(contact.id);
+  const identities = await getContactIdentities(contact.id, businessId);
+  const preferred = await getBestOutgoingJidForContact(contact.id, businessId);
   console.log(`[identity] contact_id=${contact.id}`);
   console.log(`[identity] hasPnJid=${preferred.hasSafeOutgoingJid}`);
   return {
@@ -814,19 +860,19 @@ export async function resolveContactIdentity(
   };
 }
 
-export async function canUseAssistant(): Promise<boolean> {
+export async function canUseAssistant(businessId = getBusinessId()): Promise<boolean> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("subscriptions")
     .select("status, monthly_message_limit, monthly_ai_reply_limit")
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .single();
   if (error || !data) throw error ?? new Error("subscriptions missing");
 
   const subscription = data as SubscriptionRow;
   if (!["active", "trial"].includes(subscription.status)) return false;
 
-  const usage = await getCurrentUsage();
+  const usage = await getCurrentUsage(businessId);
   if (
     typeof subscription.monthly_message_limit === "number" &&
     usage.inbound_messages_count >= subscription.monthly_message_limit
@@ -842,21 +888,75 @@ export async function canUseAssistant(): Promise<boolean> {
   return true;
 }
 
-export async function recordInboundMessageUsage(): Promise<void> {
-  await incrementUsage("inbound_messages_count");
+export async function recordInboundMessageUsage(businessId = getBusinessId()): Promise<void> {
+  await incrementUsage("inbound_messages_count", businessId);
 }
 
-export async function recordAiReplyUsage(): Promise<void> {
-  await incrementUsage("ai_replies_count");
+export async function recordAiReplyUsage(businessId = getBusinessId()): Promise<void> {
+  await incrementUsage("ai_replies_count", businessId);
 }
 
-export async function recordHumanMessageUsage(): Promise<void> {
-  await incrementUsage("human_messages_count");
+export async function recordHumanMessageUsage(businessId = getBusinessId()): Promise<void> {
+  await incrementUsage("human_messages_count", businessId);
 }
 
-export async function getBusinessProfile(): Promise<BusinessProfile> {
+export async function getPlanSummary(
+  businessId = getBusinessId()
+): Promise<PlanSummary> {
+  await ensureBusinessBootstrap(businessId);
   const supabase = getSupabaseAdminClient();
-  const businessId = getBusinessId();
+  const [{ data: subscription, error: subscriptionError }, usage] = await Promise.all([
+    supabase
+      .from("subscriptions")
+      .select(
+        "plan_code, status, monthly_message_limit, monthly_ai_reply_limit, current_period_start, current_period_end"
+      )
+      .eq("business_id", businessId)
+      .single(),
+    getCurrentUsage(businessId),
+  ]);
+
+  if (subscriptionError || !subscription) {
+    throw subscriptionError ?? new Error("subscriptions missing");
+  }
+
+  const { data: plan, error: planError } = await supabase
+    .from("plans")
+    .select(
+      "code, name, price_monthly, currency, conversation_limit, ai_reply_limit, product_limit, users_limit, whatsapp_numbers_limit, features"
+    )
+    .eq("code", subscription.plan_code ?? "starter")
+    .maybeSingle();
+
+  if (planError) throw planError;
+
+  return {
+    plan_code: subscription.plan_code ?? "starter",
+    plan_name: plan?.name ?? "Starter",
+    status: subscription.status,
+    current_period_start: toUnixSeconds(subscription.current_period_start),
+    current_period_end: toUnixSeconds(subscription.current_period_end),
+    monthly_message_limit: subscription.monthly_message_limit,
+    monthly_ai_reply_limit: subscription.monthly_ai_reply_limit,
+    inbound_messages_count: usage.inbound_messages_count,
+    ai_replies_count: usage.ai_replies_count,
+    human_messages_count: usage.human_messages_count,
+    conversation_limit: plan?.conversation_limit ?? null,
+    product_limit: plan?.product_limit ?? null,
+    users_limit: plan?.users_limit ?? null,
+    whatsapp_numbers_limit: plan?.whatsapp_numbers_limit ?? null,
+    price_monthly: plan?.price_monthly ?? null,
+    currency: plan?.currency ?? "ARS",
+    features:
+      plan?.features && typeof plan.features === "object"
+        ? (plan.features as Record<string, unknown>)
+        : null,
+  };
+}
+
+export async function getBusinessProfile(businessId = getBusinessId()): Promise<BusinessProfile> {
+  await ensureBusinessBootstrap(businessId);
+  const supabase = getSupabaseAdminClient();
   const [
     { data: business, error: businessError },
     { data: settings, error: settingsError },
@@ -906,9 +1006,8 @@ export async function setBusinessProfile(patch: {
   description: string;
   products: ProductItem[];
   extra: string;
-}): Promise<void> {
+}, businessId = getBusinessId()): Promise<void> {
   const supabase = getSupabaseAdminClient();
-  const businessId = getBusinessId();
   const now = new Date().toISOString();
 
   await supabase.from("businesses").update({
@@ -944,16 +1043,18 @@ export async function getOrCreateConversation(input: {
   rawJid: string;
   pushName?: string;
   phoneNumberIfKnown?: string | null;
+  businessId?: string;
 }): Promise<Conversation> {
   const resolved = await resolveContactIdentity({
+    businessId: input.businessId,
     rawJid: input.rawJid,
     pushName: input.pushName,
     phoneNumberIfKnown: input.phoneNumberIfKnown,
   });
 
   const supabase = getSupabaseAdminClient();
-  const businessId = getBusinessId();
-  const best = await getBestOutgoingJidForContact(resolved.contact_id);
+  const businessId = input.businessId ?? getBusinessId();
+  const best = await getBestOutgoingJidForContact(resolved.contact_id, businessId);
   const preferredPhoneJid = best.targetJid || normalizeWhatsAppJid(input.rawJid);
 
   const { data: existing, error } = await supabase
@@ -983,7 +1084,7 @@ export async function getOrCreateConversation(input: {
       display_name:
         resolved.contact.display_name ?? input.pushName ?? existing.display_name,
       contact: resolved.contact,
-    }));
+    }), businessId);
   }
 
   // Fallback: find a legacy conversation (contact_id IS NULL) by phone_jid
@@ -1024,7 +1125,7 @@ export async function getOrCreateConversation(input: {
           phone_jid: nextPhoneJid,
           display_name: resolved.contact.display_name ?? input.pushName ?? legacy.display_name,
           contact: resolved.contact,
-        }));
+        }), businessId);
       }
       console.warn(`[conversation] backfill failed for legacy=${legacy.id}, will create new`);
     }
@@ -1047,34 +1148,40 @@ export async function getOrCreateConversation(input: {
     .single();
   if (createError || !created) throw createError ?? new Error("conversation insert failed");
   console.log(`[conversation] created=${created.id}`);
-  return enrichConversationDeliveryState(mapConversationRow(created as ConversationRow));
+  return enrichConversationDeliveryState(mapConversationRow(created as ConversationRow), businessId);
 }
 
-export async function getConversationById(conversationId: string): Promise<Conversation | null> {
-  const row = await getConversationRowById(conversationId);
-  return row ? enrichConversationDeliveryState(mapConversationRow(row)) : null;
+export async function getConversationById(
+  conversationId: string,
+  businessId = getBusinessId()
+): Promise<Conversation | null> {
+  const row = await getConversationRowById(conversationId, businessId);
+  return row ? enrichConversationDeliveryState(mapConversationRow(row), businessId) : null;
 }
 
 export async function setMode(
   conversationId: string,
-  mode: "AI" | "HUMAN"
+  mode: "AI" | "HUMAN",
+  businessId = getBusinessId()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("conversations").update({
     mode,
     updated_at: new Date().toISOString(),
-  }).eq("business_id", getBusinessId()).eq("id", conversationId);
+  }).eq("business_id", businessId).eq("id", conversationId);
   if (error) throw error;
 }
 
-export async function listConversations(): Promise<ConversationWithPreview[]> {
+export async function listConversations(
+  businessId = getBusinessId()
+): Promise<ConversationWithPreview[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("conversations")
     .select(
       "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -1109,7 +1216,7 @@ export async function listConversations(): Promise<ConversationWithPreview[]> {
         .limit(1)
         .maybeSingle();
       if (previewError) throw previewError;
-      const conversation = await enrichConversationDeliveryState(mapConversationRow(row));
+      const conversation = await enrichConversationDeliveryState(mapConversationRow(row), businessId);
       return {
         ...conversation,
         last_message_preview: preview?.content ?? null,
@@ -1124,12 +1231,15 @@ export async function listConversations(): Promise<ConversationWithPreview[]> {
   });
 }
 
-export async function deleteConversation(conversationId: string): Promise<void> {
+export async function deleteConversation(
+  conversationId: string,
+  businessId = getBusinessId()
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("conversations")
     .delete()
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", conversationId);
   if (error) throw error;
 }
@@ -1138,14 +1248,15 @@ export async function insertMessage(
   conversationId: string,
   role: "user" | "assistant" | "human",
   content: string,
-  externalMessageId?: string | null
+  externalMessageId?: string | null,
+  businessId = getBusinessId()
 ): Promise<Message> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from("messages")
     .insert({
-      business_id: getBusinessId(),
+      business_id: businessId,
       conversation_id: conversationId,
       role,
       content,
@@ -1159,7 +1270,7 @@ export async function insertMessage(
   const { error: conversationError } = await supabase.from("conversations").update({
     last_message_at: now,
     updated_at: now,
-  }).eq("business_id", getBusinessId()).eq("id", conversationId);
+  }).eq("business_id", businessId).eq("id", conversationId);
   if (conversationError) throw conversationError;
 
   return mapMessageRow(data);
@@ -1206,11 +1317,16 @@ export async function setOutboxExternalId(
     .eq("id", outboxId);
 }
 
-export async function getMessages(conversationId: string, limit = 50): Promise<Message[]> {
+export async function getMessages(
+  conversationId: string,
+  limit = 50,
+  businessId = getBusinessId()
+): Promise<Message[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("messages")
     .select("id, conversation_id, role, content, created_at")
+    .eq("business_id", businessId)
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -1218,11 +1334,16 @@ export async function getMessages(conversationId: string, limit = 50): Promise<M
   return (data ?? []).map(mapMessageRow);
 }
 
-export async function getRecentHistory(conversationId: string, limit = 20): Promise<Message[]> {
+export async function getRecentHistory(
+  conversationId: string,
+  limit = 20,
+  businessId = getBusinessId()
+): Promise<Message[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("messages")
     .select("id, conversation_id, role, content, created_at")
+    .eq("business_id", businessId)
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -1230,12 +1351,15 @@ export async function getRecentHistory(conversationId: string, limit = 20): Prom
   return (data ?? []).map(mapMessageRow).reverse();
 }
 
-export async function getConnectionState(): Promise<ConnectionState> {
+export async function getConnectionState(
+  businessId = getBusinessId()
+): Promise<ConnectionState> {
+  await ensureBusinessBootstrap(businessId);
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("whatsapp_sessions")
     .select("status, qr_string, phone, auth_path, last_seen_at, updated_at")
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("instance_name", getWorkerInstanceName())
     .single();
   if (error || !data) throw error ?? new Error("whatsapp_sessions missing");
@@ -1258,8 +1382,8 @@ export async function setConnectionState(patch: {
   qr_string?: string | null;
   phone?: string | null;
   auth_path?: string | null;
-}): Promise<void> {
-  const current = await getConnectionState().catch(() => ({
+}, businessId = getBusinessId()): Promise<void> {
+  const current = await getConnectionState(businessId).catch(() => ({
     qr_string: null,
     phone: null,
     auth_path: null,
@@ -1274,12 +1398,15 @@ export async function setConnectionState(patch: {
       auth_path: patch.auth_path !== undefined ? patch.auth_path : current.auth_path,
       updated_at: new Date().toISOString(),
     })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("instance_name", getWorkerInstanceName());
   if (error) throw error;
 }
 
-export async function updateWorkerHeartbeat(authPath?: string): Promise<void> {
+export async function updateWorkerHeartbeat(
+  authPath?: string,
+  businessId = getBusinessId()
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("whatsapp_sessions")
@@ -1288,16 +1415,20 @@ export async function updateWorkerHeartbeat(authPath?: string): Promise<void> {
       auth_path: authPath,
       updated_at: new Date().toISOString(),
     })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("instance_name", getWorkerInstanceName());
   if (error) throw error;
 }
 
-export async function enqueueOutbox(conversationId: string, content: string): Promise<void> {
-  const conversation = await getConversationRowById(conversationId);
+export async function enqueueOutbox(
+  conversationId: string,
+  content: string,
+  businessId = getBusinessId()
+): Promise<void> {
+  const conversation = await getConversationRowById(conversationId, businessId);
   if (!conversation) throw new Error("Conversación no encontrada");
 
-  const best = await getBestOutgoingJidForConversation(conversationId);
+  const best = await getBestOutgoingJidForConversation(conversationId, businessId);
   if (!best.targetJid) {
     throw new Error("No hay JID telefónico disponible para enviar de forma segura.");
   }
@@ -1309,7 +1440,7 @@ export async function enqueueOutbox(conversationId: string, content: string): Pr
 
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("outbox_messages").insert({
-    business_id: getBusinessId(),
+    business_id: businessId,
     conversation_id: conversationId,
     contact_id: conversation.contact_id,
     target_jid: best.targetJid,
@@ -1320,7 +1451,8 @@ export async function enqueueOutbox(conversationId: string, content: string): Pr
 
 export async function linkPhoneToContact(
   contactId: string,
-  phoneNumber: string
+  phoneNumber: string,
+  businessId = getBusinessId()
 ): Promise<{
   contact: ContactRow;
   identities: ContactIdentityRow[];
@@ -1339,7 +1471,7 @@ export async function linkPhoneToContact(
   }
 
   const pnJid = `${normalizedPhone}@s.whatsapp.net`;
-  let contact = await getContactById(contactId);
+  let contact = await getContactById(contactId, businessId);
   if (!contact) {
     throw new Error("Contacto no encontrado.");
   }
@@ -1347,13 +1479,13 @@ export async function linkPhoneToContact(
   contact = await updateContactRow(contactId, {
     phone_number: normalizedPhone,
     primary_jid: pnJid,
-  });
+  }, businessId);
 
   const supabase = getSupabaseAdminClient();
   const { error: deletePhoneIdentityError } = await supabase
     .from("contact_identities")
     .delete()
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("contact_id", contactId)
     .eq("identity_type", "phone")
     .neq("identity_value", normalizedPhone);
@@ -1362,14 +1494,14 @@ export async function linkPhoneToContact(
   const { error: deletePnIdentityError } = await supabase
     .from("contact_identities")
     .delete()
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("contact_id", contactId)
     .eq("identity_type", "pn_jid")
     .neq("identity_value", pnJid);
   if (deletePnIdentityError) throw deletePnIdentityError;
 
-  await upsertContactIdentity(contactId, "phone", normalizedPhone);
-  await upsertContactIdentity(contactId, "pn_jid", pnJid);
+  await upsertContactIdentity(contactId, "phone", normalizedPhone, businessId);
+  await upsertContactIdentity(contactId, "pn_jid", pnJid, businessId);
 
   await supabase
     .from("conversations")
@@ -1377,7 +1509,7 @@ export async function linkPhoneToContact(
       phone_jid: pnJid,
       updated_at: new Date().toISOString(),
     })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("contact_id", contactId);
 
   await supabase
@@ -1386,11 +1518,11 @@ export async function linkPhoneToContact(
       target_jid: pnJid,
       error: null,
     })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("contact_id", contactId)
     .eq("sent", false);
 
-  const identities = await getContactIdentities(contactId);
+  const identities = await getContactIdentities(contactId, businessId);
   return {
     contact,
     identities,
@@ -1448,7 +1580,9 @@ export async function setOutboxError(id: string, errorMessage: string): Promise<
   if (error) throw error;
 }
 
-export async function requestWhatsappDisconnect(): Promise<void> {
+export async function requestWhatsappDisconnect(
+  businessId = getBusinessId()
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("whatsapp_sessions")
@@ -1456,7 +1590,7 @@ export async function requestWhatsappDisconnect(): Promise<void> {
       desired_action: "disconnect",
       updated_at: new Date().toISOString(),
     })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("instance_name", getWorkerInstanceName());
   if (error) throw error;
 }

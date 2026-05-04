@@ -9,6 +9,9 @@ drop table if exists contacts cascade;
 drop table if exists whatsapp_sessions cascade;
 drop table if exists usage_monthly cascade;
 drop table if exists subscriptions cascade;
+drop table if exists plans cascade;
+drop table if exists business_members cascade;
+drop table if exists profiles cascade;
 drop table if exists products cascade;
 drop table if exists business_settings cascade;
 drop table if exists businesses cascade;
@@ -31,12 +34,41 @@ create table businesses (
   updated_at timestamptz not null default now()
 );
 
+create table profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  full_name text,
+  created_at timestamptz not null default now()
+);
+
+create table business_members (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  role text not null check (role in ('owner','admin','agent')),
+  created_at timestamptz not null default now(),
+  unique (business_id, user_id)
+);
+
 create table business_settings (
   business_id uuid primary key references businesses(id) on delete cascade,
   description text not null default '',
   extra text not null default '',
   system_prompt_override text not null default '',
   updated_at timestamptz not null default now()
+);
+
+create table plans (
+  code text primary key,
+  name text not null,
+  price_monthly integer,
+  currency text not null default 'ARS',
+  conversation_limit integer,
+  ai_reply_limit integer,
+  product_limit integer,
+  users_limit integer,
+  whatsapp_numbers_limit integer,
+  features jsonb not null default '{}'::jsonb
 );
 
 create table products (
@@ -95,8 +127,10 @@ create table messages (
 
 create table subscriptions (
   business_id uuid primary key references businesses(id) on delete cascade,
-  plan_code text not null default 'starter',
+  plan_code text not null default 'starter' references plans(code),
   status subscription_status not null default 'active',
+  current_period_start timestamptz not null default now(),
+  current_period_end timestamptz not null default (now() + interval '30 days'),
   monthly_message_limit integer,
   monthly_ai_reply_limit integer,
   created_at timestamptz not null default now(),
@@ -172,6 +206,9 @@ create index idx_messages_conversation_created
 create index idx_products_business
   on products (business_id, sort_order, created_at);
 
+create index idx_business_members_user
+  on business_members (user_id, created_at);
+
 create index idx_outbox_pending
   on outbox_messages (business_id, sent, created_at);
 
@@ -181,3 +218,63 @@ create index idx_whatsapp_sessions_instance
 create index idx_worker_commands_pending
   on worker_commands (business_id, instance_name, executed, created_at)
   where executed = false;
+
+insert into plans (
+  code,
+  name,
+  price_monthly,
+  currency,
+  conversation_limit,
+  ai_reply_limit,
+  product_limit,
+  users_limit,
+  whatsapp_numbers_limit,
+  features
+) values
+  (
+    'starter',
+    'Starter',
+    0,
+    'ARS',
+    300,
+    150,
+    30,
+    1,
+    1,
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true}'::jsonb
+  ),
+  (
+    'pro',
+    'Pro',
+    49900,
+    'ARS',
+    1500,
+    800,
+    200,
+    5,
+    1,
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true}'::jsonb
+  ),
+  (
+    'premium',
+    'Premium',
+    99900,
+    'ARS',
+    5000,
+    3000,
+    1000,
+    20,
+    3,
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "priority_support": true}'::jsonb
+  )
+on conflict (code) do update
+set
+  name = excluded.name,
+  price_monthly = excluded.price_monthly,
+  currency = excluded.currency,
+  conversation_limit = excluded.conversation_limit,
+  ai_reply_limit = excluded.ai_reply_limit,
+  product_limit = excluded.product_limit,
+  users_limit = excluded.users_limit,
+  whatsapp_numbers_limit = excluded.whatsapp_numbers_limit,
+  features = excluded.features;

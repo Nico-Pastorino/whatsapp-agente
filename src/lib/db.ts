@@ -6,6 +6,7 @@ export type {
   ConversationWithPreview,
   Message,
   OutboxItem,
+  PlanSummary,
   ProductItem,
 } from "./data-access";
 
@@ -24,6 +25,7 @@ export {
   getMessages,
   getOrCreateConversation,
   getPendingOutbox,
+  getPlanSummary,
   getRecentHistory,
   getRequestedSessionAction,
   insertMessage,

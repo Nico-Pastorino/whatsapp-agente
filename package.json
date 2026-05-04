@@ -15,6 +15,7 @@
     "start:worker": "tsx scripts/start-worker.ts",
     "start:bot": "npm run start:worker",
     "bootstrap:supabase": "tsx scripts/bootstrap-supabase.ts",
+    "bootstrap:owner": "tsx scripts/bootstrap-commercial-owner.ts",
     "merge:duplicates": "tsx scripts/merge-duplicate-conversations.ts",
     "backfill:contacts": "tsx scripts/backfill-contacts.ts",
     "migrate:contacts": "tsx scripts/migrate-contacts-identities.ts",

@@ -1,6 +1,6 @@
-# Agente WhatsApp — Arquitectura híbrida
+# Agente WhatsApp — Arquitectura híbrida comercial
 
-Dashboard en **Vercel** + base de datos en **Supabase** + worker Baileys en **VPS/EasyPanel/Coolify**.
+Landing pública + dashboard privado en **Next.js/Vercel**, base de datos y auth en **Supabase**, y worker Baileys persistente en **VPS/EasyPanel/Coolify**.
 
 ```
 ┌──────────────┐     polling     ┌──────────────────┐
@@ -23,7 +23,7 @@ Baileys vive en un VPS o servicio de containers con proceso persistente.
 
 ---
 
-## Pasos para poner en marcha (en orden)
+## Puesta en marcha comercial (en orden)
 
 ### Paso 1 — Crear proyecto en Supabase
 
@@ -37,7 +37,7 @@ Baileys vive en un VPS o servicio de containers con proceso persistente.
 3. Hacer clic en **Run**.
 4. Verificar que se crearon las tablas (sin errores).
 
-### Paso 3 — Configurar variables de entorno
+### Paso 3 — Configurar variables de entorno locales
 
 Editar `.env.local` con los valores reales:
 
@@ -47,33 +47,43 @@ NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-# OpenRouter (https://openrouter.ai/keys)
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_MODEL=openai/gpt-4o-mini
+# OpenAI
+OPENAI_API_KEY=sk-proj-...
+OPENAI_MODEL=gpt-4o-mini
 
-# Dejar vacío por ahora — lo llena el bootstrap
-BUSINESS_ID=
+# Landing / app web
+NEXT_PUBLIC_DEMO_WHATSAPP_URL=https://wa.me/5491100000000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Worker (dejar como está para desarrollo local)
+# Worker
+BUSINESS_ID=uuid-del-negocio-para-el-worker
 WORKER_INSTANCE_NAME=main
+WHATSAPP_PROVIDER=baileys
 BAILEYS_AUTH_BASE_PATH=./auth
 
-# Dashboard (tu usuario y contraseña para el login)
-DASHBOARD_USER=admin
-DASHBOARD_PASSWORD=tu_contraseña_aqui
+# Bootstrap comercial
+OWNER_EMAIL=owner@tu-negocio.com
+OWNER_PASSWORD=una-contraseña-segura
+BUSINESS_NAME=Mi Negocio
+BUSINESS_SLUG=mi-negocio
 ```
 
-### Paso 4 — Bootstrap inicial
+### Paso 4 — Crear el primer usuario dueño y su negocio
 
 ```bash
-npm run bootstrap:supabase
+npm run bootstrap:owner
 ```
 
 Este script:
-- Crea el negocio inicial en Supabase.
-- Genera un `BUSINESS_ID` y lo agrega a `.env.local` automáticamente.
-- Crea la fila en `whatsapp_sessions`.
-- Crea la suscripción inicial (plan: starter).
+- crea o actualiza el usuario en `auth.users`
+- crea o actualiza `profiles`
+- crea o busca el negocio por `BUSINESS_SLUG`
+- vincula el usuario como `owner` en `business_members`
+- crea la `subscription` inicial en plan `pro`
+- crea la fila de `whatsapp_sessions`
+- imprime `user_id`, `business_id`, email y URL de login
+
+Después de correrlo, copiá el `business_id` impreso y usalo como `BUSINESS_ID` del worker.
 
 ### Paso 5 — Instalar dependencias
 
@@ -94,9 +104,8 @@ npm run dev
 ```
 
 Abrir http://localhost:3000, iniciar sesión con las credenciales configuradas.
-
-El dashboard muestra el QR generado por el worker.
-Escanear desde WhatsApp → Dispositivos vinculados → Vincular dispositivo.
+La landing pública vive en `/`, el login en `/login` y el dashboard en `/app`.
+El QR aparece dentro de `/app/connect`.
 
 ---
 
@@ -109,17 +118,17 @@ Escanear desde WhatsApp → Dispositivos vinculados → Vincular dispositivo.
 3. Vercel detecta Next.js y hace el build automáticamente.
 4. Verificar que `/api/connection/status` responde sin errores.
 
-Variables necesarias en Vercel:
-```
+### Variables necesarias en Vercel
+
+```bash
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
-OPENROUTER_API_KEY
-OPENROUTER_MODEL
-BUSINESS_ID
-WORKER_INSTANCE_NAME
-DASHBOARD_USER
-DASHBOARD_PASSWORD
+OPENAI_API_KEY
+OPENAI_MODEL
+NEXT_PUBLIC_DEMO_WHATSAPP_URL
+NEXT_PUBLIC_APP_URL
+WHATSAPP_PROVIDER=baileys
 ```
 
 **No agregar** `BAILEYS_AUTH_BASE_PATH` en Vercel — el filesystem de Vercel no es persistente.
@@ -159,18 +168,64 @@ pm2 start "npm run start:worker" --name agente-whatsapp-worker
 pm2 save
 ```
 
-Variables de entorno que necesita el worker:
-```
+### Variables de entorno que necesita el worker
+
+```bash
 NEXT_PUBLIC_SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
-OPENROUTER_API_KEY
-OPENROUTER_MODEL
+OPENAI_API_KEY
+OPENAI_MODEL
 BUSINESS_ID
 WORKER_INSTANCE_NAME
+WHATSAPP_PROVIDER=baileys
 BAILEYS_AUTH_BASE_PATH=/data/baileys-auth
 ```
 
-**No necesita** `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `DASHBOARD_USER` ni `DASHBOARD_PASSWORD`.
+**No necesita** `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `OWNER_EMAIL`, `OWNER_PASSWORD`, `NEXT_PUBLIC_DEMO_WHATSAPP_URL` ni `NEXT_PUBLIC_APP_URL`.
+
+---
+
+## Bootstrap comercial completo
+
+### 1. Aplicar el schema
+
+En Supabase → SQL Editor:
+
+1. Ejecutar `supabase/schema.sql` en un proyecto nuevo.
+2. Si el proyecto ya existía, aplicar también `supabase/migrations/006_commercial_app.sql`.
+
+### 2. Crear el primer usuario dueño
+
+Definir estas variables en `.env.local`:
+
+```bash
+OWNER_EMAIL=owner@tu-negocio.com
+OWNER_PASSWORD=una-contraseña-segura
+BUSINESS_NAME=Mi Negocio
+BUSINESS_SLUG=mi-negocio
+```
+
+Luego correr:
+
+```bash
+npm run bootstrap:owner
+```
+
+El script es idempotente. Si lo corrés dos veces:
+- no duplica el usuario
+- no duplica el negocio
+- no duplica la membresía
+- no duplica la suscripción
+
+### 3. Asignar `BUSINESS_ID` al worker
+
+Tomá el `business_id` que imprime `bootstrap:owner` y configurá:
+
+```bash
+BUSINESS_ID=el-business-id-impreso
+```
+
+Ese valor se usa solo en el worker Baileys por ahora.
 
 ---
 
@@ -180,37 +235,41 @@ BAILEYS_AUTH_BASE_PATH=/data/baileys-auth
 src/
 ├── app/
 │   ├── api/
-│   │   ├── auth/login/        ← login dashboard
+│   │   ├── auth/login/        ← login con Supabase Auth
 │   │   ├── auth/logout/       ← logout dashboard
 │   │   ├── business/          ← perfil del negocio
 │   │   ├── connection/
 │   │   │   ├── status/        ← estado WhatsApp + QR PNG
 │   │   │   └── disconnect/    ← desconectar sesión
+│   │   ├── plan/              ← plan actual y uso mensual
 │   │   ├── conversations/     ← lista + borrar
 │   │   ├── messages/[id]/     ← historial + enviar (modo humano)
 │   │   ├── mode/[id]/         ← cambiar AI/HUMAN
 │   │   └── worker/status/     ← estado del worker (online, lastSeen)
+│   ├── app/                   ← dashboard privado en /app
 │   ├── login/                 ← página de login
-│   └── page.tsx               ← dashboard principal
+│   └── page.tsx               ← landing pública
 ├── components/                ← UI React
 └── lib/
     ├── data-access.ts         ← ÚNICA fuente de acceso a datos (Supabase)
     ├── db.ts                  ← re-exports de data-access.ts
     ├── supabase.ts            ← cliente Supabase (service role, server-side)
     ├── env.ts                 ← lectura de variables de entorno
-    ├── auth.ts                ← HMAC session token
-    ├── openrouter.ts          ← llamadas al LLM
-    ├── system-prompt.ts       ← prompt base de fallback
+    ├── app-session.ts         ← sesión httpOnly firmada para la app web
+    ├── dashboard-auth.ts      ← resolver user + business_id
+    ├── openai.ts / openrouter.ts
+    ├── whatsapp/              ← interfaz de provider y provider Baileys
     └── baileys/
         ├── client.ts          ← conexión Baileys (solo corre en worker)
         └── handler.ts         ← procesamiento de mensajes entrantes
 scripts/
 ├── env-loader.ts              ← carga .env.local en procesos non-Next
-├── bootstrap-supabase.ts      ← setup inicial de datos en Supabase
+├── bootstrap-commercial-owner.ts ← crea owner + negocio + membership + subscription
 ├── start-worker.ts            ← entry point del worker Baileys
 └── start-bot.ts               ← alias de start-worker.ts
 supabase/
-└── schema.sql                 ← DDL completo, ejecutar en Supabase SQL Editor
+├── schema.sql                 ← DDL completo, ejecutar en Supabase SQL Editor
+└── migrations/006_commercial_app.sql
 ```
 
 ---
@@ -253,6 +312,9 @@ mantener una conexión WebSocket abierta 24/7 con los servidores de WhatsApp Web
 El bot deja de responder. El dashboard sigue funcionando pero muestra
 `workerOnline: false` en `/api/worker/status`. Los mensajes no se responden ni
 se procesan hasta que el worker vuelve a conectarse.
+
+**¿Cómo creo el primer acceso comercial?**
+Ejecutando `supabase/schema.sql`, luego `npm run bootstrap:owner` con `OWNER_EMAIL`, `OWNER_PASSWORD`, `BUSINESS_NAME` y `BUSINESS_SLUG`.
 
 **¿Cómo cambio el prompt de la IA?**
 Desde el dashboard → Mi Negocio. Los cambios se guardan en Supabase y

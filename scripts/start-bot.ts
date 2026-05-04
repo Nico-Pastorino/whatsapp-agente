@@ -11,9 +11,11 @@ import {
   setConnectionState,
   updateWorkerHeartbeat,
 } from "../src/lib/db";
-import { start, getAuthDir, getHandle, beginManualDisconnect } from "../src/lib/baileys/client";
+import { getWhatsAppProvider } from "../src/lib/whatsapp";
+import { getAuthDir, getHandle } from "../src/lib/baileys/client";
 
 const AUTH_DIR = getAuthDir();
+const provider = getWhatsAppProvider();
 
 console.log("[worker] Iniciando agente WhatsApp...");
 
@@ -24,7 +26,7 @@ void setConnectionState({
   auth_path: AUTH_DIR,
 });
 
-start().catch((err) => {
+provider.start().catch((err) => {
   console.error("[worker] Error fatal al iniciar:", err);
   process.exit(1);
 });
@@ -61,7 +63,7 @@ setInterval(async () => {
         console.warn("[outbox] warning: intentando enviar a @lid porque no hay pn_jid disponible");
       }
 
-      await handle.sock.sendMessage(targetJid, { text: item.content });
+      await provider.sendText(targetJid, item.content);
       await markOutboxSent(item.id);
       console.log(`[outbox] sent ok=${item.id}`);
     } catch (err) {
@@ -82,8 +84,7 @@ setInterval(async () => {
   const handle = getHandle();
   if (handle) {
     try {
-      beginManualDisconnect();
-      await handle.shutdown();
+      await provider.disconnect();
     } catch {}
   }
 
@@ -100,7 +101,7 @@ setInterval(async () => {
   await clearRequestedSessionAction();
 
   setTimeout(() => {
-    start().catch((err) => console.error("[worker] Error al reiniciar:", err));
+    provider.start().catch((err) => console.error("[worker] Error al reiniciar:", err));
   }, 1000);
 }, 1000);
 

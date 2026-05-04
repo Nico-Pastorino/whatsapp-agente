@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteConversation, getConversationById } from "@/lib/db";
+import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,18 +9,24 @@ interface Ctx {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
-  const { conversationId } = await params;
-  const id = conversationId?.trim();
+  try {
+    return await withDashboardBusinessContext(async ({ businessId }) => {
+      const { conversationId } = await params;
+      const id = conversationId?.trim();
 
-  if (!id) {
-    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+      if (!id) {
+        return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+      }
+
+      const conv = await getConversationById(id, businessId);
+      if (!conv) {
+        return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
+      }
+
+      await deleteConversation(id, businessId);
+      return NextResponse.json({ ok: true });
+    });
+  } catch (error) {
+    return toDashboardAuthResponse(error);
   }
-
-  const conv = await getConversationById(id);
-  if (!conv) {
-    return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
-  }
-
-  await deleteConversation(id);
-  return NextResponse.json({ ok: true });
 }

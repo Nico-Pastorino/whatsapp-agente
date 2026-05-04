@@ -1,5 +1,6 @@
 const DEFAULT_WORKER_INSTANCE_NAME = "primary";
 const DEFAULT_BAILEYS_AUTH_BASE_PATH = "/data/baileys-auth";
+const DEFAULT_WHATSAPP_PROVIDER = "baileys";
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -26,13 +27,6 @@ export function getBaileysAuthBasePath(): string {
   return readEnv("BAILEYS_AUTH_BASE_PATH") ?? DEFAULT_BAILEYS_AUTH_BASE_PATH;
 }
 
-export function getDashboardCredentials(): {
-  user: string | null;
-  password: string | null;
-} {
-  return {
-    user: readEnv("DASHBOARD_USER") ?? null,
-    password: readEnv("DASHBOARD_PASSWORD") ?? null,
-  };
+export function getWhatsappProvider(): string {
+  return readEnv("WHATSAPP_PROVIDER") ?? DEFAULT_WHATSAPP_PROVIDER;
 }
-

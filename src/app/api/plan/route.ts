@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
-import { requestWhatsappDisconnect } from "@/lib/db";
+import { getPlanSummary } from "@/lib/data-access";
 import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function GET() {
   try {
     return await withDashboardBusinessContext(async ({ businessId }) => {
-      await requestWhatsappDisconnect(businessId);
-      return NextResponse.json({ ok: true });
+      const plan = await getPlanSummary(businessId);
+      return NextResponse.json(plan);
     });
   } catch (error) {
     return toDashboardAuthResponse(error);
