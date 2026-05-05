@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 interface PlanSummary {
   plan_code: string;
   plan_name: string;
-  status: "trial" | "active" | "past_due" | "canceled";
+  status: "trial" | "active" | "past_due" | "canceled" | "pending_payment";
   current_period_start: number | null;
   current_period_end: number | null;
   monthly_message_limit: number | null;
@@ -44,6 +44,26 @@ export default function PlanOverview() {
   const [plan, setPlan] = useState<PlanSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  async function handlePay() {
+    setCheckoutLoading(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/billing/create-checkout", { method: "POST" });
+      const data = await res.json().catch(() => ({})) as { checkoutUrl?: string; error?: string };
+      if (!res.ok || !data.checkoutUrl) {
+        setCheckoutError(data.error ?? "No se pudo iniciar el pago.");
+        return;
+      }
+      window.location.href = data.checkoutUrl;
+    } catch {
+      setCheckoutError("Error de conexión. Intentá de nuevo.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/plan")
@@ -85,6 +105,16 @@ export default function PlanOverview() {
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+        {plan.status === "pending_payment" && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+            <strong>Tu suscripción está pendiente de pago.</strong> Accedé al inbox y conectá WhatsApp después de completar el pago.
+          </div>
+        )}
+        {(plan.status === "canceled" || plan.status === "past_due") && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+            <strong>Tu suscripción está inactiva.</strong> Renová tu plan para volver a operar.
+          </div>
+        )}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
@@ -169,19 +199,41 @@ export default function PlanOverview() {
 
           <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900">Acciones</h3>
-            <p className="mt-2 text-sm text-gray-500">
-              La renovación y mejora de plan se gestionan manualmente por ahora.
-            </p>
-            <div className="mt-6 space-y-3">
-              <button className="w-full rounded-2xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                Renovar
-              </button>
-              <button className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100">
-                Mejorar plan
-              </button>
-            </div>
-            <div className="mt-6 rounded-2xl border border-dashed border-gray-200 p-4 text-sm text-gray-500">
-              Próximo paso comercial: conectar cobro automático y self-serve upgrade.
+
+            {plan.status === "pending_payment" && (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-800">
+                  Tu plan está pendiente de pago.
+                </p>
+                <p className="mt-1 text-sm text-amber-700">
+                  Activá tu suscripción para acceder al inbox y conectar WhatsApp.
+                </p>
+              </div>
+            )}
+
+            {checkoutError && (
+              <p className="mt-3 text-sm text-red-600">{checkoutError}</p>
+            )}
+
+            <div className="mt-4 space-y-3">
+              {(plan.status === "pending_payment" || plan.status === "canceled" || plan.status === "past_due") && (
+                <button
+                  onClick={handlePay}
+                  disabled={checkoutLoading}
+                  className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                >
+                  {checkoutLoading ? "Redirigiendo a pago..." : plan.status === "pending_payment" ? "Pagar ahora" : "Renovar plan"}
+                </button>
+              )}
+              {(plan.status === "active" || plan.status === "trial") && (
+                <button
+                  onClick={handlePay}
+                  disabled={checkoutLoading}
+                  className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                >
+                  {checkoutLoading ? "Redirigiendo..." : "Renovar / Mejorar plan"}
+                </button>
+              )}
             </div>
           </section>
         </div>

@@ -116,7 +116,7 @@ interface ConversationRow {
 
 interface SubscriptionRow {
   plan_code?: string | null;
-  status: "trial" | "active" | "past_due" | "canceled";
+  status: "trial" | "active" | "past_due" | "canceled" | "pending_payment";
   monthly_message_limit: number | null;
   monthly_ai_reply_limit: number | null;
   current_period_start?: string | null;
@@ -952,6 +952,19 @@ export async function getPlanSummary(
         ? (plan.features as Record<string, unknown>)
         : null,
   };
+}
+
+export async function getBusinessSubscriptionStatus(
+  businessId: string
+): Promise<SubscriptionRow["status"] | "none"> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("status")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.status as SubscriptionRow["status"]) ?? "none";
 }
 
 export async function getBusinessProfile(businessId = getBusinessId()): Promise<BusinessProfile> {

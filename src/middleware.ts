@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/favicon.ico"]);
-const PUBLIC_API_PATHS = new Set(["/api/auth/login", "/api/auth/logout"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/favicon.ico"]);
+const PUBLIC_API_PATHS = new Set([
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/signup",
+  "/api/webhooks/mercadopago",
+]);
 
 function isPublicAsset(pathname: string): boolean {
   if (pathname.startsWith("/_next/")) return true;
   if (pathname.startsWith("/images/")) return true;
   if (pathname.startsWith("/icons/")) return true;
   if (pathname.startsWith("/assets/")) return true;
+  if (pathname.startsWith("/payment/")) return true;
   return /\.[a-zA-Z0-9]+$/.test(pathname);
 }
 

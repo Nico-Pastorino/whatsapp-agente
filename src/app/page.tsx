@@ -4,19 +4,44 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_WHATSAPP_URL?.trim() || "mailto:ho
 
 const plans = [
   {
+    code: "starter",
     name: "Starter",
-    price: "Ideal para validar la automatización",
-    bullets: ["1 número de WhatsApp", "Inbox compartido", "Base de IA entrenable"],
+    price: "$ 49.000 / mes",
+    description: "Ideal para validar la automatización",
+    bullets: [
+      "1 número de WhatsApp",
+      "500 conversaciones/mes",
+      "500 respuestas IA",
+      "20 productos en catálogo",
+      "1 usuario del equipo",
+    ],
   },
   {
+    code: "pro",
     name: "Pro",
-    price: "Para equipos con más volumen y seguimiento",
-    bullets: ["Más respuestas IA", "Más usuarios internos", "Reportes y operación diaria"],
+    price: "$ 99.000 / mes",
+    description: "Para equipos con más volumen y seguimiento",
+    bullets: [
+      "1 número de WhatsApp",
+      "2.000 conversaciones/mes",
+      "2.000 respuestas IA",
+      "100 productos en catálogo",
+      "3 usuarios del equipo",
+    ],
+    featured: true,
   },
   {
+    code: "premium",
     name: "Premium",
-    price: "Para negocios con operación comercial intensiva",
-    bullets: ["Implementación asistida", "Mayor capacidad", "Roadmap a canal oficial Meta"],
+    price: "$ 199.000 / mes",
+    description: "Para negocios con operación comercial intensiva",
+    bullets: [
+      "3 números de WhatsApp",
+      "5.000 conversaciones/mes",
+      "5.000 respuestas IA",
+      "500 productos en catálogo",
+      "10 usuarios del equipo",
+    ],
   },
 ];
 
@@ -66,12 +91,12 @@ export default function HomePage() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/login"
+                <a
+                  href="#planes"
                   className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_18px_45px_-24px_rgba(16,185,129,0.75)] transition hover:bg-emerald-600"
                 >
-                  Iniciar sesión
-                </Link>
+                  Ver planes
+                </a>
                 <a
                   href={DEMO_URL}
                   className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-3.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:text-gray-900"
@@ -170,19 +195,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-10">
+      <section id="planes" className="mx-auto max-w-7xl px-6 py-10">
         <div className="rounded-[2.25rem] border border-gray-200 bg-white p-8 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">Planes</p>
+          <h2 className="mt-3 text-2xl font-semibold text-gray-950">Elegí el plan que mejor se adapta a tu negocio</h2>
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
             {plans.map((plan) => (
-              <article key={plan.name} className="rounded-[1.75rem] border border-gray-200 bg-gray-50 p-6">
+              <article
+                key={plan.name}
+                className={`relative flex flex-col rounded-[1.75rem] border p-6 ${
+                  plan.featured
+                    ? "border-emerald-300 bg-emerald-50 shadow-[0_8px_32px_-8px_rgba(16,185,129,0.25)]"
+                    : "border-gray-200 bg-gray-50"
+                }`}
+              >
+                {plan.featured && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-4 py-1 text-xs font-semibold text-white">
+                    Más popular
+                  </span>
+                )}
                 <h3 className="text-2xl font-semibold text-gray-900">{plan.name}</h3>
-                <p className="mt-2 text-sm text-gray-500">{plan.price}</p>
-                <ul className="mt-5 space-y-3 text-sm text-gray-600">
+                <p className="mt-1 text-xl font-bold text-gray-950">{plan.price}</p>
+                <p className="mt-1 text-sm text-gray-500">{plan.description}</p>
+                <ul className="mt-5 grow space-y-2 text-sm text-gray-600">
                   {plan.bullets.map((bullet) => (
-                    <li key={bullet}>• {bullet}</li>
+                    <li key={bullet} className="flex items-start gap-2">
+                      <span className="mt-0.5 text-emerald-500">✓</span>
+                      {bullet}
+                    </li>
                   ))}
                 </ul>
+                <Link
+                  href={`/signup?plan=${plan.code}`}
+                  className={`mt-6 block rounded-2xl py-3 text-center text-sm font-semibold transition ${
+                    plan.featured
+                      ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                      : "border border-gray-300 bg-white text-gray-800 hover:border-gray-400"
+                  }`}
+                >
+                  Empezar con {plan.name}
+                </Link>
               </article>
             ))}
           </div>

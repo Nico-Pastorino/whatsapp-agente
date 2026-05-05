@@ -26,6 +26,7 @@ export {
   getOrCreateConversation,
   getPendingOutbox,
   getPlanSummary,
+  getBusinessSubscriptionStatus,
   getRecentHistory,
   getRequestedSessionAction,
   insertMessage,
