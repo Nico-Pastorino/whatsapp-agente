@@ -1,10 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BUSINESS_TEMPLATES,
   type BusinessTemplate,
 } from "@/lib/business-templates";
+
+// ── Plan access helpers ──────────────────────────────────────────────────────
+
+const TIER_ACCESS: Record<string, string[]> = {
+  starter: ["basic"],
+  growth: ["basic", "commercial"],
+  pro: ["basic", "commercial", "premium"],
+  premium: ["basic", "commercial", "premium"], // legacy
+};
+
+function isTemplateLocked(tier: string, planCode: string): boolean {
+  return !(TIER_ACCESS[planCode] ?? ["basic"]).includes(tier);
+}
+
+function requiredPlanLabel(tier: string): string {
+  if (tier === "premium") return "Pro";
+  return "Growth";
+}
+
+function requiredPlanCode(tier: string): string {
+  if (tier === "premium") return "pro";
+  return "growth";
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
   profileIsEmpty: boolean;
@@ -12,10 +37,22 @@ interface Props {
 }
 
 export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
+  const [planCode, setPlanCode] = useState<string>("starter");
   const [selected, setSelected] = useState<BusinessTemplate | null>(null);
+  const [lockedSelected, setLockedSelected] = useState<BusinessTemplate | null>(null);
   const [applying, setApplying] = useState(false);
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch current plan to know which templates are accessible
+  useEffect(() => {
+    fetch("/api/plan")
+      .then((r) => r.json())
+      .then((data: { plan_code?: string }) => {
+        if (data.plan_code) setPlanCode(data.plan_code);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const activeTemplates = BUSINESS_TEMPLATES.filter((t) => !t.comingSoon);
   const soonTemplates = BUSINESS_TEMPLATES.filter((t) => t.comingSoon);
@@ -78,36 +115,51 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
 
       {/* Active templates grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-        {activeTemplates.map((t) => (
-          <TemplateCard
-            key={t.id}
-            template={t}
-            isApplied={appliedId === t.id}
-            onSelect={() => {
-              setSelected(t);
-              setError(null);
-            }}
-          />
-        ))}
+        {activeTemplates.map((t) => {
+          const locked = isTemplateLocked(t.tier, planCode);
+          return (
+            <TemplateCard
+              key={t.id}
+              template={t}
+              isApplied={appliedId === t.id}
+              isLocked={locked}
+              onSelect={() => {
+                setError(null);
+                if (locked) {
+                  setLockedSelected(t);
+                } else {
+                  setSelected(t);
+                }
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Coming soon grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {soonTemplates.map((t) => (
-          <div
-            key={t.id}
-            className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-gray-200 opacity-50 select-none"
-          >
-            <span className="text-lg">{t.emoji}</span>
-            <div>
-              <p className="text-xs font-medium text-gray-500">{t.name}</p>
-              <p className="text-xs text-gray-400">Próximamente</p>
+        {soonTemplates.map((t) => {
+          const locked = isTemplateLocked(t.tier, planCode);
+          return (
+            <div
+              key={t.id}
+              className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-gray-200 opacity-50 select-none"
+            >
+              <span className="text-lg">{t.emoji}</span>
+              <div>
+                <p className="text-xs font-medium text-gray-500">{t.name}</p>
+                <p className="text-xs text-gray-400">
+                  {locked
+                    ? `Plan ${requiredPlanLabel(t.tier)}`
+                    : "Próximamente"}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Confirm modal */}
+      {/* Confirm modal (unlocked templates) */}
       {selected && (
         <ConfirmModal
           template={selected}
@@ -118,17 +170,29 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
           onCancel={() => setSelected(null)}
         />
       )}
+
+      {/* Upgrade modal (locked templates) */}
+      {lockedSelected && (
+        <UpgradeModal
+          template={lockedSelected}
+          onClose={() => setLockedSelected(null)}
+        />
+      )}
     </section>
   );
 }
 
+// ── TemplateCard ─────────────────────────────────────────────────────────────
+
 function TemplateCard({
   template,
   isApplied,
+  isLocked,
   onSelect,
 }: {
   template: BusinessTemplate;
   isApplied: boolean;
+  isLocked: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -136,13 +200,22 @@ function TemplateCard({
       className={`flex flex-col gap-3 p-4 rounded-xl border transition-colors ${
         isApplied
           ? "border-emerald-300 bg-emerald-50"
+          : isLocked
+          ? "border-gray-200 bg-gray-50"
           : "border-gray-200 bg-gray-50 hover:border-emerald-300 hover:bg-white"
       }`}
     >
       <div className="flex items-start gap-3">
         <span className="text-2xl leading-none mt-0.5">{template.emoji}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900">{template.name}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-semibold text-gray-900">{template.name}</p>
+            {isLocked && (
+              <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 font-medium">
+                Plan {requiredPlanLabel(template.tier)}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
             {template.description}
           </p>
@@ -172,14 +245,18 @@ function TemplateCard({
         className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
           isApplied
             ? "bg-emerald-100 text-emerald-700 cursor-default"
+            : isLocked
+            ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200"
             : "bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white"
         }`}
       >
-        {isApplied ? "✓ Aplicada" : "Usar plantilla"}
+        {isApplied ? "✓ Aplicada" : isLocked ? `Disponible en ${requiredPlanLabel(template.tier)}` : "Usar plantilla"}
       </button>
     </div>
   );
 }
+
+// ── ConfirmModal (available templates) ───────────────────────────────────────
 
 function ConfirmModal({
   template,
@@ -273,6 +350,77 @@ function ConfirmModal({
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── UpgradeModal (locked templates) ──────────────────────────────────────────
+
+function UpgradeModal({
+  template,
+  onClose,
+}: {
+  template: BusinessTemplate;
+  onClose: () => void;
+}) {
+  const planLabel = requiredPlanLabel(template.tier);
+  const planCode = requiredPlanCode(template.tier);
+
+  async function handleUpgrade() {
+    try {
+      const res = await fetch("/api/billing/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan_code: planCode, checkout_type: "upgrade" }),
+      });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch {
+      // fail silently — user can go to Mi Plan
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-3xl leading-none">{template.emoji}</span>
+          <div>
+            <h4 className="text-base font-semibold text-gray-900">
+              {template.name}
+            </h4>
+            <span className="text-xs px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 font-medium">
+              Plan {planLabel}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-700 mb-1 font-medium">
+          Esta plantilla está disponible en {planLabel}.
+        </p>
+        <p className="text-sm text-gray-500 mb-5">
+          {planLabel === "Growth"
+            ? "Con Growth podés usar todas las plantillas comerciales, cargar hasta 100 productos y acceder a herramientas para vender más por WhatsApp."
+            : "Pro está pensado para negocios con más volumen, equipo e integraciones avanzadas. Incluye plantillas premium y analytics avanzado."}
+        </p>
+
+        <div className="space-y-2">
+          <button
+            onClick={handleUpgrade}
+            className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors"
+          >
+            Mejorar a {planLabel}
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            Ahora no
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { UpgradeOption } from "@/lib/db";
 
 interface PlanSummary {
   plan_code: string;
@@ -20,7 +21,11 @@ interface PlanSummary {
   price_monthly: number | null;
   currency: string;
   features: Record<string, unknown> | null;
+  template_tiers_allowed: string[];
+  upgrade_options: UpgradeOption[];
 }
+
+// ── Formatting ────────────────────────────────────────────────────────────────
 
 function formatDate(value: number | null): string {
   if (!value) return "Sin fecha";
@@ -31,14 +36,73 @@ function formatDate(value: number | null): string {
   });
 }
 
-function formatMoney(value: number | null, currency: string): string {
-  if (typeof value !== "number") return "A medida";
+function formatMoney(value: number | null | undefined, currency: string): string {
+  if (typeof value !== "number") return "—";
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+// ── Hardcoded feature lists per plan ─────────────────────────────────────────
+
+const PLAN_INCLUDED: Record<string, string[]> = {
+  starter: [
+    "IA básica para responder consultas",
+    "Modo humano (tomás el control)",
+    "1 número de WhatsApp",
+    "Hasta 3 usuarios del equipo",
+    "Hasta 10 productos/servicios",
+    "1 plantilla básica de rubro",
+    "Configuración del negocio",
+  ],
+  growth: [
+    "Todo lo de Starter",
+    "Plantillas comerciales (5 rubros activos)",
+    "Hasta 100 productos/servicios",
+    "Hasta 10 usuarios del equipo",
+    "Leads automáticos",
+    "Métricas comerciales",
+    "Entrenamiento simple de IA",
+  ],
+  pro: [
+    "Todo lo de Growth",
+    "Plantillas premium (clínicas, inmobiliarias, etc.)",
+    "Hasta 500 productos/servicios",
+    "Hasta 25 usuarios del equipo",
+    "3 números de WhatsApp",
+    "Analytics avanzado",
+    "Plantillas personalizadas",
+    "Soporte prioritario",
+  ],
+};
+
+const PLAN_LOCKED: Record<string, string[]> = {
+  starter: [
+    "Plantillas comerciales",
+    "Leads automáticos",
+    "Métricas comerciales",
+    "Entrenamiento IA",
+    "Plantillas premium",
+    "Analytics avanzado",
+  ],
+  growth: [
+    "Plantillas premium",
+    "Múltiples números de WhatsApp",
+    "Analytics avanzado",
+    "Plantillas personalizadas",
+  ],
+  pro: [],
+};
+
+const PLAN_TAGLINE: Record<string, string> = {
+  starter: "Para empezar a responder consultas con IA.",
+  growth: "Para negocios que quieren vender más por WhatsApp.",
+  pro: "Para negocios con más volumen, equipo e integraciones.",
+};
+
+// ── Onboarding Guide ──────────────────────────────────────────────────────────
 
 const ONBOARDING_STEPS = [
   {
@@ -56,19 +120,19 @@ const ONBOARDING_STEPS = [
   {
     n: "3",
     title: "Configurá tu asistente",
-    desc: "Cargá el nombre del negocio, descripción, catálogo de productos y datos de contacto. La IA usará esa información para responder.",
+    desc: "Cargá el nombre del negocio, descripción, catálogo de productos y datos de contacto.",
     active: false,
   },
   {
     n: "4",
     title: "Probá una conversación",
-    desc: "Enviá un mensaje desde otro celular a tu número conectado y verificá que la IA responde correctamente.",
+    desc: "Enviá un mensaje desde otro celular a tu número conectado y verificá que la IA responde.",
     active: false,
   },
   {
     n: "5",
     title: "¡Listo para operar!",
-    desc: "El asistente responde 24/7. Podés cambiar a Modo Humano cuando quieras tomar una conversación vos mismo.",
+    desc: "El asistente responde 24/7. Podés cambiar a Modo Humano cuando quieras tomar el control.",
     active: false,
   },
 ];
@@ -87,7 +151,6 @@ function OnboardingGuide({
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
       <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
-        {/* Header */}
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
             Primeros pasos
@@ -96,11 +159,11 @@ function OnboardingGuide({
             Activá tu cuenta y empezá a vender
           </h2>
           <p className="mt-2 text-sm text-gray-500">
-            Plan <strong>{plan.plan_name}</strong> · {formatMoney(plan.price_monthly, plan.currency)} / mes
+            Plan <strong>{plan.plan_name}</strong> ·{" "}
+            {formatMoney(plan.price_monthly, plan.currency)} / mes
           </p>
         </div>
 
-        {/* Steps */}
         <ol className="space-y-3">
           {ONBOARDING_STEPS.map((step) => (
             <li
@@ -128,7 +191,6 @@ function OnboardingGuide({
           ))}
         </ol>
 
-        {/* Payment CTA */}
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 space-y-4">
           <p className="text-sm font-medium text-emerald-800">
             Completá el pago para desbloquear el acceso a WhatsApp, inbox y asistente IA.
@@ -141,11 +203,12 @@ function OnboardingGuide({
             disabled={checkoutLoading}
             className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
           >
-            {checkoutLoading ? "Redirigiendo a pago..." : `Pagar ahora — ${formatMoney(plan.price_monthly, plan.currency)}`}
+            {checkoutLoading
+              ? "Redirigiendo a pago..."
+              : `Pagar ahora — ${formatMoney(plan.price_monthly, plan.currency)}`}
           </button>
         </div>
 
-        {/* Already paid hint */}
         <p className="text-center text-xs text-gray-400">
           ¿Ya pagaste y no se activó?{" "}
           <button
@@ -160,19 +223,110 @@ function OnboardingGuide({
   );
 }
 
+// ── Usage bar ─────────────────────────────────────────────────────────────────
+
+function UsageBar({
+  label,
+  used,
+  limit,
+}: {
+  label: string;
+  used: number;
+  limit: number | null;
+}) {
+  const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
+  const color =
+    pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-400" : "bg-emerald-500";
+
+  return (
+    <div>
+      <div className="flex justify-between text-xs text-gray-500 mb-1">
+        <span>{label}</span>
+        <span>
+          {used.toLocaleString("es-AR")} /{" "}
+          {limit ? limit.toLocaleString("es-AR") : "sin límite"}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${color}`}
+          style={{ width: `${limit ? pct : 0}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Upgrade card ──────────────────────────────────────────────────────────────
+
+function UpgradeCard({
+  option,
+  onUpgrade,
+  loading,
+}: {
+  option: UpgradeOption;
+  onUpgrade: (code: string) => void;
+  loading: boolean;
+}) {
+  const included = PLAN_INCLUDED[option.code] ?? [];
+  const tagline = PLAN_TAGLINE[option.code] ?? "";
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="mb-3">
+        <p className="text-base font-semibold text-gray-900">{option.name}</p>
+        <p className="text-xs text-gray-500 mt-0.5">{tagline}</p>
+        <p className="mt-2 text-2xl font-semibold text-gray-900">
+          {formatMoney(option.price_monthly, option.currency)}
+          <span className="text-sm font-normal text-gray-400"> / mes</span>
+        </p>
+      </div>
+      <ul className="space-y-1.5 mb-5 flex-1">
+        {included.slice(0, 5).map((f) => (
+          <li key={f} className="flex items-start gap-2 text-xs text-gray-600">
+            <span className="mt-0.5 text-emerald-500 shrink-0">✓</span>
+            {f}
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={() => onUpgrade(option.code)}
+        disabled={loading}
+        className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
+      >
+        {loading ? "Redirigiendo..." : `Mejorar a ${option.name}`}
+      </button>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function PlanOverview() {
   const [plan, setPlan] = useState<PlanSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
-  async function handlePay() {
+  async function startCheckout(planCode?: string, checkoutType?: string) {
     setCheckoutLoading(true);
+    if (planCode) setUpgradeLoading(planCode);
     setCheckoutError(null);
     try {
-      const res = await fetch("/api/billing/create-checkout", { method: "POST" });
-      const data = await res.json().catch(() => ({})) as { checkoutUrl?: string; error?: string };
+      const body = planCode
+        ? { plan_code: planCode, checkout_type: checkoutType ?? "upgrade" }
+        : {};
+      const res = await fetch("/api/billing/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        checkoutUrl?: string;
+        error?: string;
+      };
       if (!res.ok || !data.checkoutUrl) {
         setCheckoutError(data.error ?? "No se pudo iniciar el pago.");
         return;
@@ -182,17 +336,18 @@ export default function PlanOverview() {
       setCheckoutError("Error de conexión. Intentá de nuevo.");
     } finally {
       setCheckoutLoading(false);
+      setUpgradeLoading(null);
     }
   }
 
   useEffect(() => {
     fetch("/api/plan")
-      .then(async (response) => {
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? "No se pudo cargar el plan.");
+      .then(async (r) => {
+        if (!r.ok) {
+          const p = (await r.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(p?.error ?? "No se pudo cargar el plan.");
         }
-        return response.json();
+        return r.json();
       })
       .then((data: PlanSummary) => {
         setPlan(data);
@@ -223,139 +378,176 @@ export default function PlanOverview() {
   }
 
   if (plan.status === "pending_payment") {
-    return <OnboardingGuide plan={plan} onPay={handlePay} checkoutLoading={checkoutLoading} checkoutError={checkoutError} />;
+    return (
+      <OnboardingGuide
+        plan={plan}
+        onPay={() => startCheckout()}
+        checkoutLoading={checkoutLoading}
+        checkoutError={checkoutError}
+      />
+    );
   }
+
+  const currentCode = plan.plan_code;
+  const includedFeatures = PLAN_INCLUDED[currentCode] ?? PLAN_INCLUDED["starter"];
+  const lockedFeatures = PLAN_LOCKED[currentCode] ?? [];
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+
+        {/* Inactive banner */}
         {(plan.status === "canceled" || plan.status === "past_due") && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
             <strong>Tu suscripción está inactiva.</strong> Renová tu plan para volver a operar.
           </div>
         )}
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
               Mi plan
             </p>
-            <h2 className="mt-2 text-3xl font-semibold text-gray-900">
+            <h2 className="mt-1 text-3xl font-semibold text-gray-900">
               {plan.plan_name}
             </h2>
-            <p className="mt-2 text-sm text-gray-500">
-              Estado: <span className="font-medium text-gray-700">{plan.status}</span>
-              {" · "}
-              Período actual: {formatDate(plan.current_period_start)} al{" "}
-              {formatDate(plan.current_period_end)}
+            <p className="mt-1 text-sm text-gray-500">
+              {PLAN_TAGLINE[currentCode] ?? ""}
             </p>
           </div>
-          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm text-right shrink-0">
             <p className="text-xs uppercase tracking-[0.24em] text-gray-400">Valor mensual</p>
-            <p className="mt-2 text-2xl font-semibold text-gray-900">
+            <p className="mt-1 text-2xl font-semibold text-gray-900">
               {formatMoney(plan.price_monthly, plan.currency)}
             </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Vence: {formatDate(plan.current_period_end)}
+            </p>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Conversaciones mensuales</p>
-            <p className="mt-3 text-3xl font-semibold text-gray-900">
-              {plan.inbound_messages_count}
-            </p>
-            <p className="mt-1 text-sm text-gray-400">
-              Límite: {plan.monthly_message_limit ?? "Ilimitado"}
-            </p>
-          </article>
-          <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Respuestas IA</p>
-            <p className="mt-3 text-3xl font-semibold text-gray-900">
-              {plan.ai_replies_count}
-            </p>
-            <p className="mt-1 text-sm text-gray-400">
-              Límite: {plan.monthly_ai_reply_limit ?? "Ilimitado"}
-            </p>
-          </article>
-          <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Mensajes humanos</p>
-            <p className="mt-3 text-3xl font-semibold text-gray-900">
-              {plan.human_messages_count}
-            </p>
-            <p className="mt-1 text-sm text-gray-400">Uso acumulado del período actual</p>
-          </article>
-        </div>
+        {/* Usage */}
+        <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+          <h3 className="text-sm font-semibold text-gray-900">Uso este período</h3>
+          <UsageBar
+            label="Mensajes entrantes"
+            used={plan.inbound_messages_count}
+            limit={plan.monthly_message_limit ?? plan.conversation_limit}
+          />
+          <UsageBar
+            label="Respuestas IA"
+            used={plan.ai_replies_count}
+            limit={
+              plan.monthly_ai_reply_limit ??
+              (typeof plan.features?.ai_reply_limit === "number"
+                ? (plan.features.ai_reply_limit as number)
+                : null)
+            }
+          />
+        </section>
 
-        <div className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr]">
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900">Capacidades incluidas</h3>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Límite de contactos activos</p>
-                <p className="mt-2 text-xl font-semibold text-gray-900">
-                  {plan.conversation_limit ?? "Flexible"}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Productos / servicios</p>
-                <p className="mt-2 text-xl font-semibold text-gray-900">
-                  {plan.product_limit ?? "Flexible"}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Usuarios del equipo</p>
-                <p className="mt-2 text-xl font-semibold text-gray-900">
-                  {plan.users_limit ?? 1}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Números de WhatsApp</p>
-                <p className="mt-2 text-xl font-semibold text-gray-900">
-                  {plan.whatsapp_numbers_limit ?? 1}
-                </p>
-              </div>
-            </div>
+        {/* Features included / locked */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Incluido en tu plan</h3>
+            <ul className="space-y-2">
+              {includedFeatures.map((f) => (
+                <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
+                  <span className="mt-0.5 shrink-0">✅</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
           </section>
 
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900">Acciones</h3>
-
-            {(plan.status === "canceled" || plan.status === "past_due") && (
-              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4">
-                <p className="text-sm font-medium text-red-800">
-                  Tu suscripción está inactiva.
+          {lockedFeatures.length > 0 ? (
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                Disponible en planes superiores
+              </h3>
+              <ul className="space-y-2">
+                {lockedFeatures.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-gray-400">
+                    <span className="mt-0.5 shrink-0">🔒</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <section className="bg-emerald-50 rounded-2xl border border-emerald-200 p-5 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-3xl">🏆</p>
+                <p className="mt-2 text-sm font-semibold text-emerald-800">
+                  Estás en el plan más completo.
                 </p>
-                <p className="mt-1 text-sm text-red-700">
-                  Renová tu plan para volver a operar.
+                <p className="mt-1 text-xs text-emerald-600">
+                  Tenés acceso a todas las funciones disponibles.
                 </p>
               </div>
-            )}
+            </section>
+          )}
+        </div>
+
+        {/* Capacity */}
+        <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Capacidades del plan</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Contactos", value: plan.conversation_limit },
+              { label: "Productos", value: plan.product_limit },
+              { label: "Usuarios", value: plan.users_limit },
+              { label: "Números WA", value: plan.whatsapp_numbers_limit },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-xl bg-gray-50 p-3 text-center">
+                <p className="text-xs text-gray-500">{label}</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {value ?? "∞"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Upgrade / Renew */}
+        {(plan.upgrade_options.length > 0 ||
+          plan.status === "canceled" ||
+          plan.status === "past_due") && (
+          <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">
+              {plan.upgrade_options.length > 0 ? "Mejorar tu plan" : "Renovar suscripción"}
+            </h3>
 
             {checkoutError && (
-              <p className="mt-3 text-sm text-red-600">{checkoutError}</p>
+              <p className="mb-3 text-sm text-red-600">{checkoutError}</p>
             )}
 
-            <div className="mt-4 space-y-3">
-              {(plan.status === "canceled" || plan.status === "past_due") && (
-                <button
-                  onClick={handlePay}
-                  disabled={checkoutLoading}
-                  className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
-                >
-                  {checkoutLoading ? "Redirigiendo a pago..." : "Renovar plan"}
-                </button>
-              )}
-              {(plan.status === "active" || plan.status === "trial") && (
-                <button
-                  onClick={handlePay}
-                  disabled={checkoutLoading}
-                  className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
-                >
-                  {checkoutLoading ? "Redirigiendo..." : "Renovar / Mejorar plan"}
-                </button>
-              )}
-            </div>
+            {(plan.status === "canceled" || plan.status === "past_due") && (
+              <button
+                onClick={() => startCheckout()}
+                disabled={checkoutLoading}
+                className="w-full mb-4 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {checkoutLoading ? "Redirigiendo..." : "Renovar plan"}
+              </button>
+            )}
+
+            {plan.upgrade_options.length > 0 && (
+              <div className={`grid gap-4 ${plan.upgrade_options.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                {plan.upgrade_options.map((opt) => (
+                  <UpgradeCard
+                    key={opt.code}
+                    option={opt}
+                    onUpgrade={(code) => startCheckout(code, "upgrade")}
+                    loading={upgradeLoading === opt.code && checkoutLoading}
+                  />
+                ))}
+              </div>
+            )}
           </section>
-        </div>
+        )}
+
       </div>
     </div>
   );

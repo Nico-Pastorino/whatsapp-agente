@@ -8,10 +8,16 @@ export type {
   OutboxItem,
   PlanSummary,
   ProductItem,
+  UpgradeOption,
 } from "./data-access";
 
 export {
+  ACTIVE_PLAN_CODES,
+  PLAN_HIERARCHY,
+  canUpgradeTo,
   canUseAssistant,
+  canUseTemplate,
+  getPlanFeatures,
   clearRequestedSessionAction,
   deleteConversation,
   derivePhoneNumberFromMessage,

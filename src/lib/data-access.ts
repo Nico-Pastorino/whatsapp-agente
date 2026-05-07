@@ -132,6 +132,13 @@ interface UsageRow {
   human_messages_count: number;
 }
 
+export interface UpgradeOption {
+  code: string;
+  name: string;
+  price_monthly: number;
+  currency: string;
+}
+
 export interface PlanSummary {
   plan_code: string;
   plan_name: string;
@@ -150,6 +157,67 @@ export interface PlanSummary {
   price_monthly: number | null;
   currency: string;
   features: Record<string, unknown> | null;
+  template_tiers_allowed: string[];
+  upgrade_options: UpgradeOption[];
+}
+
+// ── Plan hierarchy ───────────────────────────────────────────────────────────
+export const PLAN_HIERARCHY: Record<string, number> = {
+  starter: 1,
+  growth: 2,
+  pro: 3,
+  premium: 3, // legacy — same rank as pro
+};
+
+export const ACTIVE_PLAN_CODES = ["starter", "growth", "pro"] as const;
+
+export function canUpgradeTo(
+  currentPlan: string,
+  targetPlan: string
+): { allowed: boolean; reason?: string } {
+  if (!(ACTIVE_PLAN_CODES as readonly string[]).includes(targetPlan)) {
+    return { allowed: false, reason: "Plan de destino inválido." };
+  }
+  if (currentPlan === targetPlan) {
+    return { allowed: false, reason: "Ya estás en este plan." };
+  }
+  const currentRank = PLAN_HIERARCHY[currentPlan] ?? 0;
+  const targetRank = PLAN_HIERARCHY[targetPlan] ?? 0;
+  if (targetRank <= currentRank) {
+    return { allowed: false, reason: "No se permite downgrade de plan." };
+  }
+  return { allowed: true };
+}
+
+export async function getPlanFeatures(
+  businessId = getBusinessId()
+): Promise<Record<string, unknown>> {
+  const supabase = getSupabaseAdminClient();
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("plan_code")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (!sub?.plan_code) return {};
+  const { data: plan } = await supabase
+    .from("plans")
+    .select("features")
+    .eq("code", sub.plan_code)
+    .maybeSingle();
+  return (plan?.features as Record<string, unknown>) ?? {};
+}
+
+export async function canUseTemplate(
+  businessId: string,
+  templateTier: string
+): Promise<{ allowed: boolean; requiredPlan?: string }> {
+  const features = await getPlanFeatures(businessId);
+  const allowedTiers = Array.isArray(features.template_tiers)
+    ? (features.template_tiers as string[])
+    : [];
+  if (allowedTiers.includes(templateTier)) return { allowed: true };
+  if (templateTier === "premium") return { allowed: false, requiredPlan: "pro" };
+  return { allowed: false, requiredPlan: "growth" };
 }
 
 export interface ResolveContactIdentityParams {
@@ -952,8 +1020,38 @@ export async function getPlanSummary(
 
   if (planError) throw planError;
 
+  const currentPlanCode = subscription.plan_code ?? "starter";
+  const currentRank = PLAN_HIERARCHY[currentPlanCode] ?? 0;
+  const featuresObj =
+    plan?.features && typeof plan.features === "object"
+      ? (plan.features as Record<string, unknown>)
+      : null;
+  const templateTiersAllowed = Array.isArray(featuresObj?.template_tiers)
+    ? (featuresObj!.template_tiers as string[])
+    : [];
+
+  // Fetch upgrade options (plans with higher rank)
+  const { data: allPlans } = await supabase
+    .from("plans")
+    .select("code, name, price_monthly, currency")
+    .in("code", ["starter", "growth", "pro"]);
+
+  const upgradeOptions: UpgradeOption[] = (allPlans ?? [])
+    .filter(
+      (p) =>
+        (PLAN_HIERARCHY[p.code] ?? 0) > currentRank &&
+        typeof p.price_monthly === "number"
+    )
+    .sort((a, b) => (PLAN_HIERARCHY[a.code] ?? 0) - (PLAN_HIERARCHY[b.code] ?? 0))
+    .map((p) => ({
+      code: p.code,
+      name: p.name,
+      price_monthly: p.price_monthly as number,
+      currency: p.currency ?? "ARS",
+    }));
+
   return {
-    plan_code: subscription.plan_code ?? "starter",
+    plan_code: currentPlanCode,
     plan_name: plan?.name ?? "Starter",
     status: subscription.status,
     current_period_start: toUnixSeconds(subscription.current_period_start),
@@ -969,10 +1067,9 @@ export async function getPlanSummary(
     whatsapp_numbers_limit: plan?.whatsapp_numbers_limit ?? null,
     price_monthly: plan?.price_monthly ?? null,
     currency: plan?.currency ?? "ARS",
-    features:
-      plan?.features && typeof plan.features === "object"
-        ? (plan.features as Record<string, unknown>)
-        : null,
+    features: featuresObj,
+    template_tiers_allowed: templateTiersAllowed,
+    upgrade_options: upgradeOptions,
   };
 }
 

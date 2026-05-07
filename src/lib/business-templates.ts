@@ -13,6 +13,8 @@ export interface BusinessTemplate {
   commercialIntents: string[];
   recommendedFields: string[];
   suggestedEmojis: string[];
+  tier: "basic" | "commercial" | "premium";
+  requiredPlan: "starter" | "growth" | "pro";
   comingSoon?: boolean;
 }
 
@@ -70,6 +72,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Política de cambios y devoluciones",
     ],
     suggestedEmojis: ["📱", "✅", "🚚", "💳", "🔋"],
+    tier: "commercial",
+    requiredPlan: "growth",
   },
   {
     id: "clothing",
@@ -123,6 +127,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Enlace al catálogo (si existe)",
     ],
     suggestedEmojis: ["👕", "📦", "✨", "✅"],
+    tier: "commercial",
+    requiredPlan: "growth",
   },
   {
     id: "hair_salon",
@@ -175,6 +181,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Recomendaciones previas al turno",
     ],
     suggestedEmojis: ["✨", "📅", "✅"],
+    tier: "commercial",
+    requiredPlan: "growth",
   },
   {
     id: "restaurant",
@@ -229,6 +237,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Enlace al menú completo (si existe)",
     ],
     suggestedEmojis: ["🍽️", "🛵", "📍", "✅"],
+    tier: "commercial",
+    requiredPlan: "growth",
   },
   {
     id: "events",
@@ -282,6 +292,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Medios de pago en puerta",
     ],
     suggestedEmojis: ["🎟️", "🎉", "📍", "✅", "🕺"],
+    tier: "commercial",
+    requiredPlan: "growth",
   },
   // Coming soon
   {
@@ -299,6 +311,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     commercialIntents: [],
     recommendedFields: [],
     suggestedEmojis: [],
+    tier: "premium",
+    requiredPlan: "pro",
     comingSoon: true,
   },
   {
@@ -316,6 +330,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     commercialIntents: [],
     recommendedFields: [],
     suggestedEmojis: [],
+    tier: "premium",
+    requiredPlan: "pro",
     comingSoon: true,
   },
   {
@@ -333,6 +349,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     commercialIntents: [],
     recommendedFields: [],
     suggestedEmojis: [],
+    tier: "premium",
+    requiredPlan: "pro",
     comingSoon: true,
   },
   {
@@ -350,6 +368,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     commercialIntents: [],
     recommendedFields: [],
     suggestedEmojis: [],
+    tier: "premium",
+    requiredPlan: "pro",
     comingSoon: true,
   },
   {
@@ -367,6 +387,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     commercialIntents: [],
     recommendedFields: [],
     suggestedEmojis: [],
+    tier: "premium",
+    requiredPlan: "pro",
     comingSoon: true,
   },
   {
@@ -384,6 +406,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     commercialIntents: [],
     recommendedFields: [],
     suggestedEmojis: [],
+    tier: "commercial",
+    requiredPlan: "growth",
     comingSoon: true,
   },
   {
@@ -401,6 +425,8 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     commercialIntents: [],
     recommendedFields: [],
     suggestedEmojis: [],
+    tier: "basic",
+    requiredPlan: "starter",
     comingSoon: true,
   },
 ];

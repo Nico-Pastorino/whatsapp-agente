@@ -10,20 +10,6 @@ function getMpClient(): MercadoPagoConfig {
   return new MercadoPagoConfig({ accessToken: token });
 }
 
-/**
- * Extrae el MP payment ID de la notificación entrante.
- *
- * MP envía notificaciones en dos formatos según la versión de la API:
- *
- * 1. Webhooks REST (moderno — usado con notification_url en preferencias):
- *    POST body JSON: { action: "payment.created", data: { id: "12345" } }
- *
- * 2. IPN legacy:
- *    Query params: ?topic=payment&id=12345
- *    Body puede estar vacío.
- *
- * Esta función intenta ambos y devuelve el ID o null si no aplica.
- */
 function extractMpPaymentId(
   body: Record<string, unknown>,
   searchParams: URLSearchParams
@@ -44,7 +30,7 @@ function extractMpPaymentId(
     return qId;
   }
 
-  // Formato 3: Algunos endpoints MP mandan { type: "payment", data: { id } }
+  // Formato 3: { type: "payment", data: { id } }
   const type = typeof body.type === "string" ? body.type : "";
   if (type === "payment") {
     const dataId = (body.data as Record<string, unknown> | undefined)?.id;
@@ -63,7 +49,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    // Body vacío es normal en IPN legacy — no es un error
+    // Body vacío es normal en IPN legacy
   }
 
   const searchParams = req.nextUrl.searchParams;
@@ -73,7 +59,6 @@ export async function POST(req: NextRequest) {
   console.log(`[mp/webhook] payment_id=${mpPaymentId ?? "(not extracted)"}`);
 
   if (!mpPaymentId) {
-    // No es una notificación de pago — puede ser test de MP o ping de conexión
     console.log("[mp/webhook] not a payment event, skipping");
     return NextResponse.json({ ok: true });
   }
@@ -89,7 +74,6 @@ export async function POST(req: NextRequest) {
     const externalRef = payment.external_reference;
 
     if (payment.status !== "approved") {
-      // Actualizar estado del pago si cambió (rejected, cancelled, etc.)
       if (externalRef) {
         const supabase = getSupabaseAdminClient();
         const statusMap: Record<string, string> = {
@@ -119,10 +103,10 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabaseAdminClient();
 
-    // Idempotencia: si este pago ya fue procesado, no volver a activar
+    // Idempotencia: si ya fue procesado, no volver a activar
     const { data: existing } = await supabase
       .from("payments")
-      .select("status, business_id")
+      .select("status, business_id, plan_code, checkout_type")
       .eq("id", externalRef)
       .maybeSingle();
 
@@ -136,7 +120,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    const targetPlanCode = existing.plan_code ?? "starter";
+    const checkoutType = existing.checkout_type ?? "initial";
+
     console.log(`[mp/webhook] business_id resolved=${existing.business_id}`);
+    console.log(`[mp/webhook] checkout_type=${checkoutType}`);
+    console.log(`[mp/webhook] target_plan=${targetPlanCode}`);
 
     // 1. Marcar el pago como aprobado
     await supabase
@@ -150,15 +139,17 @@ export async function POST(req: NextRequest) {
 
     console.log(`[mp/webhook] payment record updated to approved`);
 
-    // 2. Activar suscripción por 30 días
-    //    Esto actualiza subscriptions.status = 'active' para el business_id,
-    //    que es exactamente lo que lee getBusinessSubscriptionStatus(businessId).
+    // 2. Activar / actualizar suscripción:
+    //    - plan_code se actualiza al plan pagado (crítico para upgrades)
+    //    - status = active
+    //    - period = now + 30 days
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const { error: subError } = await supabase
       .from("subscriptions")
       .update({
+        plan_code: targetPlanCode,
         status: "active",
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
@@ -167,18 +158,20 @@ export async function POST(req: NextRequest) {
       .eq("business_id", existing.business_id);
 
     if (subError) {
-      console.error("[mp/webhook] error activating subscription:", subError.message);
-      // No retornamos error a MP para que no reintente — el pago ya fue guardado
+      console.error("[mp/webhook] error updating subscription:", subError.message);
       return NextResponse.json({ ok: true });
     }
 
-    console.log(`[mp/webhook] subscription activated for business=${existing.business_id}`);
+    if (checkoutType === "upgrade") {
+      console.log(`[mp/webhook] upgrade applied business_id=${existing.business_id} plan=${targetPlanCode}`);
+    } else {
+      console.log(`[mp/webhook] subscription activated for business=${existing.business_id} plan=${targetPlanCode}`);
+    }
     console.log(`[mp/webhook] period ${now.toISOString()} → ${periodEnd.toISOString()}`);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[mp/webhook] unexpected error:", err instanceof Error ? err.message : err);
-    // Siempre 200 para que MP no reintente indefinidamente
     return NextResponse.json({ ok: true });
   }
 }

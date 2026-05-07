@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBusinessProfile, setBusinessProfile } from "@/lib/db";
+import { getBusinessProfile, setBusinessProfile, canUseTemplate } from "@/lib/db";
 import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
 import { getTemplateById, buildExtraFromTemplate } from "@/lib/business-templates";
 
@@ -19,6 +19,16 @@ export async function POST(req: NextRequest) {
       const template = getTemplateById(templateId);
       if (!template || template.comingSoon) {
         return NextResponse.json({ error: "Plantilla no encontrada." }, { status: 404 });
+      }
+
+      // Validate plan access
+      const access = await canUseTemplate(businessId, template.tier);
+      if (!access.allowed) {
+        const planName = access.requiredPlan === "pro" ? "Pro" : "Growth";
+        return NextResponse.json(
+          { error: `Esta plantilla está disponible en el plan ${planName}.` },
+          { status: 403 }
+        );
       }
 
       const current = await getBusinessProfile(businessId);
