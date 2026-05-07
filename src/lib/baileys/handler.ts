@@ -166,9 +166,15 @@ async function processMessage(sock: WASocket, msg: any): Promise<void> {
     return;
   }
 
-  const allowed = await canUseAssistant();
+  let allowed = false;
+  try {
+    allowed = await canUseAssistant();
+  } catch (err) {
+    console.error("[bot] canUseAssistant falló (suscripción faltante o error de DB):", err);
+    return;
+  }
   if (!allowed) {
-    console.log("[bot] Plan o límites impiden responder automáticamente");
+    console.log("[bot] Plan o límites impiden responder automáticamente — verificá que el estado de suscripción sea 'active' o 'trial'");
     return;
   }
 

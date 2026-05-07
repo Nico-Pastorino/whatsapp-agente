@@ -96,13 +96,16 @@ export async function POST(req: NextRequest) {
       role: "owner",
     });
 
-    // Subscription (pending_payment — must pay before accessing app)
+    // Starter ($0) auto-activates; paid plans stay pending until payment is confirmed.
+    const isFree = plan.price_monthly === 0 || planCode === "starter";
+    const periodEnd = new Date();
+    periodEnd.setFullYear(periodEnd.getFullYear() + 1);
     await supabase.from("subscriptions").insert({
       business_id: businessId,
       plan_code: planCode,
-      status: "pending_payment",
-      current_period_start: null,
-      current_period_end: null,
+      status: isFree ? "active" : "pending_payment",
+      current_period_start: isFree ? now : null,
+      current_period_end: isFree ? periodEnd.toISOString() : null,
       updated_at: now,
     });
 
