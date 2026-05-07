@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import TemplateSelector from "./TemplateSelector";
 
 interface Product {
   name: string;
@@ -52,7 +53,7 @@ export default function BusinessConfig() {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const reloadProfile = useCallback(() => {
     fetch("/api/business")
       .then((r) => r.json())
       .then((data) => {
@@ -68,6 +69,13 @@ export default function BusinessConfig() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    reloadProfile();
+  }, [reloadProfile]);
+
+  const profileIsEmpty =
+    !profile.description && profile.products.length === 0 && !profile.extra;
 
   function updateField(field: keyof Omit<Profile, "products">, value: string) {
     setProfile((p) => ({ ...p, [field]: value }));
@@ -132,6 +140,12 @@ export default function BusinessConfig() {
             clientes de forma precisa y contextual.
           </p>
         </div>
+
+        {/* ── Plantillas por Rubro ── */}
+        <TemplateSelector
+          profileIsEmpty={profileIsEmpty}
+          onApplied={reloadProfile}
+        />
 
         {/* ── Sección 1: Identidad del negocio ── */}
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -260,20 +274,6 @@ export default function BusinessConfig() {
             placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada`}
             className={`${inputClass} resize-none`}
           />
-        </section>
-
-        {/* ── Próximas secciones (placeholder, sin funcionalidad todavía) ── */}
-        <section className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 opacity-50">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-400">
-            Próximamente
-          </p>
-          <h3 className="mt-1 text-base font-semibold text-gray-500">
-            Personalización avanzada del asistente
-          </h3>
-          <p className="mt-1 text-sm text-gray-400">
-            Tono de respuesta, plantillas por rubro, preguntas frecuentes y entrenamiento con
-            conversaciones reales. Disponible en una próxima versión.
-          </p>
         </section>
 
         {/* ── Botón guardar ── */}
