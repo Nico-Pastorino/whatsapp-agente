@@ -1,0 +1,315 @@
+/* Atendé · Design tokens
+   Light + dark themes; accent is swappable via [data-accent]
+*/
+
+:root,
+[data-theme="light"] {
+  --bg:           #f3f0ea;
+  --bg-grain:     #ece8df;
+  --bg-elev:      #fdfbf6;
+  --surface:      #ffffff;
+  --surface-2:    #f8f5ee;
+  --ink:          #0c1410;
+  --ink-2:        #2a3331;
+  --ink-3:        #4a534f;
+  --muted:        #76776f;
+  --hairline:     rgba(12, 20, 16, 0.08);
+  --hairline-2:   rgba(12, 20, 16, 0.14);
+  --hairline-3:   rgba(12, 20, 16, 0.22);
+
+  --green:        #0d3b2e;
+  --green-2:      #145138;
+  --green-soft:   #1f6b4a;
+  --green-tint:   #dee9e2;
+  --green-tint-2: #c8d8cd;
+  --green-ink:    #06251c;
+
+  --on-green:     #f3f0ea;
+
+  /* IA / status */
+  --ia:           var(--green);
+  --human:        #d49a3a;
+  --human-tint:   #f6ecd5;
+
+  /* shadows */
+  --shadow-1: 0 1px 0 rgba(12,20,16,0.04), 0 1px 2px rgba(12,20,16,0.04);
+  --shadow-2: 0 1px 0 rgba(12,20,16,0.04), 0 8px 24px -8px rgba(12,20,16,0.10);
+  --shadow-3: 0 2px 0 rgba(12,20,16,0.04), 0 24px 48px -16px rgba(12,20,16,0.18);
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius:    14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+}
+
+[data-theme="dark"] {
+  --bg:           #0a120e;
+  --bg-grain:     #0d1612;
+  --bg-elev:      #131c17;
+  --surface:      #182219;
+  --surface-2:    #1f2a22;
+  --ink:          #f0ede4;
+  --ink-2:        #d6d3c8;
+  --ink-3:        #a8a89c;
+  --muted:        #7a7c70;
+  --hairline:     rgba(240, 237, 228, 0.08);
+  --hairline-2:   rgba(240, 237, 228, 0.14);
+  --hairline-3:   rgba(240, 237, 228, 0.22);
+
+  --green:        #2fbe7e;
+  --green-2:      #43d695;
+  --green-soft:   #1f8a5b;
+  --green-tint:   #18301f;
+  --green-tint-2: #1f3f2c;
+  --green-ink:    #08160f;
+
+  --on-green:     #06150e;
+
+  --human:        #e8b964;
+  --human-tint:   #2a2418;
+
+  --shadow-1: 0 1px 0 rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 1px 0 rgba(0,0,0,0.4), 0 12px 28px -8px rgba(0,0,0,0.5);
+  --shadow-3: 0 2px 0 rgba(0,0,0,0.4), 0 24px 48px -16px rgba(0,0,0,0.7);
+}
+
+/* Accent palettes — coral default */
+:root,
+[data-accent="coral"] {
+  --accent:        #ff6b4d;
+  --accent-2:      #ff8a72;
+  --accent-soft:   #ffe1d8;
+  --accent-ink:    #2b0c04;
+  --on-accent:     #2b0c04;
+}
+[data-accent="lime"] {
+  --accent:        #c5f23a;
+  --accent-2:      #d6ff5c;
+  --accent-soft:   #ecf9bd;
+  --accent-ink:    #1a2400;
+  --on-accent:     #1a2400;
+}
+[data-accent="violet"] {
+  --accent:        #7b5cff;
+  --accent-2:      #9683ff;
+  --accent-soft:   #e7e0ff;
+  --accent-ink:    #15084a;
+  --on-accent:     #ffffff;
+}
+[data-accent="electric"] {
+  --accent:        #2c5cff;
+  --accent-2:      #5d83ff;
+  --accent-soft:   #dde5ff;
+  --accent-ink:    #04124a;
+  --on-accent:     #ffffff;
+}
+
+[data-theme="dark"][data-accent="coral"]  { --accent-soft:#3a1810; }
+[data-theme="dark"][data-accent="lime"]   { --accent-soft:#28330b; }
+[data-theme="dark"][data-accent="violet"] { --accent-soft:#1c1448; }
+[data-theme="dark"][data-accent="electric"]{ --accent-soft:#0c1a4a; }
+
+/* ─── primitives ─── */
+
+.atd, .atd * { box-sizing: border-box; }
+
+.atd {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-feature-settings: 'ss01', 'cv11';
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.atd .serif  { font-family: 'Instrument Serif', 'Times New Roman', serif; font-weight: 400; letter-spacing: -0.01em; }
+.atd .mono   { font-family: 'Geist Mono', ui-monospace, 'SFMono-Regular', monospace; }
+.atd .display{ font-family: 'Instrument Serif', serif; font-weight: 400; letter-spacing: -0.02em; line-height: 0.92; }
+.atd .italic { font-style: italic; }
+
+.atd a { color: inherit; text-decoration: none; }
+.atd button { font-family: inherit; cursor: pointer; }
+
+/* dotted grid for some bg sections */
+.atd-dots {
+  background-image: radial-gradient(var(--hairline-2) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+
+/* subtle paper texture */
+.atd-paper {
+  background:
+    radial-gradient(1200px 600px at -20% -10%, color-mix(in oklab, var(--accent) 6%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 110% 110%, color-mix(in oklab, var(--green) 8%, transparent), transparent 60%),
+    var(--bg);
+}
+
+/* tape / pill */
+.atd-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px; line-height: 1;
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--hairline-2);
+}
+.atd-pill.green  { background: var(--green-tint); color: var(--green-ink); border-color: transparent; }
+.atd-pill.accent { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+.atd-pill.dark   { background: var(--ink); color: var(--bg); border-color: transparent; }
+
+.atd-dot { width: 8px; height: 8px; border-radius: 999px; background: currentColor; display: inline-block; }
+.atd-dot.live { background: #25c779; box-shadow: 0 0 0 4px color-mix(in oklab, #25c779 25%, transparent); }
+
+/* button */
+.atd-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 18px;
+  border-radius: 999px;
+  font-weight: 500; font-size: 15px;
+  border: 1px solid transparent; cursor: pointer;
+  transition: transform .12s, background .12s, color .12s;
+  white-space: nowrap;
+}
+.atd-btn:hover { transform: translateY(-1px); }
+.atd-btn.primary  { background: var(--ink); color: var(--bg); }
+.atd-btn.green    { background: var(--green); color: var(--on-green); }
+.atd-btn.accent   { background: var(--accent); color: var(--on-accent); }
+.atd-btn.ghost    { background: transparent; color: var(--ink); border-color: var(--hairline-2); }
+.atd-btn.lg       { height: 52px; padding: 0 22px; font-size: 16px; border-radius: 999px; }
+.atd-btn.sm       { height: 34px; padding: 0 12px; font-size: 13px; }
+
+/* card */
+.atd-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+
+/* chat bubbles (used in mockups) */
+.atd-bub {
+  max-width: 78%;
+  padding: 9px 12px 8px;
+  border-radius: 18px;
+  font-size: 14px; line-height: 1.32;
+  position: relative;
+}
+.atd-bub.in  { background: var(--surface-2); color: var(--ink); border-top-left-radius: 6px; align-self: flex-start; }
+.atd-bub.out { background: var(--green-tint); color: var(--green-ink); border-top-right-radius: 6px; align-self: flex-end; }
+[data-theme="dark"] .atd-bub.in  { background: #20281f; }
+[data-theme="dark"] .atd-bub.out { background: var(--green-tint); color: #d6f0e0; }
+.atd-bub .meta { font-size: 10px; color: var(--muted); margin-top: 2px; display:flex; gap:4px; align-items:center; justify-content:flex-end; }
+
+/* phone bezel (lo-key) */
+.atd-phone {
+  width: 320px;
+  background: var(--ink);
+  border-radius: 38px;
+  padding: 10px;
+  box-shadow:
+    0 0 0 1px var(--hairline-3),
+    0 30px 60px -30px rgba(0,0,0,0.35),
+    0 10px 30px -20px rgba(0,0,0,0.3);
+  position: relative;
+}
+.atd-phone .screen {
+  background: var(--bg);
+  border-radius: 30px;
+  overflow: hidden;
+  position: relative;
+  height: 640px;
+}
+.atd-phone .notch {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  width: 100px; height: 26px; border-radius: 999px; background: var(--ink); z-index: 5;
+}
+
+/* status bar */
+.atd-status {
+  height: 44px; padding: 0 22px 0 26px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+}
+
+/* nav bottom */
+.atd-tabbar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  padding: 10px 8px 18px;
+  background: color-mix(in oklab, var(--bg) 86%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--hairline);
+}
+.atd-tabbar .tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--muted);
+}
+.atd-tabbar .tab.active { color: var(--ink); }
+.atd-tabbar .tab .ic {
+  width: 26px; height: 26px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.atd-tabbar .tab.active .ic {
+  background: var(--ink); color: var(--bg);
+}
+
+/* tiny badge */
+.atd-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  font-size: 11px; font-weight: 600;
+  border-radius: 999px;
+  background: var(--accent); color: var(--on-accent);
+}
+
+/* skeleton lines (placeholders) */
+.atd-line {
+  height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--hairline-2), var(--hairline));
+}
+
+/* image placeholder (subtle stripes) */
+.atd-imgph {
+  border-radius: var(--radius);
+  background:
+    repeating-linear-gradient(135deg, var(--hairline) 0 8px, transparent 8px 16px),
+    var(--surface-2);
+  border: 1px solid var(--hairline);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-family: 'Geist Mono', monospace; font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* dashed key/value list */
+.atd-kv { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0;
+  border-bottom: 1px dashed var(--hairline-2); }
+.atd-kv:last-child { border-bottom: 0; }
+.atd-kv .k { color: var(--muted); font-size: 13px; }
+.atd-kv .v { color: var(--ink); font-size: 14px; font-weight: 500; }
+
+/* segmented */
+.atd-seg {
+  display: inline-flex; padding: 4px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+}
+.atd-seg button {
+  height: 30px; padding: 0 14px; border: 0; background: transparent;
+  border-radius: 999px; font-size: 13px; color: var(--ink-3);
+}
+.atd-seg button.on {
+  background: var(--ink); color: var(--bg);
+}
+
+/* avatar */
+.atd-av {
+  width: 40px; height: 40px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500;
+  color: var(--ink); background: var(--surface-2); border: 1px solid var(--hairline);
+}
+
+/* hairline divider */
+.atd-hr { height: 1px; background: var(--hairline); border: 0; }
