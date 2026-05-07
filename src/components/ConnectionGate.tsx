@@ -10,6 +10,10 @@ import BusinessConfig from "./BusinessConfig";
 import ItemCatalog from "./ItemCatalog";
 import PlanOverview from "./PlanOverview";
 import TeamManagement from "./TeamManagement";
+import HomeScreen from "./HomeScreen";
+import MoreScreen from "./MoreScreen";
+import MobileTabBar from "./MobileTabBar";
+import { Spark } from "./atende/Icons";
 
 interface Conversation {
   id: string;
@@ -38,19 +42,26 @@ interface ConversationUpdate {
   needs_phone_mapping: boolean;
 }
 
-type DashboardView = "conversations" | "business" | "catalog" | "team" | "plan" | "connect";
+type DashboardView =
+  | "conversations"
+  | "business"
+  | "catalog"
+  | "home"
+  | "more"
+  | "plan"
+  | "team"
+  | "connect";
+
 type ConnectionStatus = "disconnected" | "qr" | "connecting" | "connected";
 
 function pickPreferredConversation(a: Conversation, b: Conversation): Conversation {
   const aPhone = a.phone.endsWith("@s.whatsapp.net") ? 1 : 0;
   const bPhone = b.phone.endsWith("@s.whatsapp.net") ? 1 : 0;
   if (bPhone !== aPhone) return bPhone > aPhone ? b : a;
-
   if (a.mode !== b.mode) {
     if (a.mode === "HUMAN") return a;
     if (b.mode === "HUMAN") return b;
   }
-
   const aTime = a.last_message_at ?? 0;
   const bTime = b.last_message_at ?? 0;
   return bTime > aTime ? b : a;
@@ -66,7 +77,6 @@ function dedupeConversationsByContact(conversations: Conversation[]): Conversati
     }
     grouped.set(conversation.contact_id, pickPreferredConversation(existing, conversation));
   }
-
   return Array.from(grouped.values()).sort((a, b) => {
     const aTime = a.last_message_at ?? 0;
     const bTime = b.last_message_at ?? 0;
@@ -74,27 +84,23 @@ function dedupeConversationsByContact(conversations: Conversation[]): Conversati
   });
 }
 
-function OfflineHint() {
+// Empty state for conversations
+function EmptyChats() {
   return (
-    <div className="flex h-full items-center justify-center bg-gray-50 p-6">
-      <div className="max-w-lg rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-          WhatsApp pendiente
-        </p>
-        <h2 className="mt-3 text-2xl font-semibold text-gray-900">
-          Todavía no conectaste el número del negocio
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-gray-500">
-          Podés configurar tu negocio y revisar el plan, pero para operar el inbox
-          primero necesitás vincular WhatsApp desde la sección de conexión.
-        </p>
-        <Link
-          href="/app/connect"
-          className="mt-6 inline-flex rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
-        >
-          Ir a conectar WhatsApp
-        </Link>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", background: "var(--bg)" }}>
+      <div style={{ width: 88, height: 88, borderRadius: 28, background: "var(--green-tint)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, position: "relative" }}>
+        <Spark size={36} style={{ color: "var(--green-ink)" }} />
+        <span style={{ position: "absolute", top: -8, right: -8, width: 28, height: 28, borderRadius: 999, background: "var(--accent)", color: "var(--on-accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 600 }}>+</span>
       </div>
+      <h3 className="serif" style={{ fontSize: 26, margin: "0 0 8px", lineHeight: 1 }}>
+        Todavía no <span className="italic">hay chats.</span>
+      </h3>
+      <p style={{ fontSize: 14, color: "var(--ink-3)", maxWidth: 260, margin: "0 auto 20px" }}>
+        Conectá WhatsApp para que tu asistente empiece a recibir conversaciones.
+      </p>
+      <Link href="/app/connect" className="atd-btn primary">
+        Conectar WhatsApp
+      </Link>
     </div>
   );
 }
@@ -140,7 +146,7 @@ export default function ConnectionGate({ currentView }: Props) {
       const deduped = dedupeConversationsByContact(data);
       setConversations(deduped);
       setSelectedId((current) =>
-        current && deduped.some((conversation) => conversation.id === current)
+        current && deduped.some((c) => c.id === current)
           ? current
           : deduped[0]?.id ?? null
       );
@@ -165,9 +171,7 @@ export default function ConnectionGate({ currentView }: Props) {
 
   function handleConversationUpdate(next: ConversationUpdate) {
     setConversations((prev) =>
-      prev.map((conversation) =>
-        conversation.id === next.id ? { ...conversation, ...next } : conversation
-      )
+      prev.map((c) => (c.id === next.id ? { ...c, ...next } : c))
     );
   }
 
@@ -178,7 +182,7 @@ export default function ConnectionGate({ currentView }: Props) {
 
   if (!initialChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div style={{ minHeight: "100svh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
         <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
       </div>
     );
@@ -186,79 +190,127 @@ export default function ConnectionGate({ currentView }: Props) {
 
   const selectedConv = conversations.find((c) => c.id === selectedId) ?? null;
 
+  // Determine content for the current view
   let content: React.ReactNode = null;
-  if (currentView === "business") {
+  let mobileContent: React.ReactNode = null;
+
+  if (currentView === "home") {
+    content = <HomeScreen />;
+    mobileContent = content;
+  } else if (currentView === "more") {
+    content = <MoreScreen />;
+    mobileContent = content;
+  } else if (currentView === "business") {
     content = <BusinessConfig />;
+    mobileContent = content;
   } else if (currentView === "catalog") {
     content = <ItemCatalog />;
+    mobileContent = content;
   } else if (currentView === "team") {
     content = <TeamManagement />;
+    mobileContent = content;
   } else if (currentView === "plan") {
     content = <PlanOverview />;
+    mobileContent = content;
   } else if (currentView === "connect") {
     content = phone ? (
-      <div className="flex h-full items-center justify-center bg-gray-50 p-6">
-        <div className="max-w-md rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-            WhatsApp conectado
-          </p>
-          <h2 className="mt-3 text-2xl font-semibold text-gray-900">{phone}</h2>
-          <p className="mt-3 text-sm leading-6 text-gray-500">
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 24 }}>
+        <div className="atd-card" style={{ padding: 28, maxWidth: 360, width: "100%", textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <span className="atd-dot live" style={{ width: 12, height: 12 }} />
+          </div>
+          <p className="page-sub" style={{ textAlign: "center" }}>WhatsApp conectado</p>
+          <p className="mono" style={{ fontSize: 18, fontWeight: 500, margin: "6px 0 8px" }}>{phone}</p>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 16px" }}>
             El worker está operativo y este negocio ya puede responder desde el dashboard.
           </p>
-          <div className="mt-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            Estado actual: {connectionStatus}
+          <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--green-tint)", color: "var(--green-ink)", fontSize: 12 }}>
+            Estado: {connectionStatus}
           </div>
         </div>
       </div>
     ) : (
       <QRScreen onConnected={handleConnected} />
     );
-  } else if (conversations.length === 0 && !phone) {
-    content = <OfflineHint />;
+    mobileContent = content;
   } else {
-    content = (
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-72 bg-white border-r border-gray-200 flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-              Conversaciones
-            </h2>
-          </div>
-          <ConversationList
-            conversations={conversations}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
-        </aside>
-
-        <main className="flex-1 overflow-hidden">
-          {selectedConv ? (
-            <ConversationPanel
-              key={selectedConv.id}
-              conversation={selectedConv}
-              onModeChange={handleModeChange}
-              onConversationUpdate={handleConversationUpdate}
-              onDelete={handleDeleteConversation}
+    // conversations view
+    if (conversations.length === 0 && !phone) {
+      content = <EmptyChats />;
+      mobileContent = content;
+    } else {
+      // Desktop: 2-column layout
+      content = (
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+          <aside style={{ width: 288, background: "var(--surface)", borderRight: "1px solid var(--hairline)", display: "flex", flexDirection: "column" }}>
+            <ConversationList
+              conversations={conversations}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
             />
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm bg-gray-50">
-              Selecciona una conversación
-            </div>
-          )}
-        </main>
-      </div>
-    );
+          </aside>
+          <main style={{ flex: 1, overflow: "hidden" }}>
+            {selectedConv ? (
+              <ConversationPanel
+                key={selectedConv.id}
+                conversation={selectedConv}
+                onModeChange={handleModeChange}
+                onConversationUpdate={handleConversationUpdate}
+                onDelete={handleDeleteConversation}
+              />
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted)", fontSize: 14, background: "var(--bg)" }}>
+                Seleccioná una conversación
+              </div>
+            )}
+          </main>
+        </div>
+      );
+      // Mobile: show list OR detail
+      mobileContent = selectedConv ? (
+        <ConversationPanel
+          key={selectedConv.id}
+          conversation={selectedConv}
+          onModeChange={handleModeChange}
+          onConversationUpdate={handleConversationUpdate}
+          onDelete={() => { setSelectedId(null); handleDeleteConversation(); }}
+          onBack={() => setSelectedId(null)}
+        />
+      ) : (
+        <ConversationList
+          conversations={conversations}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+        />
+      );
+    }
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <DashboardHeader
-        phone={phone}
-        activeView={currentView}
-        onDisconnect={handleDisconnect}
-      />
-      {content}
+    <div style={{ display: "flex", flexDirection: "column", height: "100svh", background: "var(--bg)" }}>
+      {/* Desktop header — hidden on mobile */}
+      <div className="hidden md:block">
+        <DashboardHeader
+          phone={phone}
+          activeView={currentView}
+          onDisconnect={handleDisconnect}
+        />
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {/* Desktop content */}
+        <div className="hidden md:flex" style={{ flex: 1, overflow: "hidden" }}>
+          {content}
+        </div>
+        {/* Mobile content */}
+        <div className="flex md:hidden" style={{ flex: 1, overflow: "hidden", flexDirection: "column" }}>
+          {mobileContent}
+        </div>
+      </div>
+
+      {/* Mobile tab bar */}
+      <MobileTabBar activeView={currentView} />
     </div>
   );
 }

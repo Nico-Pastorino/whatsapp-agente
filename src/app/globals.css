@@ -1,19 +1,217 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
 
-/* El dashboard siempre usa modo claro — los colores de los inputs
-   no deben variar según la preferencia del sistema operativo */
+/* ── Atendé design tokens ──────────────────────────────────── */
 :root {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
+
+  --bg:           #f3f0ea;
+  --bg-grain:     #ece8df;
+  --bg-elev:      #fdfbf6;
+  --surface:      #ffffff;
+  --surface-2:    #f8f5ee;
+  --ink:          #0c1410;
+  --ink-2:        #2a3331;
+  --ink-3:        #4a534f;
+  --muted:        #76776f;
+  --hairline:     rgba(12, 20, 16, 0.08);
+  --hairline-2:   rgba(12, 20, 16, 0.14);
+  --hairline-3:   rgba(12, 20, 16, 0.22);
+
+  --green:        #0d3b2e;
+  --green-2:      #145138;
+  --green-soft:   #1f6b4a;
+  --green-tint:   #dee9e2;
+  --green-tint-2: #c8d8cd;
+  --green-ink:    #06251c;
+  --on-green:     #f3f0ea;
+
+  --ia:           var(--green);
+  --human:        #d49a3a;
+  --human-tint:   #f6ecd5;
+
+  --accent:       #ff6b4d;
+  --accent-2:     #ff8a72;
+  --accent-soft:  #ffe1d8;
+  --accent-ink:   #2b0c04;
+  --on-accent:    #2b0c04;
+
+  --shadow-1: 0 1px 0 rgba(12,20,16,0.04), 0 1px 2px rgba(12,20,16,0.04);
+  --shadow-2: 0 1px 0 rgba(12,20,16,0.04), 0 8px 24px -8px rgba(12,20,16,0.10);
+  --shadow-3: 0 2px 0 rgba(12,20,16,0.04), 0 24px 48px -16px rgba(12,20,16,0.18);
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius:    14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+
+  --font-sans:  'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', 'Times New Roman', serif;
+  --font-mono:  'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
+
+/* ── Base ──────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv11';
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-* {
-  box-sizing: border-box;
+/* ── Typography helpers ────────────────────────────────────── */
+.serif  { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
+.mono   { font-family: var(--font-mono); }
+.italic { font-style: italic; }
+
+/* ── Atendé utility classes ────────────────────────────────── */
+.atd-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
 }
+
+.atd-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px; line-height: 1;
+  background: var(--surface); color: var(--ink-2);
+  border: 1px solid var(--hairline-2);
+  white-space: nowrap;
+}
+.atd-pill.green  { background: var(--green-tint); color: var(--green-ink); border-color: transparent; }
+.atd-pill.accent { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+.atd-pill.dark   { background: var(--ink); color: var(--bg); border-color: transparent; }
+.atd-pill.human  { background: var(--human-tint); color: var(--human); border-color: transparent; }
+
+.atd-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 18px;
+  border-radius: 999px;
+  font-weight: 500; font-size: 15px; font-family: var(--font-sans);
+  border: 1px solid transparent; cursor: pointer;
+  transition: transform .12s, opacity .12s;
+  white-space: nowrap;
+}
+.atd-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.atd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.atd-btn.primary { background: var(--ink); color: var(--bg); }
+.atd-btn.green   { background: var(--green); color: var(--on-green); }
+.atd-btn.accent  { background: var(--accent); color: var(--on-accent); }
+.atd-btn.ghost   { background: transparent; color: var(--ink); border-color: var(--hairline-2); }
+.atd-btn.lg      { height: 52px; padding: 0 22px; font-size: 16px; }
+.atd-btn.sm      { height: 34px; padding: 0 12px; font-size: 13px; }
+
+.atd-seg {
+  display: inline-flex; padding: 3px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  gap: 2px;
+}
+.atd-seg button {
+  height: 30px; padding: 0 14px; border: 0; background: transparent;
+  border-radius: 999px; font-size: 13px; color: var(--ink-3);
+  font-family: var(--font-sans); cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+}
+.atd-seg button.on { background: var(--ink); color: var(--bg); }
+
+.atd-dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  background: currentColor; display: inline-block; flex-shrink: 0;
+}
+.atd-dot.live {
+  background: #25c779;
+  box-shadow: 0 0 0 4px color-mix(in oklab, #25c779 25%, transparent);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.atd-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  font-size: 11px; font-weight: 600; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent);
+}
+
+.atd-bub {
+  max-width: 78%; padding: 9px 12px 8px;
+  border-radius: 18px; font-size: 14px; line-height: 1.4;
+}
+.atd-bub.in  { background: var(--surface-2); color: var(--ink); border-top-left-radius: 6px; align-self: flex-start; }
+.atd-bub.out { background: var(--green-tint); color: var(--green-ink); border-top-right-radius: 6px; align-self: flex-end; }
+.atd-bub.human-out { background: var(--ink); color: var(--bg); border-top-right-radius: 6px; align-self: flex-end; }
+.bub-meta { font-size: 10px; color: var(--muted); margin-top: 3px; display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+
+.atd-input {
+  width: 100%; border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  font-size: 14px; font-family: var(--font-sans);
+  background: var(--surface); color: var(--ink);
+  outline: none; transition: border-color .15s;
+}
+.atd-input:focus { border-color: var(--green-soft); }
+.atd-input::placeholder { color: var(--muted); }
+
+/* ── Page header ───────────────────────────────────────────── */
+.page-header {
+  padding: 14px 20px 10px;
+  display: flex; justify-content: space-between; align-items: flex-end;
+}
+.page-sub {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 3px;
+}
+.page-title {
+  font-family: var(--font-serif); font-size: 30px;
+  line-height: 1; letter-spacing: -0.02em; margin: 0;
+}
+
+/* ── Avatar ────────────────────────────────────────────────── */
+.atd-av {
+  border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 500;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--hairline); flex-shrink: 0;
+}
+
+/* ── KV row ────────────────────────────────────────────────── */
+.atd-kv {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; padding: 10px 0;
+  border-bottom: 1px dashed var(--hairline-2);
+}
+.atd-kv:last-child { border-bottom: 0; }
+
+/* ── Mobile tab bar ────────────────────────────────────────── */
+.atd-tabbar {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  padding: 10px 8px max(18px, env(safe-area-inset-bottom));
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--hairline);
+}
+.atd-tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 10px; font-family: var(--font-sans); color: var(--muted);
+  cursor: pointer; transition: color .15s;
+}
+.atd-tab.active { color: var(--ink); }
+.atd-tab .tab-ic {
+  width: 28px; height: 28px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.atd-tab.active .tab-ic { background: var(--ink); color: var(--bg); }
+.atd-tab.center .tab-ic { background: var(--accent); color: var(--on-accent); }

@@ -10,8 +10,7 @@ interface Profile {
   extra: string;
 }
 
-const inputClass =
-  "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400";
+const inputClass = "atd-input";
 
 function SectionHeader({
   label,
@@ -24,9 +23,9 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600">{label}</p>
-      <h3 className="mt-1 text-base font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1 text-sm text-gray-500">{description}</p>
+      <p className="page-sub" style={{ color: "var(--green)", marginBottom: 4 }}>{label}</p>
+      <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{title}</h3>
+      <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>{description}</p>
     </div>
   );
 }
@@ -86,19 +85,18 @@ export default function BusinessConfig() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
+    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
 
-        {/* Encabezado */}
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-            Configuración
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold text-gray-900">Mi Negocio</h2>
-          <p className="mt-2 text-sm text-gray-500">
-            Toda la información que cargues acá es usada por la IA para responder consultas de
-            clientes de forma precisa y contextual.
-          </p>
+        <div className="page-header">
+          <div>
+            <div className="page-sub">01 · configuración</div>
+            <h1 className="page-title">Mi negocio</h1>
+          </div>
+        </div>
+
+        <div style={{ padding: "0 20px 6px", fontSize: 13, color: "var(--ink-3)" }}>
+          La información que cargues acá es usada por la IA para responder consultas de clientes.
         </div>
 
         {/* Plantillas por Rubro */}
@@ -108,11 +106,11 @@ export default function BusinessConfig() {
         />
 
         {/* Sección 1: Identidad del negocio */}
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
             label="Sección 1"
             title="Identidad del negocio"
-            description="El nombre y la descripción definen quién sos y qué hacés. Son lo primero que la IA usa para presentarse al cliente."
+            description="El nombre y la descripción definen quién sos y qué hacés."
           />
           <div className="space-y-4">
             <div>
@@ -143,7 +141,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Sección 2: Catálogo → link al nuevo módulo */}
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
             label="Sección 2"
             title="Catálogo de productos y servicios"
@@ -151,20 +149,24 @@ export default function BusinessConfig() {
           />
           <Link
             href="/app/catalog"
-            className="flex items-center justify-between p-4 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors group"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: 16, borderRadius: 12, border: "1px solid var(--green)",
+              background: "var(--green-tint)", textDecoration: "none",
+            }}
           >
             <div>
-              <p className="text-sm font-semibold text-emerald-800">Ir al Catálogo</p>
-              <p className="text-xs text-emerald-600 mt-0.5">
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--green)", margin: 0 }}>Ir al Catálogo</p>
+              <p style={{ fontSize: 12, color: "var(--green)", opacity: 0.8, marginTop: 2 }}>
                 Agregá productos y servicios con categoría, precio, stock y más.
               </p>
             </div>
-            <span className="text-emerald-500 group-hover:translate-x-1 transition-transform text-lg">→</span>
+            <span style={{ color: "var(--green)", fontSize: 18 }}>→</span>
           </Link>
         </section>
 
         {/* Sección 3: Instrucciones adicionales */}
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
             label="Sección 3"
             title="Instrucciones adicionales"
@@ -180,16 +182,16 @@ export default function BusinessConfig() {
         </section>
 
         {/* Botón guardar */}
-        <div className="flex items-center justify-end gap-3 pb-4">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, padding: "16px 20px" }}>
           {saved && (
-            <span className="text-sm text-emerald-600 font-medium">
+            <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 500 }}>
               Guardado correctamente
             </span>
           )}
           <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-colors"
+            className="atd-btn primary"
           >
             {saving ? "Guardando..." : "Guardar cambios"}
           </button>

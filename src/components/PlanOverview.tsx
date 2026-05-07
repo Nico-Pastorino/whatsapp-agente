@@ -481,16 +481,16 @@ export default function PlanOverview() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-emerald-500 rounded-full animate-spin" />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)" }}>
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!plan || error) {
     return (
-      <div className="h-full bg-gray-50 p-8">
-        <div className="max-w-4xl mx-auto rounded-3xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div style={{ height: "100%", background: "var(--bg)", padding: 20 }}>
+        <div className="atd-card" style={{ padding: 16, color: "#c0392b", background: "rgba(192,57,43,0.07)", borderColor: "rgba(192,57,43,0.2)" }}>
           {error ?? "No se pudo cargar el estado del plan."}
         </div>
       </div>
@@ -513,289 +513,186 @@ export default function PlanOverview() {
   const lockedFeatures = PLAN_LOCKED[currentCode] ?? [];
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
+    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
 
-        {/* Inactive banner */}
-        {(plan.status === "canceled" || plan.status === "past_due") && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
-            <strong>Tu suscripción está inactiva.</strong> Renová tu plan para volver a operar.
-          </div>
-        )}
-
-        {plan.cancel_at_period_end && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-            <strong>Cancelación programada.</strong> Tu plan se cancelará el día{" "}
-            {formatDate(plan.current_period_end)}.
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="page-header">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-              Mi plan
-            </p>
-            <h2 className="mt-1 text-3xl font-semibold text-gray-900">
-              {plan.plan_name}
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {PLAN_TAGLINE[currentCode] ?? ""}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-gray-200 bg-white px-5 py-3 shadow-sm text-right shrink-0">
-            <p className="text-xs uppercase tracking-[0.24em] text-gray-400">Valor mensual</p>
-            <p className="mt-1 text-2xl font-semibold text-gray-900">
-              {formatMoney(plan.price_monthly, plan.currency)}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Vence: {formatDate(plan.current_period_end)}
-            </p>
+            <div className="page-sub">04 · uso &amp; upgrade</div>
+            <h1 className="page-title">Mi plan</h1>
           </div>
         </div>
 
-        {/* Usage */}
-        <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900">Uso este período</h3>
-          <UsageBar
-            label="Mensajes entrantes"
-            used={plan.inbound_messages_count}
-            limit={plan.monthly_message_limit ?? plan.conversation_limit}
-          />
-          <UsageBar
-            label="Respuestas IA"
-            used={plan.ai_replies_count}
-            limit={
-              plan.monthly_ai_reply_limit ??
-              (typeof plan.features?.ai_reply_limit === "number"
-                ? (plan.features.ai_reply_limit as number)
-                : null)
-            }
-          />
-        </section>
-
-        {/* Features included / locked */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Incluido en tu plan</h3>
-            <ul className="space-y-2">
-              {includedFeatures.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-sm text-gray-700">
-                  <span className="mt-0.5 shrink-0">✅</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {lockedFeatures.length > 0 ? (
-            <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                Disponible en planes superiores
-              </h3>
-              <ul className="space-y-2">
-                {lockedFeatures.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-gray-400">
-                    <span className="mt-0.5 shrink-0">🔒</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : (
-            <section className="bg-emerald-50 rounded-2xl border border-emerald-200 p-5 flex items-center justify-center">
-              <div className="text-center">
-                <p className="text-3xl">🏆</p>
-                <p className="mt-2 text-sm font-semibold text-emerald-800">
-                  Estás en el plan más completo.
-                </p>
-                <p className="mt-1 text-xs text-emerald-600">
-                  Tenés acceso a todas las funciones disponibles.
-                </p>
-              </div>
-            </section>
+        {/* Hero plan card (dark) */}
+        <div style={{ margin: "0 20px 14px", padding: 20, borderRadius: 22, background: "var(--ink)", color: "var(--bg)", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "var(--accent)", opacity: 0.2, filter: "blur(20px)", pointerEvents: "none" }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span className="atd-pill" style={{ background: "rgba(255,255,255,0.1)", color: "var(--bg)", borderColor: "transparent" }}>Tu plan</span>
+            <span className="mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+              {plan.status === "active" ? "activo" : plan.status} · vence {formatDate(plan.current_period_end)}
+            </span>
+          </div>
+          <div className="serif" style={{ fontSize: 52, lineHeight: 1, marginBottom: 4 }}>{plan.plan_name}</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16 }}>
+            {PLAN_TAGLINE[currentCode] ?? ""}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {plan.upgrade_options.length > 0 && (
+              <button
+                onClick={() => startCheckout(plan.upgrade_options[0].code, "upgrade")}
+                disabled={checkoutLoading}
+                className="atd-btn accent sm"
+                style={{ flex: 1 }}
+              >
+                {checkoutLoading ? "..." : `Mejorar a ${plan.upgrade_options[0].name}`}
+              </button>
+            )}
+            {!plan.cancel_at_period_end && (plan.status === "active" || plan.status === "trial") && (
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="atd-btn ghost sm"
+                style={{ color: "var(--bg)", borderColor: "rgba(255,255,255,0.25)" }}
+              >
+                Cancelar
+              </button>
+            )}
+            {plan.cancel_at_period_end && (
+              <button onClick={handleReactivatePlan} disabled={reactivateLoading} className="atd-btn ghost sm" style={{ color: "var(--bg)", borderColor: "rgba(255,255,255,0.25)", flex: 1 }}>
+                {reactivateLoading ? "..." : "Reactivar"}
+              </button>
+            )}
+          </div>
+          {plan.cancel_at_period_end && (
+            <p style={{ fontSize: 12, color: "rgba(255,200,100,0.9)", marginTop: 10 }}>
+              Cancelación programada al {formatDate(plan.current_period_end)}.
+            </p>
           )}
         </div>
 
-        {/* Capacity */}
-        <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Capacidades del plan</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "Contactos", value: plan.conversation_limit },
-              { label: "Productos", value: plan.product_limit },
-              { label: "Usuarios", value: plan.users_limit },
-              { label: "Números WA", value: plan.whatsapp_numbers_limit },
-            ].map(({ label, value }) => (
-              <div key={label} className="rounded-xl bg-gray-50 p-3 text-center">
-                <p className="text-xs text-gray-500">{label}</p>
-                <p className="mt-1 text-lg font-semibold text-gray-900">
-                  {value ?? "∞"}
-                </p>
-              </div>
-            ))}
+        {checkoutError && (
+          <div style={{ margin: "0 20px 12px", padding: 12, borderRadius: 12, background: "rgba(192,57,43,0.1)", color: "#c0392b", fontSize: 13 }}>
+            {checkoutError}
           </div>
-        </section>
+        )}
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Estado del plan</h3>
-          <p className="text-sm text-gray-600">
-            Estado actual: <strong>{plan.status}</strong>
-          </p>
-          {plan.cancel_at_period_end ? (
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-amber-700">
-                Tu plan se cancelará el día {formatDate(plan.current_period_end)}.
-              </p>
-              <button
-                onClick={handleReactivatePlan}
-                disabled={reactivateLoading}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition hover:border-gray-400 disabled:opacity-50"
-              >
-                {reactivateLoading ? "Reactivando..." : "Reactivar plan"}
-              </button>
-            </div>
-          ) : plan.status === "active" || plan.status === "trial" ? (
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-gray-500">
-                Tu asistente seguirá activo hasta el final del período ya pagado si cancelás ahora.
-              </p>
-              <button
-                onClick={() => setShowCancelModal(true)}
-                disabled={cancelLoading}
-                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
-              >
-                Cancelar plan
-              </button>
-            </div>
-          ) : null}
-        </section>
-
-        {/* Upgrade / Renew */}
-        {(plan.upgrade_options.length > 0 ||
-          plan.downgrade_options.length > 0 ||
-          plan.status === "canceled" ||
-          plan.status === "past_due") && (
-          <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">
-              {plan.upgrade_options.length > 0
-                ? "Cambiar tu plan"
-                : plan.downgrade_options.length > 0
-                  ? "Bajar de plan"
-                  : "Renovar suscripción"}
-            </h3>
-
-            {checkoutError && (
-              <p className="mb-3 text-sm text-red-600">{checkoutError}</p>
-            )}
-
-            {(plan.status === "canceled" || plan.status === "past_due") && (
-              <button
-                onClick={() => startCheckout()}
-                disabled={checkoutLoading}
-                className="w-full mb-4 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
-              >
-                {checkoutLoading ? "Redirigiendo..." : "Renovar plan"}
-              </button>
-            )}
-
-            {plan.upgrade_options.length > 0 && (
-              <div className={`grid gap-4 ${plan.upgrade_options.length > 1 ? "sm:grid-cols-2" : ""}`}>
-                {plan.upgrade_options.map((opt) => (
-                  <UpgradeCard
-                    key={opt.code}
-                    option={opt}
-                    onUpgrade={(code) => startCheckout(code, "upgrade")}
-                    loading={upgradeLoading === opt.code && checkoutLoading}
-                  />
-                ))}
-              </div>
-            )}
-
-            {plan.downgrade_options.length > 0 && (
-              <div className="mt-4">
-                <p className="mb-4 text-sm text-gray-500">
-                  Si querés seguir usando el producto con un plan menor, podés bajar de plan ahora mismo.
-                </p>
-                <div className={`grid gap-4 ${plan.downgrade_options.length > 1 ? "sm:grid-cols-2" : ""}`}>
-                  {plan.downgrade_options.map((opt) => (
-                    <DowngradeCard
-                      key={opt.code}
-                      option={opt}
-                      onDowngrade={() => {
-                        setDowngradeTarget(opt);
-                        setShowDowngradeModal(true);
-                      }}
-                      loading={downgradeLoading === opt.code}
-                    />
-                  ))}
+        {/* Usage */}
+        <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
+          <div className="page-sub" style={{ marginBottom: 10 }}>uso del plan</div>
+          {[
+            { label: "Usuarios", used: plan.users_limit ? 1 : 0, limit: plan.users_limit },
+            { label: "Productos", used: plan.inbound_messages_count, limit: plan.conversation_limit },
+            { label: "Mensajes IA", used: plan.ai_replies_count, limit: plan.monthly_ai_reply_limit },
+          ].map(({ label, used, limit }, i) => {
+            const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
+            const barColor = pct >= 90 ? "#c0392b" : pct >= 70 ? "var(--human)" : "var(--green-soft)";
+            return (
+              <div key={label} style={{ padding: "10px 0", borderTop: i ? "1px dashed var(--hairline-2)" : "none" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6, color: "var(--ink-2)" }}>
+                  <span>{label}</span>
+                  <span className="mono">{used.toLocaleString("es-AR")} / {limit ? limit.toLocaleString("es-AR") : "∞"}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden" }}>
+                  <div style={{ width: `${limit ? pct : 0}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width .4s" }} />
                 </div>
               </div>
-            )}
-          </section>
+            );
+          })}
+        </div>
+
+        {/* Features */}
+        <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
+          <div className="page-sub" style={{ marginBottom: 10 }}>incluido en {plan.plan_name}</div>
+          {includedFeatures.map((f) => (
+            <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: includedFeatures.indexOf(f) ? "1px dashed var(--hairline-2)" : "none", fontSize: 13, color: "var(--ink-2)" }}>
+              <span style={{ color: "var(--green-soft)", flexShrink: 0 }}>✓</span> {f}
+            </div>
+          ))}
+          {lockedFeatures.length > 0 && (
+            <>
+              <div className="page-sub" style={{ marginTop: 14, marginBottom: 8 }}>próximos planes</div>
+              {lockedFeatures.map((f) => (
+                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: lockedFeatures.indexOf(f) ? "1px dashed var(--hairline-2)" : "none", fontSize: 13, color: "var(--muted)" }}>
+                  <span style={{ flexShrink: 0 }}>🔒</span> {f}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+
+        {/* Upgrade cards */}
+        {plan.upgrade_options.length > 0 && plan.upgrade_options.map((opt) => (
+          <div key={opt.code} className="atd-card" style={{ margin: "0 20px 10px", padding: 16, background: "var(--accent-soft)", borderColor: "transparent" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
+              <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--accent)", color: "var(--on-accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>✦</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--accent-ink)" }}>Probá {opt.name}</div>
+                <div style={{ fontSize: 12, color: "var(--accent-ink)", opacity: 0.75, marginTop: 2 }}>{PLAN_TAGLINE[opt.code] ?? "Más funciones y más capacidad."}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => startCheckout(opt.code, "upgrade")}
+              disabled={checkoutLoading}
+              className="atd-btn accent sm"
+              style={{ width: "100%" }}
+            >
+              {(upgradeLoading === opt.code && checkoutLoading) ? "Redirigiendo..." : `Mejorar a ${opt.name} — ${formatMoney(opt.price_monthly, opt.currency)}/mes`}
+            </button>
+          </div>
+        ))}
+
+        {/* Downgrade options */}
+        {plan.downgrade_options.length > 0 && (
+          <div className="atd-card" style={{ margin: "0 20px 10px", padding: 16 }}>
+            <div className="page-sub" style={{ marginBottom: 10 }}>bajar de plan</div>
+            {plan.downgrade_options.map((opt) => (
+              <button key={opt.code} onClick={() => { setDowngradeTarget(opt); setShowDowngradeModal(true); }}
+                className="atd-btn ghost sm" style={{ width: "100%", marginBottom: 6 }}>
+                Bajar a {opt.name} — {formatMoney(opt.price_monthly, opt.currency)}/mes
+              </button>
+            ))}
+          </div>
+        )}
+
+        {(plan.status === "canceled" || plan.status === "past_due") && (
+          <div style={{ margin: "0 20px 10px" }}>
+            <button onClick={() => startCheckout()} disabled={checkoutLoading} className="atd-btn green" style={{ width: "100%" }}>
+              {checkoutLoading ? "Redirigiendo..." : "Renovar plan"}
+            </button>
+          </div>
         )}
 
       </div>
 
+      {/* Cancel modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-semibold text-gray-900">¿Querés cancelar tu plan?</h3>
-            <p className="mt-3 text-sm leading-6 text-gray-500">
-              Tu asistente seguirá activo hasta el final del período ya pagado. Después
-              de esa fecha, el acceso quedará pausado.
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", padding: 16 }}>
+          <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+            <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Cancelar el plan?</h3>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
+              Tu asistente seguirá activo hasta el final del período ya pagado. Después el acceso queda pausado.
             </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowCancelModal(false)}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700"
-              >
-                Mantener plan
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelPlan}
-                disabled={cancelLoading}
-                className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {cancelLoading ? "Cancelando..." : "Cancelar al finalizar período"}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowCancelModal(false)} className="atd-btn ghost sm" style={{ flex: 1 }}>Mantener</button>
+              <button onClick={handleCancelPlan} disabled={cancelLoading} className="atd-btn sm" style={{ flex: 1, background: "#c0392b", color: "#fff", border: "none" }}>
+                {cancelLoading ? "..." : "Cancelar al vencer"}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Downgrade modal */}
       {showDowngradeModal && downgradeTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-semibold text-gray-900">
-              ¿Querés bajar a {downgradeTarget.name}?
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-gray-500">
-              El cambio se aplica ahora mismo y se limpiará cualquier cancelación programada.
-              Si tu negocio supera los límites del plan elegido, el sistema no va a permitir el downgrade.
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", padding: 16 }}>
+          <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+            <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Bajar a {downgradeTarget.name}?</h3>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
+              El cambio se aplica ahora mismo. Si tu negocio supera los límites del plan, la operación no se permitirá.
             </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDowngradeModal(false);
-                  setDowngradeTarget(null);
-                }}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700"
-              >
-                Mantener plan actual
-              </button>
-              <button
-                type="button"
-                onClick={handleDowngradePlan}
-                disabled={downgradeLoading === downgradeTarget.code}
-                className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {downgradeLoading === downgradeTarget.code
-                  ? "Actualizando..."
-                  : `Bajar a ${downgradeTarget.name}`}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => { setShowDowngradeModal(false); setDowngradeTarget(null); }} className="atd-btn ghost sm" style={{ flex: 1 }}>Cancelar</button>
+              <button onClick={handleDowngradePlan} disabled={downgradeLoading === downgradeTarget.code} className="atd-btn primary sm" style={{ flex: 1 }}>
+                {downgradeLoading === downgradeTarget.code ? "..." : `Bajar a ${downgradeTarget.name}`}
               </button>
             </div>
           </div>

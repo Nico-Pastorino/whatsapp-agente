@@ -255,16 +255,16 @@ export default function TeamManagement() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center bg-gray-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-emerald-500" />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)" }}>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-gray-500" />
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="h-full bg-gray-50 p-8">
-        <div className="mx-auto max-w-4xl rounded-3xl border border-red-200 bg-red-50 p-6 text-red-700">
+      <div style={{ height: "100%", background: "var(--bg)", padding: 24 }}>
+        <div style={{ maxWidth: 600, margin: "0 auto", borderRadius: 18, border: "1px solid #f5c2bb", background: "#fff0ee", padding: 20, color: "var(--accent)", fontSize: 14 }}>
           {error ?? "No se pudo cargar el equipo."}
         </div>
       </div>
@@ -275,58 +275,47 @@ export default function TeamManagement() {
     !data.can_invite && typeof data.limit === "number" && data.used_total >= data.limit;
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
+        <div className="page-header">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-              Equipo
-            </p>
-            <h2 className="mt-1 text-3xl font-semibold text-gray-900">Equipo</h2>
-            <p className="mt-2 max-w-2xl text-sm text-gray-500">
-              Gestioná las personas que pueden acceder al dashboard de este negocio.
-            </p>
+            <div className="page-sub">05 · {data.used_total} de {data.limit ?? "∞"} usuarios</div>
+            <h1 className="page-title">Equipo</h1>
           </div>
-
-          <div className="grid gap-3 sm:min-w-[290px]">
-            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.24em] text-gray-400">Plan actual</p>
-              <p className="mt-1 text-xl font-semibold text-gray-900">{data.plan.name}</p>
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.24em] text-gray-400">Usuarios</p>
-              <p className="mt-1 text-xl font-semibold text-gray-900">
-                {data.used_total} / {data.limit ?? "Sin límite"}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                Activos: {data.used_active} · Pendientes: {data.used_pending}
-              </p>
-            </div>
-          </div>
+          {canManageTeam && !isLimitReached && (
+            <button
+              type="button"
+              onClick={() => document.getElementById("team-invite-email")?.focus()}
+              className="atd-btn primary sm"
+            >
+              Invitar
+            </button>
+          )}
         </div>
 
         {(success || error) && (
-          <div
-            className={`rounded-2xl border px-4 py-3 text-sm ${
-              error
-                ? "border-red-200 bg-red-50 text-red-700"
-                : "border-emerald-200 bg-emerald-50 text-emerald-700"
-            }`}
-          >
+          <div style={{
+            margin: "0 20px",
+            padding: "10px 14px", borderRadius: 12, fontSize: 13,
+            border: error ? "1px solid #f5c2bb" : "1px solid var(--green)",
+            background: error ? "#fff0ee" : "var(--green-tint)",
+            color: error ? "var(--accent)" : "var(--green)",
+          }}>
             {error ?? success}
           </div>
         )}
 
         {lastInviteLink && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <p className="text-sm text-emerald-800">
-              Creamos una invitación para este email. Copiá el link y enviáselo a la persona para que se sume al equipo.
+          <div style={{ margin: "0 20px", padding: 16, borderRadius: 14, border: "1px solid var(--green)", background: "var(--green-tint)" }}>
+            <p style={{ fontSize: 13, color: "var(--green)", marginBottom: 10 }}>
+              Invitación creada. Copiá el link y enviáselo a la persona.
             </p>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <input
                 value={lastInviteLink}
                 readOnly
-                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm text-gray-700"
+                className="atd-input mono"
+                style={{ fontSize: 11 }}
               />
               <button
                 type="button"
@@ -336,7 +325,7 @@ export default function TeamManagement() {
                     .then(() => setSuccess("Link copiado."))
                     .catch(() => setError("No se pudo copiar el link."))
                 }
-                className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white"
+                className="atd-btn primary sm"
               >
                 Copiar link
               </button>
@@ -345,41 +334,40 @@ export default function TeamManagement() {
         )}
 
         {isLimitReached && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
-            <p className="text-sm font-medium text-amber-900">
+          <div style={{ margin: "0 20px", padding: "14px 16px", borderRadius: 14, border: "1px solid #ffe5a0", background: "#fffbeb" }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: "#7a5800", marginBottom: 10 }}>
               Alcanzaste el límite de usuarios de tu plan.
             </p>
-            <Link
-              href="/app/plan"
-              className="mt-3 inline-flex rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-800"
-            >
+            <Link href="/app/plan" className="atd-btn primary sm" style={{ display: "inline-flex" }}>
               Mejorar plan
             </Link>
           </div>
         )}
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900">Crear invitación</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Invitá a una persona por email para que se sume al equipo sin crearla manualmente en Supabase.
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div className="page-sub" style={{ marginBottom: 4 }}>Invitar persona</div>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Crear invitación</h3>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
+            Invitá a una persona por email para que se sume al equipo.
           </p>
 
           {canManageTeam ? (
-            <form onSubmit={handleInvite} className="mt-5 grid gap-3">
+            <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <input
+                id="team-invite-email"
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="usuario@negocio.com"
                 disabled={inviteLoading || !data.can_invite}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
+                className="atd-input"
               />
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto" }}>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as "admin" | "agent")}
                   disabled={inviteLoading || !data.can_invite}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
+                  className="atd-input"
                 >
                   <option value="admin">Admin</option>
                   <option value="agent">Agent</option>
@@ -387,30 +375,31 @@ export default function TeamManagement() {
                 <button
                   type="submit"
                   disabled={inviteLoading || !data.can_invite || !inviteEmail.trim()}
-                  className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+                  className="atd-btn primary sm"
                 >
-                  {inviteLoading ? "Creando..." : "Crear invitación"}
+                  {inviteLoading ? "Creando..." : "Crear"}
                 </button>
               </div>
               {!data.can_invite && data.invite_block_reason && (
-                <p className="text-sm text-amber-700">{data.invite_block_reason}</p>
+                <p style={{ fontSize: 13, color: "#7a5800" }}>{data.invite_block_reason}</p>
               )}
             </form>
           ) : (
-            <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+            <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--hairline)", background: "var(--surface-2)", fontSize: 13, color: "var(--ink-3)" }}>
               Tu rol actual es {ROLE_LABELS[data.current_role]}. Podés ver el equipo, pero no crear invitaciones.
             </div>
           )}
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900">Miembros activos</h3>
-          <p className="mt-1 text-sm text-gray-500">
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div className="page-sub" style={{ marginBottom: 4 }}>Miembros activos</div>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Equipo</h3>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
             Personas que ya pueden entrar al dashboard de este negocio.
           </p>
-          <div className="mt-5 space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {data.members.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-gray-200 px-5 py-8 text-center text-sm text-gray-500">
+              <div style={{ padding: "28px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 14, fontSize: 13, color: "var(--muted)" }}>
                 No hay miembros cargados en este negocio.
               </div>
             ) : (
@@ -425,31 +414,31 @@ export default function TeamManagement() {
                 return (
                   <article
                     key={member.id}
-                    className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                    style={{ borderRadius: 14, border: "1px solid var(--hairline)", background: "var(--surface-2)", padding: 14 }}
                   >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {member.full_name?.trim() || member.email}
                         </p>
                         {member.full_name?.trim() && (
-                          <p className="mt-1 truncate text-sm text-gray-500">{member.email}</p>
+                          <p style={{ marginTop: 2, fontSize: 12, color: "var(--muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{member.email}</p>
                         )}
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full bg-white px-2.5 py-1 font-medium text-gray-700">
-                            Rol: {ROLE_LABELS[member.role]}
+                        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          <span className="atd-pill" style={{ fontSize: 11, background: "var(--surface)" }}>
+                            {ROLE_LABELS[member.role]}
                           </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 font-medium text-gray-700">
-                            Estado: {getStatusLabel(member.status)}
+                          <span className="atd-pill" style={{ fontSize: 11, background: "var(--surface)", color: member.status === "active" ? "var(--green)" : "var(--muted)" }}>
+                            {getStatusLabel(member.status)}
                           </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 font-medium text-gray-700">
-                            Incorporado: {formatDate(member.created_at)}
+                          <span className="atd-pill" style={{ fontSize: 11, background: "var(--surface)" }}>
+                            {formatDate(member.created_at)}
                           </span>
                         </div>
                       </div>
 
                       {canManageTeam ? (
-                        <div className="grid gap-2 sm:grid-cols-[minmax(0,160px)_auto_auto]">
+                        <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto auto" }}>
                           <select
                             value={selectedRole}
                             onChange={(e) =>
@@ -459,29 +448,28 @@ export default function TeamManagement() {
                               }))
                             }
                             disabled={rowBusy || adminBlockedByOwnerRule}
-                            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
+                            className="atd-input"
+                            style={{ opacity: rowBusy || adminBlockedByOwnerRule ? 0.5 : 1 }}
                           >
                             {(["owner", "admin", "agent"] as BusinessMemberRole[])
                               .filter((role) => data.current_role === "owner" || role !== "owner")
                               .map((role) => (
-                                <option key={role} value={role}>
-                                  {ROLE_LABELS[role]}
-                                </option>
+                                <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                               ))}
                           </select>
                           <button
                             type="button"
                             onClick={() => handleRoleUpdate(member.id)}
                             disabled={rowBusy || !roleChanged || adminBlockedByOwnerRule}
-                            className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:text-gray-900 disabled:opacity-50"
+                            className="atd-btn secondary sm"
                           >
-                            Guardar rol
+                            Guardar
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRemove(member.id, member.email)}
                             disabled={rowBusy || (data.current_role === "admin" && member.role === "owner")}
-                            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                            style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 13, fontWeight: 500, color: "#c0392b", cursor: "pointer", opacity: (rowBusy || (data.current_role === "admin" && member.role === "owner")) ? 0.5 : 1 }}
                           >
                             Quitar
                           </button>
@@ -495,15 +483,16 @@ export default function TeamManagement() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900">Invitaciones</h3>
-          <p className="mt-1 text-sm text-gray-500">
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div className="page-sub" style={{ marginBottom: 4 }}>Invitaciones pendientes</div>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Invitaciones</h3>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
             Invitaciones creadas para sumar personas al equipo.
           </p>
 
-          <div className="mt-5 space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {visibleInvitations.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-gray-200 px-5 py-8 text-center text-sm text-gray-500">
+              <div style={{ padding: "28px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 14, fontSize: 13, color: "var(--muted)" }}>
                 No hay invitaciones creadas todavía.
               </div>
             ) : (
@@ -514,46 +503,39 @@ export default function TeamManagement() {
                 return (
                   <article
                     key={invitation.id}
-                    className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                    style={{ borderRadius: 14, border: "1px solid var(--hairline)", background: "var(--surface-2)", padding: 14 }}
                   >
-                    <div className="flex flex-col gap-4">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {invitation.email}
                         </p>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full bg-white px-2.5 py-1 font-medium text-gray-700">
-                            Rol: {ROLE_LABELS[invitation.role]}
+                        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          <span className="atd-pill" style={{ fontSize: 11, background: "var(--surface)" }}>{ROLE_LABELS[invitation.role]}</span>
+                          <span className="atd-pill" style={{ fontSize: 11, background: "var(--surface)", color: invitation.status === "pending" ? "var(--green)" : "var(--muted)" }}>
+                            {STATUS_LABELS[invitation.status]}
                           </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 font-medium text-gray-700">
-                            Estado: {STATUS_LABELS[invitation.status]}
-                          </span>
-                          <span className="rounded-full bg-white px-2.5 py-1 font-medium text-gray-700">
-                            Vence: {formatDate(invitation.expires_at)}
-                          </span>
+                          <span className="atd-pill" style={{ fontSize: 11, background: "var(--surface)" }}>Vence: {formatDate(invitation.expires_at)}</span>
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+                      <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto auto" }}>
                         <input
                           value={inviteLink}
                           readOnly
-                          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700"
+                          className="atd-input mono"
+                          style={{ fontSize: 10 }}
                         />
-                        <button
-                          type="button"
-                          onClick={() => copyInvitationLink(invitation)}
-                          className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700"
-                        >
-                          Copiar link
+                        <button type="button" onClick={() => copyInvitationLink(invitation)} className="atd-btn secondary sm">
+                          Copiar
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRevoke(invitation.id)}
                           disabled={rowBusy || invitation.status !== "pending"}
-                          className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 disabled:opacity-50"
+                          style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 12, fontWeight: 500, color: "#c0392b", cursor: "pointer", opacity: (rowBusy || invitation.status !== "pending") ? 0.5 : 1 }}
                         >
-                          Revocar invitación
+                          Revocar
                         </button>
                       </div>
                     </div>

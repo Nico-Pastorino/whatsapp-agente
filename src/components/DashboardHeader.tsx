@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface Props {
   phone: string | null;
-  activeView: "conversations" | "business" | "catalog" | "team" | "plan" | "connect";
+  activeView: "conversations" | "business" | "catalog" | "home" | "more" | "team" | "plan" | "connect";
   onDisconnect: () => void;
 }
 
@@ -25,12 +25,13 @@ export default function DashboardHeader({
     label: string;
     href: string;
   }> = [
-    { key: "conversations", label: "Conversaciones", href: "/app/conversations" },
-    { key: "business", label: "Mi Negocio", href: "/app/business" },
-    { key: "catalog", label: "Catálogo", href: "/app/catalog" },
-    { key: "team", label: "Equipo", href: "/app/team" },
-    { key: "plan", label: "Mi Plan", href: "/app/plan" },
-    { key: "connect", label: "Conectar", href: "/app/connect" },
+    { key: "home",          label: "Inicio",         href: "/app/home" },
+    { key: "conversations", label: "Conversaciones",  href: "/app/conversations" },
+    { key: "business",      label: "Mi Negocio",      href: "/app/business" },
+    { key: "catalog",       label: "Catálogo",        href: "/app/catalog" },
+    { key: "team",          label: "Equipo",          href: "/app/team" },
+    { key: "plan",          label: "Mi Plan",         href: "/app/plan" },
+    { key: "connect",       label: "Conectar",        href: "/app/connect" },
   ];
 
   useEffect(() => {

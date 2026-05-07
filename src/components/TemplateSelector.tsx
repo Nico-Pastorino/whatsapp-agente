@@ -6,13 +6,11 @@ import {
   type BusinessTemplate,
 } from "@/lib/business-templates";
 
-// ── Plan access helpers ──────────────────────────────────────────────────────
-
 const TIER_ACCESS: Record<string, string[]> = {
   starter: ["basic"],
   growth: ["basic", "commercial"],
   pro: ["basic", "commercial", "premium"],
-  premium: ["basic", "commercial", "premium"], // legacy
+  premium: ["basic", "commercial", "premium"],
 };
 
 function isTemplateLocked(tier: string, planCode: string): boolean {
@@ -29,8 +27,6 @@ function requiredPlanCode(tier: string): string {
   return "growth";
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
-
 interface Props {
   profileIsEmpty: boolean;
   onApplied: () => void;
@@ -44,7 +40,6 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch current plan to know which templates are accessible
   useEffect(() => {
     fetch("/api/plan")
       .then((r) => r.json())
@@ -82,39 +77,34 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
   }
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-200 p-6">
+    <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
       {/* Header */}
-      <div className="mb-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600">
-          Plantillas por Rubro
-        </p>
-        <h3 className="mt-1 text-base font-semibold text-gray-900">
+      <div style={{ marginBottom: 16 }}>
+        <div className="page-sub" style={{ marginBottom: 4 }}>Plantillas por Rubro</div>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
           Elegí el rubro de tu negocio
         </h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Aplicá una plantilla inicial para que tu asistente empiece con
-          respuestas, tono y preguntas frecuentes recomendadas. Podés
-          personalizarla después.
+        <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>
+          Aplicá una plantilla inicial para que tu asistente empiece con respuestas y tono recomendados. Podés personalizarla después.
         </p>
       </div>
 
       {/* Success banner */}
       {appliedId && (
-        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
-          Plantilla aplicada correctamente. Ahora podés personalizarla con los
-          datos reales de tu negocio usando las secciones de abajo.
+        <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 12, border: "1px solid var(--green)", background: "var(--green-tint)", fontSize: 13, color: "var(--green)" }}>
+          Plantilla aplicada. Ahora podés personalizarla con los datos reales de tu negocio.
         </div>
       )}
 
       {/* Error banner */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 12, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 13, color: "var(--accent)" }}>
           {error}
         </div>
       )}
 
       {/* Active templates grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
         {activeTemplates.map((t) => {
           const locked = isTemplateLocked(t.tier, planCode);
           return (
@@ -137,21 +127,24 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
       </div>
 
       {/* Coming soon grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
         {soonTemplates.map((t) => {
           const locked = isTemplateLocked(t.tier, planCode);
           return (
             <div
               key={t.id}
-              className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-gray-200 opacity-50 select-none"
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "10px 12px", borderRadius: 12,
+                border: "1px dashed var(--hairline)", opacity: 0.55,
+                userSelect: "none",
+              }}
             >
-              <span className="text-lg">{t.emoji}</span>
+              <span style={{ fontSize: 16 }}>{t.emoji}</span>
               <div>
-                <p className="text-xs font-medium text-gray-500">{t.name}</p>
-                <p className="text-xs text-gray-400">
-                  {locked
-                    ? `Plan ${requiredPlanLabel(t.tier)}`
-                    : "Próximamente"}
+                <p style={{ fontSize: 11, fontWeight: 500, color: "var(--ink-2)", margin: 0 }}>{t.name}</p>
+                <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
+                  {locked ? `Plan ${requiredPlanLabel(t.tier)}` : "Próximamente"}
                 </p>
               </div>
             </div>
@@ -159,7 +152,6 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
         })}
       </div>
 
-      {/* Confirm modal (unlocked templates) */}
       {selected && (
         <ConfirmModal
           template={selected}
@@ -171,7 +163,6 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
         />
       )}
 
-      {/* Upgrade modal (locked templates) */}
       {lockedSelected && (
         <UpgradeModal
           template={lockedSelected}
@@ -181,8 +172,6 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
     </section>
   );
 }
-
-// ── TemplateCard ─────────────────────────────────────────────────────────────
 
 function TemplateCard({
   template,
@@ -196,44 +185,38 @@ function TemplateCard({
   onSelect: () => void;
 }) {
   return (
-    <div
-      className={`flex flex-col gap-3 p-4 rounded-xl border transition-colors ${
-        isApplied
-          ? "border-emerald-300 bg-emerald-50"
-          : isLocked
-          ? "border-gray-200 bg-gray-50"
-          : "border-gray-200 bg-gray-50 hover:border-emerald-300 hover:bg-white"
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <span className="text-2xl leading-none mt-0.5">{template.emoji}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-gray-900">{template.name}</p>
+    <div style={{
+      padding: 14, borderRadius: 14,
+      border: `1px solid ${isApplied ? "var(--green)" : "var(--hairline)"}`,
+      background: isApplied ? "var(--green-tint)" : "var(--surface)",
+      display: "flex", flexDirection: "column", gap: 10,
+      opacity: isLocked ? 0.78 : 1,
+    }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>{template.emoji}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{template.name}</p>
             {isLocked && (
-              <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 font-medium">
-                Plan {requiredPlanLabel(template.tier)}
+              <span className="atd-pill" style={{ background: "#fff3cd", color: "#7a5800", border: "none", fontSize: 10 }}>
+                {requiredPlanLabel(template.tier)}
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+          <p style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.4 }}>
             {template.description}
           </p>
         </div>
       </div>
 
-      {/* Category pills preview */}
-      <div className="flex flex-wrap gap-1">
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
         {template.suggestedCategories.slice(0, 3).map((cat) => (
-          <span
-            key={cat}
-            className="text-xs px-2 py-0.5 bg-white border border-gray-200 rounded-full text-gray-600"
-          >
+          <span key={cat} className="atd-pill" style={{ fontSize: 10, background: "var(--surface-2)" }}>
             {cat}
           </span>
         ))}
         {template.suggestedCategories.length > 3 && (
-          <span className="text-xs px-2 py-0.5 text-gray-400">
+          <span style={{ fontSize: 10, color: "var(--muted)" }}>
             +{template.suggestedCategories.length - 3} más
           </span>
         )}
@@ -242,21 +225,14 @@ function TemplateCard({
       <button
         onClick={onSelect}
         disabled={isApplied}
-        className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
-          isApplied
-            ? "bg-emerald-100 text-emerald-700 cursor-default"
-            : isLocked
-            ? "bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200"
-            : "bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white"
-        }`}
+        className={`atd-btn ${isApplied ? "secondary" : "primary"} sm`}
+        style={{ width: "100%", fontSize: 12 }}
       >
-        {isApplied ? "✓ Aplicada" : isLocked ? `Disponible en ${requiredPlanLabel(template.tier)}` : "Usar plantilla"}
+        {isApplied ? "✓ Aplicada" : isLocked ? `Requiere ${requiredPlanLabel(template.tier)}` : "Usar plantilla"}
       </button>
     </div>
   );
 }
-
-// ── ConfirmModal (available templates) ───────────────────────────────────────
 
 function ConfirmModal({
   template,
@@ -274,79 +250,62 @@ function ConfirmModal({
   onCancel: () => void;
 }) {
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-3xl leading-none">{template.emoji}</span>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, padding: 16 }}>
+      <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <span style={{ fontSize: 28 }}>{template.emoji}</span>
           <div>
-            <h4 className="text-base font-semibold text-gray-900">
-              {template.name}
-            </h4>
-            <p className="text-xs text-gray-500">Plantilla lista para usar</p>
+            <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{template.name}</h4>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>Plantilla lista para usar</p>
           </div>
         </div>
 
         {profileIsEmpty ? (
           <>
-            <p className="text-sm text-gray-600 mb-5">
-              Se cargará la configuración inicial de la plantilla. Podés
-              editarla después desde las secciones de abajo.
+            <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 20 }}>
+              Se cargará la configuración inicial de la plantilla. Podés editarla después desde las secciones de abajo.
             </p>
-            <div className="flex gap-2">
-              <button
-                onClick={onCancel}
-                disabled={applying}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={onReplace}
-                disabled={applying}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-              >
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={onCancel} disabled={applying} className="atd-btn secondary" style={{ flex: 1 }}>Cancelar</button>
+              <button onClick={onReplace} disabled={applying} className="atd-btn primary" style={{ flex: 1 }}>
                 {applying ? "Aplicando..." : "Aplicar plantilla"}
               </button>
             </div>
           </>
         ) : (
           <>
-            <p className="text-sm text-gray-600 mb-4">
+            <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 14 }}>
               Ya tenés información cargada. ¿Cómo querés aplicar la plantilla?
             </p>
-            <div className="space-y-2 mb-4">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
               <button
                 onClick={onMerge}
                 disabled={applying}
-                className="w-full py-2.5 px-4 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-700 font-medium hover:bg-emerald-100 disabled:opacity-50 transition-colors text-left"
+                style={{
+                  padding: "12px 16px", borderRadius: 12, border: "1px solid var(--green)",
+                  background: "var(--green-tint)", textAlign: "left", cursor: "pointer",
+                  opacity: applying ? 0.5 : 1,
+                }}
               >
-                <span className="font-semibold block">Agregar sin borrar</span>
-                <span className="text-xs font-normal text-emerald-600">
-                  Suma la plantilla a lo que ya tenés cargado
-                </span>
+                <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--green)" }}>Agregar sin borrar</span>
+                <span style={{ fontSize: 11, color: "var(--green)", opacity: 0.8 }}>Suma la plantilla a lo que ya tenés cargado</span>
               </button>
               <button
                 onClick={onReplace}
                 disabled={applying}
-                className="w-full py-2.5 px-4 rounded-xl border border-orange-200 bg-orange-50 text-sm text-orange-700 font-medium hover:bg-orange-100 disabled:opacity-50 transition-colors text-left"
+                style={{
+                  padding: "12px 16px", borderRadius: 12, border: "1px solid #ffd3c8",
+                  background: "#fff4f2", textAlign: "left", cursor: "pointer",
+                  opacity: applying ? 0.5 : 1,
+                }}
               >
-                <span className="font-semibold block">Reemplazar todo</span>
-                <span className="text-xs font-normal text-orange-600">
-                  Borra descripción, catálogo e info adicional actuales
-                </span>
+                <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>Reemplazar todo</span>
+                <span style={{ fontSize: 11, color: "var(--accent)", opacity: 0.8 }}>Borra descripción, catálogo e info adicional actuales</span>
               </button>
             </div>
-            <button
-              onClick={onCancel}
-              disabled={applying}
-              className="w-full py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
+            <button onClick={onCancel} disabled={applying} className="atd-btn secondary" style={{ width: "100%" }}>Cancelar</button>
             {applying && (
-              <p className="text-center text-xs text-emerald-600 mt-3">
-                Aplicando plantilla...
-              </p>
+              <p style={{ textAlign: "center", fontSize: 12, color: "var(--green)", marginTop: 10 }}>Aplicando plantilla...</p>
             )}
           </>
         )}
@@ -354,8 +313,6 @@ function ConfirmModal({
     </div>
   );
 }
-
-// ── UpgradeModal (locked templates) ──────────────────────────────────────────
 
 function UpgradeModal({
   template,
@@ -379,45 +336,37 @@ function UpgradeModal({
         window.location.href = data.checkoutUrl;
       }
     } catch {
-      // fail silently — user can go to Mi Plan
+      // fail silently
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-3xl leading-none">{template.emoji}</span>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, padding: 16 }}>
+      <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <span style={{ fontSize: 28 }}>{template.emoji}</span>
           <div>
-            <h4 className="text-base font-semibold text-gray-900">
-              {template.name}
-            </h4>
-            <span className="text-xs px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 font-medium">
+            <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{template.name}</h4>
+            <span className="atd-pill" style={{ background: "#fff3cd", color: "#7a5800", border: "none", marginTop: 4, display: "inline-block" }}>
               Plan {planLabel}
             </span>
           </div>
         </div>
 
-        <p className="text-sm text-gray-700 mb-1 font-medium">
+        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}>
           Esta plantilla está disponible en {planLabel}.
         </p>
-        <p className="text-sm text-gray-500 mb-5">
+        <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
           {planLabel === "Growth"
             ? "Con Growth podés usar todas las plantillas comerciales, cargar hasta 100 productos y acceder a herramientas para vender más por WhatsApp."
             : "Pro está pensado para negocios con más volumen, equipo e integraciones avanzadas. Incluye plantillas premium y analytics avanzado."}
         </p>
 
-        <div className="space-y-2">
-          <button
-            onClick={handleUpgrade}
-            className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors"
-          >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button onClick={handleUpgrade} className="atd-btn primary" style={{ width: "100%" }}>
             Mejorar a {planLabel}
           </button>
-          <button
-            onClick={onClose}
-            className="w-full py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors"
-          >
+          <button onClick={onClose} className="atd-btn secondary" style={{ width: "100%" }}>
             Ahora no
           </button>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import type { CatalogItem, CatalogItemType, StockStatus } from "@/lib/db";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -88,8 +88,7 @@ function itemToForm(item: CatalogItem): FormState {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const inputClass =
-  "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400";
+const inputClass = "atd-input";
 
 const STOCK_LABELS: Record<StockStatus, string> = {
   available: "Disponible",
@@ -97,10 +96,10 @@ const STOCK_LABELS: Record<StockStatus, string> = {
   on_demand: "Bajo pedido",
 };
 
-const STOCK_COLORS: Record<StockStatus, string> = {
-  available: "bg-emerald-100 text-emerald-700",
-  unavailable: "bg-red-100 text-red-700",
-  on_demand: "bg-amber-100 text-amber-700",
+const STOCK_STYLES: Record<StockStatus, React.CSSProperties> = {
+  available: { background: "var(--green-tint)", color: "var(--green)" },
+  unavailable: { background: "#ffeaea", color: "#c0392b" },
+  on_demand: { background: "#fff3cd", color: "#7a5800" },
 };
 
 // ── Item Card ─────────────────────────────────────────────────────────────────
@@ -119,42 +118,33 @@ function ItemCard({
   toggling: boolean;
 }) {
   return (
-    <div
-      className={`bg-white rounded-2xl border p-4 space-y-3 transition-opacity ${
-        item.is_active ? "border-gray-200" : "border-gray-100 opacity-60"
-      }`}
-    >
+    <div className="atd-card" style={{ padding: 14, opacity: item.is_active ? 1 : 0.6 }}>
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-            <span
-              className={`shrink-0 text-xs px-1.5 py-0.5 rounded-md font-medium ${
-                item.item_type === "service"
-                  ? "bg-purple-100 text-purple-700"
-                  : "bg-blue-100 text-blue-700"
-              }`}
-            >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{item.name}</p>
+            <span className="atd-pill" style={{
+              fontSize: 10,
+              background: item.item_type === "service" ? "#f0e8ff" : "#e8f0ff",
+              color: item.item_type === "service" ? "#7c3aed" : "#1d4ed8",
+              border: "none",
+            }}>
               {item.item_type === "service" ? "Servicio" : "Producto"}
             </span>
             {!item.is_active && (
-              <span className="shrink-0 text-xs px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 font-medium">
+              <span className="atd-pill" style={{ fontSize: 10, background: "var(--surface-2)", color: "var(--muted)", border: "none" }}>
                 Inactivo
               </span>
             )}
           </div>
           {item.category && (
-            <p className="text-xs text-gray-500 mt-0.5">{item.category}</p>
+            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{item.category}</p>
           )}
         </div>
 
         {item.stock_status && item.stock_status !== "available" && (
-          <span
-            className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
-              STOCK_COLORS[item.stock_status]
-            }`}
-          >
+          <span className="atd-pill" style={{ fontSize: 10, flexShrink: 0, border: "none", ...STOCK_STYLES[item.stock_status] }}>
             {STOCK_LABELS[item.stock_status]}
           </span>
         )}
@@ -162,54 +152,40 @@ function ItemCard({
 
       {/* Price */}
       {(item.price || item.promo_price) && (
-        <div className="flex items-center gap-2">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           {item.price && (
-            <p
-              className={`text-sm font-semibold ${
-                item.promo_price ? "line-through text-gray-400" : "text-gray-900"
-              }`}
-            >
+            <p style={{ fontSize: 13, fontWeight: 600, color: item.promo_price ? "var(--muted)" : "var(--ink)", textDecoration: item.promo_price ? "line-through" : "none", margin: 0 }}>
               {item.price}
             </p>
           )}
           {item.promo_price && (
-            <p className="text-sm font-semibold text-emerald-600">{item.promo_price}</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--green)", margin: 0 }}>{item.promo_price}</p>
           )}
         </div>
       )}
 
       {/* Description */}
       {item.description && (
-        <p className="text-xs text-gray-500 line-clamp-2">{item.description}</p>
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", marginBottom: 8, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>{item.description}</p>
       )}
 
       {/* Service specifics */}
       {item.item_type === "service" && (item.duration || item.requires_booking) && (
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <div style={{ display: "flex", gap: 12, fontSize: 11.5, color: "var(--muted)", marginBottom: 8 }}>
           {item.duration && <span>⏱ {item.duration}</span>}
           {item.requires_booking && <span>📅 Requiere turno</span>}
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
-        <button
-          onClick={onEdit}
-          className="flex-1 py-1.5 text-xs font-medium text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-        >
+      <div style={{ display: "flex", gap: 6, paddingTop: 8, borderTop: "1px solid var(--hairline)" }}>
+        <button onClick={onEdit} style={{ flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
           Editar
         </button>
-        <button
-          onClick={onToggle}
-          disabled={toggling}
-          className="flex-1 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
-        >
+        <button onClick={onToggle} disabled={toggling} style={{ flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 500, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", borderRadius: 8, opacity: toggling ? 0.5 : 1 }}>
           {toggling ? "..." : item.is_active ? "Desactivar" : "Activar"}
         </button>
-        <button
-          onClick={onDelete}
-          className="flex-1 py-1.5 text-xs font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-        >
+        <button onClick={onDelete} style={{ flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 500, color: "#c0392b", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
           Eliminar
         </button>
       </div>
@@ -241,35 +217,26 @@ function ItemForm({
   const isService = form.item_type === "service";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[92vh]">
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 16 }}>
+      <div className="atd-card" style={{ width: "100%", maxWidth: 520, display: "flex", flexDirection: "column", maxHeight: "92vh", padding: 0, overflow: "hidden" }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-          <h3 className="text-base font-semibold text-gray-900">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--hairline)", flexShrink: 0 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
             {initial.name ? "Editar" : "Nuevo"}{" "}
             {form.item_type === "service" ? "servicio" : "producto"}
           </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-          >
-            ×
-          </button>
+          <button onClick={onClose} style={{ fontSize: 20, lineHeight: 1, color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}>×</button>
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+        <div style={{ overflowY: "auto", flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Type tabs */}
-          <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+          <div className="atd-seg">
             {(["product", "service"] as CatalogItemType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => set("item_type", t)}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                  form.item_type === t
-                    ? "bg-emerald-500 text-white"
-                    : "text-gray-500 hover:bg-gray-50"
-                }`}
+                className={form.item_type === t ? "active" : ""}
               >
                 {t === "product" ? "Producto" : "Servicio"}
               </button>
@@ -439,23 +406,18 @@ function ItemForm({
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 p-3 bg-red-50 rounded-xl">{error}</p>
+            <p style={{ fontSize: 13, color: "var(--accent)", padding: "10px 14px", background: "#fff0ee", borderRadius: 12 }}>{error}</p>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 shrink-0">
-          <button
-            onClick={onClose}
-            disabled={saving}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            Cancelar
-          </button>
+        <div style={{ display: "flex", gap: 10, padding: "14px 20px", borderTop: "1px solid var(--hairline)", flexShrink: 0 }}>
+          <button onClick={onClose} disabled={saving} className="atd-btn secondary" style={{ flex: 1 }}>Cancelar</button>
           <button
             onClick={() => onSave(form)}
             disabled={saving || !form.name.trim()}
-            className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+            className="atd-btn primary"
+            style={{ flex: 1 }}
           >
             {saving ? "Guardando..." : "Guardar"}
           </button>
@@ -580,123 +542,103 @@ export default function ItemCatalog() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-emerald-500 rounded-full animate-spin" />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)" }}>
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
 
         {/* Header */}
-        <div className="flex items-end justify-between gap-3">
+        <div className="page-header">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-600">
-              Catálogo
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold text-gray-900">
-              Productos y Servicios
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Lo que cargues acá lo usa la IA para responder consultas de clientes.
-            </p>
+            <div className="page-sub">02 · catálogo</div>
+            <h1 className="page-title">Productos y Servicios</h1>
           </div>
           <button
-            onClick={() => {
-              setEditItem(null);
-              setFormError(null);
-              setShowForm(true);
-            }}
+            onClick={() => { setEditItem(null); setFormError(null); setShowForm(true); }}
             disabled={atLimit}
-            className="shrink-0 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+            className="atd-btn primary sm"
           >
             + Agregar
           </button>
         </div>
 
+        <div style={{ padding: "0 20px 6px", fontSize: 13, color: "var(--ink-3)" }}>
+          Lo que cargues acá lo usa la IA para responder consultas de clientes.
+        </div>
+
         {/* Success banner */}
         {successMsg && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700">
+          <div style={{ margin: "10px 20px 0", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--green)", background: "var(--green-tint)", fontSize: 13, color: "var(--green)" }}>
             {successMsg}
           </div>
         )}
 
         {/* Usage bar */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-4">
-          <div className="flex justify-between text-xs text-gray-500 mb-2">
+        <div className="atd-card" style={{ margin: "12px 20px 0", padding: "14px 16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-3)", marginBottom: 8 }}>
             <span>
-              Productos y servicios:{" "}
-              <strong className="text-gray-900">
-                {state.count} / {state.limit}
-              </strong>
+              Items: <strong style={{ color: "var(--ink)" }}>{state.count} / {state.limit}</strong>
             </span>
-            {nearLimit && !atLimit && (
-              <span className="text-amber-600 font-medium">Casi al límite</span>
-            )}
-            {atLimit && (
-              <span className="text-red-600 font-medium">Límite alcanzado</span>
-            )}
+            {nearLimit && !atLimit && <span style={{ color: "#7a5800", fontWeight: 500 }}>Casi al límite</span>}
+            {atLimit && <span style={{ color: "#c0392b", fontWeight: 500 }}>Límite alcanzado</span>}
           </div>
-          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${
-                atLimit ? "bg-red-500" : nearLimit ? "bg-amber-400" : "bg-emerald-500"
-              }`}
-              style={{ width: `${pct}%` }}
-            />
+          <div style={{ height: 6, borderRadius: 99, background: "var(--surface-2)", overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: 99,
+              background: atLimit ? "#c0392b" : nearLimit ? "#d97706" : "var(--green)",
+              width: `${pct}%`, transition: "width 0.3s",
+            }} />
           </div>
           {atLimit && (
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-xs text-red-700">
-                Alcanzaste el límite de tu plan. Mejorá para agregar más.
-              </p>
-              <Link
-                href="/app/plan"
-                className="shrink-0 text-xs font-semibold text-emerald-600 hover:underline"
-              >
-                Mejorar plan →
-              </Link>
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <p style={{ fontSize: 12, color: "#c0392b" }}>Alcanzaste el límite de tu plan. Mejorá para agregar más.</p>
+              <Link href="/app/plan" style={{ fontSize: 12, fontWeight: 600, color: "var(--green)", whiteSpace: "nowrap" }}>Mejorar plan →</Link>
             </div>
           )}
         </div>
 
         {/* Filters */}
-        <div className="space-y-2">
+        <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, categoría o descripción..."
-            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="atd-input"
           />
-          <div className="flex gap-2 flex-wrap">
-            {/* Type filter */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {(["all", "product", "service"] as FilterType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setFilterType(t)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  filterType === t
-                    ? "bg-gray-800 text-white"
-                    : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
+                className="atd-pill"
+                style={{
+                  background: filterType === t ? "var(--ink)" : "var(--surface)",
+                  color: filterType === t ? "#fff" : "var(--ink-2)",
+                  border: filterType === t ? "none" : "1px solid var(--hairline)",
+                  cursor: "pointer", fontSize: 12,
+                }}
               >
                 {t === "all" ? "Todos" : t === "product" ? "Productos" : "Servicios"}
               </button>
             ))}
-            <div className="w-px bg-gray-200 self-stretch" />
-            {/* Status filter */}
+            <div style={{ width: 1, background: "var(--hairline)", alignSelf: "stretch" }} />
             {(["all", "active", "inactive"] as FilterStatus[]).map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  filterStatus === s
-                    ? "bg-gray-800 text-white"
-                    : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
+                className="atd-pill"
+                style={{
+                  background: filterStatus === s ? "var(--ink)" : "var(--surface)",
+                  color: filterStatus === s ? "#fff" : "var(--ink-2)",
+                  border: filterStatus === s ? "none" : "1px solid var(--hairline)",
+                  cursor: "pointer", fontSize: 12,
+                }}
               >
                 {s === "all" ? "Cualquier estado" : s === "active" ? "Activos" : "Inactivos"}
               </button>
@@ -705,57 +647,58 @@ export default function ItemCatalog() {
         </div>
 
         {/* List */}
-        {filteredItems.length === 0 ? (
-          <div className="py-16 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-white">
-            {state.items.length === 0 ? (
-              <>
-                <p className="text-3xl mb-3">📦</p>
-                <p className="text-sm font-medium text-gray-700">
-                  Todavía no cargaste productos o servicios.
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  Agregá lo que vendés para que tu asistente pueda responder mejor.
-                </p>
-                <button
-                  onClick={() => { setEditItem(null); setFormError(null); setShowForm(true); }}
-                  disabled={atLimit}
-                  className="mt-4 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium px-5 py-2 rounded-xl transition-colors disabled:opacity-50"
-                >
-                  Agregar el primero
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-gray-500">
-                  No hay resultados para los filtros seleccionados.
-                </p>
-                <button
-                  onClick={() => { setSearch(""); setFilterType("all"); setFilterStatus("all"); }}
-                  className="mt-2 text-sm text-emerald-600 hover:underline"
-                >
-                  Limpiar filtros
-                </button>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {filteredItems.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onEdit={() => {
-                  setEditItem(item);
-                  setFormError(null);
-                  setShowForm(true);
-                }}
-                onDelete={() => setDeleteConfirmId(item.id)}
-                onToggle={() => handleToggle(item)}
-                toggling={togglingId === item.id}
-              />
-            ))}
-          </div>
-        )}
+        <div style={{ padding: "12px 20px 0" }}>
+          {filteredItems.length === 0 ? (
+            <div style={{ padding: "48px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 18, background: "var(--surface)" }}>
+              {state.items.length === 0 ? (
+                <>
+                  <p style={{ fontSize: 28, marginBottom: 10 }}>📦</p>
+                  <p style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>
+                    Todavía no cargaste productos o servicios.
+                  </p>
+                  <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>
+                    Agregá lo que vendés para que tu asistente pueda responder mejor.
+                  </p>
+                  <button
+                    onClick={() => { setEditItem(null); setFormError(null); setShowForm(true); }}
+                    disabled={atLimit}
+                    className="atd-btn primary sm"
+                    style={{ marginTop: 16 }}
+                  >
+                    Agregar el primero
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 13, color: "var(--ink-3)" }}>No hay resultados para los filtros seleccionados.</p>
+                  <button
+                    onClick={() => { setSearch(""); setFilterType("all"); setFilterStatus("all"); }}
+                    style={{ marginTop: 8, fontSize: 13, color: "var(--green)", background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Limpiar filtros
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+              {filteredItems.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  onEdit={() => {
+                    setEditItem(item);
+                    setFormError(null);
+                    setShowForm(true);
+                  }}
+                  onDelete={() => setDeleteConfirmId(item.id)}
+                  onToggle={() => handleToggle(item)}
+                  toggling={togglingId === item.id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
       </div>
 
@@ -772,24 +715,19 @@ export default function ItemCatalog() {
 
       {/* Delete confirmation */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h4 className="text-base font-semibold text-gray-900 mb-2">
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div className="atd-card" style={{ width: "100%", maxWidth: 360, padding: 24 }}>
+            <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
               ¿Eliminar este producto/servicio?
             </h4>
-            <p className="text-sm text-gray-500 mb-5">
+            <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
               La acción no se puede deshacer. Los datos serán eliminados permanentemente.
             </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
-              >
-                Cancelar
-              </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDeleteConfirmId(null)} className="atd-btn secondary" style={{ flex: 1 }}>Cancelar</button>
               <button
                 onClick={() => handleDelete(deleteConfirmId)}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium"
+                style={{ flex: 1, padding: "10px 16px", borderRadius: 12, background: "#c0392b", color: "#fff", fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer" }}
               >
                 Eliminar
               </button>

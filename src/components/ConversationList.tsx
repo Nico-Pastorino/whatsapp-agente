@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { Search, Spark } from "./atende/Icons";
+import { Avatar } from "./atende/Icons";
+
 interface Conversation {
   id: string;
   contact_id: string;
@@ -22,71 +26,172 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-function displayPhone(phone: string): string {
-  return phone.split("@")[0].split(":")[0];
+function displayName(conv: Conversation): string {
+  if (conv.name) return conv.name;
+  return conv.phone.split("@")[0].split(":")[0];
+}
+
+function initials(name: string): string {
+  return name.split(" ").slice(0, 2).map((s) => s[0] ?? "").join("").toUpperCase() || "?";
 }
 
 function relativeTime(ts: number | null): string {
   if (!ts) return "";
   const diff = Math.floor(Date.now() / 1000) - ts;
   if (diff < 60) return "ahora";
-  if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `hace ${Math.floor(diff / 3600)} h`;
-  return `hace ${Math.floor(diff / 86400)} d`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
 }
+
+type Filter = "all" | "ia" | "human";
 
 export default function ConversationList({
   conversations,
   selectedId,
   onSelect,
 }: Props) {
-  if (conversations.length === 0) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8 text-center">
-        <p className="text-gray-400 text-sm">
-          Aún no hay conversaciones.
-          <br />
-          Cuando alguien escriba al WhatsApp conectado, aparecerá aquí.
-        </p>
-      </div>
-    );
-  }
+  const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+
+  const filtered = conversations.filter((c) => {
+    if (filter === "ia" && c.mode !== "AI") return false;
+    if (filter === "human" && c.mode !== "HUMAN") return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const name = displayName(c).toLowerCase();
+      return name.includes(q) || (c.last_message_preview ?? "").toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const iaCount = conversations.filter((c) => c.mode === "AI").length;
+  const humanCount = conversations.filter((c) => c.mode === "HUMAN").length;
 
   return (
-    <ul className="flex-1 overflow-y-auto">
-      {conversations.map((conv) => (
-        <li key={conv.id}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg)" }}>
+      {/* Header */}
+      <div className="page-header">
+        <div>
+          <div className="page-sub">inbox · {conversations.length} hoy</div>
+          <h1 className="page-title">Conversaciones</h1>
+        </div>
+        <button
+          className="atd-btn ghost sm"
+          style={{ width: 38, padding: 0, borderRadius: 12 }}
+          onClick={() => document.getElementById("conv-search")?.focus()}
+        >
+          <Search size={18} />
+        </button>
+      </div>
+
+      {/* Search */}
+      <div style={{ padding: "4px 20px 8px" }}>
+        <div style={{ height: 38, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--hairline-2)", display: "flex", alignItems: "center", padding: "0 12px", gap: 8 }}>
+          <Search size={16} style={{ color: "var(--muted)", flexShrink: 0 }} />
+          <input
+            id="conv-search"
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar conversación..."
+            style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 13, color: "var(--ink)", fontFamily: "var(--font-sans)" }}
+          />
+        </div>
+      </div>
+
+      {/* Filter pills */}
+      <div style={{ padding: "0 20px 10px", display: "flex", gap: 6 }}>
+        {([
+          ["all",   `Todas · ${conversations.length}`],
+          ["ia",    `IA · ${iaCount}`],
+          ["human", `Humano · ${humanCount}`],
+        ] as [Filter, string][]).map(([key, label]) => (
           <button
-            onClick={() => onSelect(conv.id)}
-            className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-              selectedId === conv.id ? "bg-gray-100" : ""
-            }`}
+            key={key}
+            onClick={() => setFilter(key)}
+            className="atd-pill"
+            style={{
+              background: filter === key ? "var(--ink)" : "var(--surface)",
+              color: filter === key ? "var(--bg)" : "var(--ink-2)",
+              borderColor: filter === key ? "transparent" : "var(--hairline-2)",
+              cursor: "pointer",
+            }}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-gray-800 truncate text-sm">
-                {conv.name || displayPhone(conv.phone)}
-              </span>
-              <span
-                className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
-                  conv.mode === "AI"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-amber-100 text-amber-700"
-                }`}
-              >
-                {conv.mode === "AI" ? "IA" : "Humano"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between mt-1 gap-2">
-              <p className="text-xs text-gray-400 truncate flex-1">
-                {conv.last_message_preview ?? "Sin mensajes"}
-              </p>
-              <span className="text-xs text-gray-300 shrink-0">
-                {relativeTime(conv.last_message_at)}
-              </span>
-            </div>
+            {label}
           </button>
-        </li>
-      ))}
-    </ul>
+        ))}
+      </div>
+
+      {/* List */}
+      <div style={{ flex: 1, overflow: "auto" }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+            Sin conversaciones
+          </div>
+        ) : (
+          filtered.map((conv, i) => {
+            const name = displayName(conv);
+            const isIA = conv.mode === "AI";
+            const isSelected = selectedId === conv.id;
+
+            return (
+              <button
+                key={conv.id}
+                onClick={() => onSelect(conv.id)}
+                style={{
+                  width: "100%", textAlign: "left",
+                  padding: "12px 20px",
+                  display: "flex", alignItems: "center", gap: 12,
+                  borderTop: i ? "1px solid var(--hairline)" : "none",
+                  background: isSelected ? "var(--surface)" : "transparent",
+                  cursor: "pointer",
+                  transition: "background .15s",
+                }}
+              >
+                {/* Avatar with mode badge */}
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <Avatar
+                    initials={initials(name)}
+                    size={42}
+                    bg={isIA ? "var(--green-tint)" : "var(--human-tint)"}
+                    fg={isIA ? "var(--green-ink)" : "var(--human)"}
+                  />
+                  {isIA && (
+                    <span style={{
+                      position: "absolute", bottom: -2, right: -2,
+                      width: 16, height: 16, borderRadius: 999,
+                      background: "var(--accent)", color: "var(--on-accent)",
+                      border: "2px solid var(--bg)",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Spark size={8} />
+                    </span>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 500, color: "var(--ink)" }}>{name}</span>
+                    <span className="mono" style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}>
+                      {relativeTime(conv.last_message_at)}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                    <span style={{ fontSize: 13, color: "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {conv.last_message_preview ?? "Sin mensajes"}
+                    </span>
+                    {!isIA && (
+                      <span style={{ marginLeft: 8, width: 8, height: 8, borderRadius: 999, background: "var(--human)", flexShrink: 0 }} />
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }
