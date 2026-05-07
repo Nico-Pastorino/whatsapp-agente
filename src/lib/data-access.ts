@@ -108,6 +108,7 @@ interface ConversationRow {
   business_id: string;
   contact_id: string;
   phone_jid: string | null;
+  last_inbound_jid: string | null;
   display_name: string | null;
   mode: "AI" | "HUMAN";
   last_message_at: string | null;
@@ -472,7 +473,7 @@ async function getConversationRowById(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .eq("id", conversationId)
@@ -622,12 +623,31 @@ export async function getBestOutgoingJidForConversation(
     };
   }
 
-  // Legacy conversations (pre-contacts migration) have contact_id = null.
+  const agentPhoneNumber = await getAgentPhoneNumber();
+
+  // Priority 1: last_inbound_jid — the JID from which the customer last sent a message.
+  // This is the most reliable reply address because it was verified by Baileys as a real
+  // active JID (the customer used it to reach us).
+  if (conversation.last_inbound_jid) {
+    const jid = conversation.last_inbound_jid;
+    const phone = extractPhoneFromJid(jid);
+    if (agentPhoneNumber && phone && phone === agentPhoneNumber) {
+      // Safety: never reply to own number
+    } else {
+      return {
+        targetJid: jid,
+        hasSafeOutgoingJid: true,
+        reason: null,
+        targetType: "raw_jid",
+      };
+    }
+  }
+
+  // Priority 2: Legacy conversations (pre-contacts migration) have contact_id = null.
   // Fall back to phone_jid directly so human replies still work.
   if (!conversation.contact_id) {
     const phoneJid = conversation.phone_jid;
     if (phoneJid?.endsWith("@s.whatsapp.net")) {
-      const agentPhoneNumber = await getAgentPhoneNumber();
       const targetPhone = extractPhoneFromJid(phoneJid);
       if (agentPhoneNumber && targetPhone === agentPhoneNumber) {
         return {
@@ -652,6 +672,7 @@ export async function getBestOutgoingJidForConversation(
     };
   }
 
+  // Priority 3: fall back to contact identity system
   return getBestOutgoingJidForContact(conversation.contact_id, businessId);
 }
 
@@ -1058,6 +1079,13 @@ export async function getOrCreateConversation(input: {
   pushName?: string;
   phoneNumberIfKnown?: string | null;
   businessId?: string;
+  /**
+   * JID from which a customer message arrived. When set, updates
+   * conversations.last_inbound_jid so replies always go back to the right chat.
+   * Must be undefined/null for outgoing (fromMe=true) messages so we don't
+   * accidentally overwrite the real inbound JID with a sender's own JID.
+   */
+  inboundJid?: string | null;
 }): Promise<Conversation> {
   const resolved = await resolveContactIdentity({
     businessId: input.businessId,
@@ -1068,13 +1096,20 @@ export async function getOrCreateConversation(input: {
 
   const supabase = getSupabaseAdminClient();
   const businessId = input.businessId ?? getBusinessId();
+  const normalizedInboundJid = input.inboundJid
+    ? normalizeWhatsAppJid(input.inboundJid)
+    : null;
+
+  // Use the raw inbound JID as the canonical phone_jid when it's a real phone address.
+  // Only fall back to best.targetJid when there's no direct inbound JID available
+  // (e.g., outbox / dashboard sends).
   const best = await getBestOutgoingJidForContact(resolved.contact_id, businessId);
-  const preferredPhoneJid = best.targetJid || normalizeWhatsAppJid(input.rawJid);
+  const preferredPhoneJid = normalizedInboundJid || best.targetJid || normalizeWhatsAppJid(input.rawJid);
 
   const { data: existing, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .eq("contact_id", resolved.contact_id)
@@ -1082,19 +1117,26 @@ export async function getOrCreateConversation(input: {
   if (error) throw error;
 
   if (existing) {
+    // Only upgrade phone_jid if the incoming JID is a real @s.whatsapp.net address
+    // (avoids overwriting a correct phone with an @lid-derived fake phone).
     const nextPhoneJid =
-      preferredPhoneJid.endsWith("@s.whatsapp.net") || !existing.phone_jid
-        ? preferredPhoneJid
-        : existing.phone_jid;
-    await supabase.from("conversations").update({
+      normalizedInboundJid?.endsWith("@s.whatsapp.net")
+        ? normalizedInboundJid
+        : (existing.phone_jid?.endsWith("@s.whatsapp.net") ? existing.phone_jid : preferredPhoneJid);
+
+    const patch: Record<string, unknown> = {
       phone_jid: nextPhoneJid,
       display_name: resolved.contact.display_name ?? input.pushName ?? existing.display_name,
       updated_at: new Date().toISOString(),
-    }).eq("id", existing.id);
-    console.log(`[conversation] reused=${existing.id}`);
+    };
+    if (normalizedInboundJid) patch.last_inbound_jid = normalizedInboundJid;
+
+    await supabase.from("conversations").update(patch).eq("id", existing.id);
+    console.log(`[conversation] reused=${existing.id} last_inbound_jid=${normalizedInboundJid ?? "(unchanged)"}`);
     return enrichConversationDeliveryState(mapConversationRow({
       ...(existing as ConversationRow),
       phone_jid: nextPhoneJid,
+      last_inbound_jid: normalizedInboundJid ?? existing.last_inbound_jid,
       display_name:
         resolved.contact.display_name ?? input.pushName ?? existing.display_name,
       contact: resolved.contact,
@@ -1110,7 +1152,7 @@ export async function getOrCreateConversation(input: {
     const { data: legacy } = await supabase
       .from("conversations")
       .select(
-        "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+        "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
       )
       .eq("business_id", businessId)
       .eq("phone_jid", jid)
@@ -1121,22 +1163,27 @@ export async function getOrCreateConversation(input: {
 
     if (legacy) {
       const nextPhoneJid = preferredPhoneJid || legacy.phone_jid;
+      const legacyPatch: Record<string, unknown> = {
+        contact_id: resolved.contact_id,
+        phone_jid: nextPhoneJid,
+        display_name: resolved.contact.display_name ?? input.pushName ?? legacy.display_name,
+        updated_at: new Date().toISOString(),
+      };
+      if (normalizedInboundJid) legacyPatch.last_inbound_jid = normalizedInboundJid;
+
       const { error: backfillErr } = await supabase
         .from("conversations")
-        .update({
-          contact_id: resolved.contact_id,
-          phone_jid: nextPhoneJid,
-          display_name: resolved.contact.display_name ?? input.pushName ?? legacy.display_name,
-          updated_at: new Date().toISOString(),
-        })
+        .update(legacyPatch)
         .eq("id", legacy.id);
 
       if (!backfillErr) {
         console.log(`[conversation] backfilled legacy=${legacy.id} contact_id=${resolved.contact_id}`);
+        console.log(`[wa/identity] prevented duplicate conversation — merged into legacy=${legacy.id}`);
         return enrichConversationDeliveryState(mapConversationRow({
           ...(legacy as ConversationRow),
           contact_id: resolved.contact_id,
           phone_jid: nextPhoneJid,
+          last_inbound_jid: normalizedInboundJid ?? legacy.last_inbound_jid,
           display_name: resolved.contact.display_name ?? input.pushName ?? legacy.display_name,
           contact: resolved.contact,
         }), businessId);
@@ -1151,13 +1198,14 @@ export async function getOrCreateConversation(input: {
       business_id: businessId,
       contact_id: resolved.contact_id,
       phone_jid: preferredPhoneJid,
+      last_inbound_jid: normalizedInboundJid ?? null,
       display_name: resolved.contact.display_name ?? input.pushName ?? null,
       mode: "AI",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .select(
-      "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .single();
   if (createError || !created) throw createError ?? new Error("conversation insert failed");
@@ -1193,7 +1241,7 @@ export async function listConversations(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .order("last_message_at", { ascending: false, nullsFirst: false })
