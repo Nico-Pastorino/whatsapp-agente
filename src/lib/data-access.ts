@@ -1929,7 +1929,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
 export async function setBusinessProfile(patch: {
   name: string;
   description: string;
-  products: ProductItem[];
+  products?: ProductItem[]; // optional — if omitted, products are not touched
   extra: string;
 }, businessId = getBusinessId()): Promise<void> {
   const supabase = getSupabaseAdminClient();
@@ -1946,21 +1946,23 @@ export async function setBusinessProfile(patch: {
     updated_at: now,
   }).eq("business_id", businessId);
 
-  await supabase.from("products").delete().eq("business_id", businessId);
+  if (patch.products !== undefined) {
+    await supabase.from("products").delete().eq("business_id", businessId);
 
-  if (patch.products.length > 0) {
-    const { error } = await supabase.from("products").insert(
-      patch.products.map((product, index) => ({
-        id: product.id ?? randomUUID(),
-        business_id: businessId,
-        name: product.name,
-        price_text: product.price,
-        description: product.description,
-        sort_order: index,
-        updated_at: now,
-      }))
-    );
-    if (error) throw error;
+    if (patch.products.length > 0) {
+      const { error } = await supabase.from("products").insert(
+        patch.products.map((product, index) => ({
+          id: product.id ?? randomUUID(),
+          business_id: businessId,
+          name: product.name,
+          price_text: product.price,
+          description: product.description,
+          sort_order: index,
+          updated_at: now,
+        }))
+      );
+      if (error) throw error;
+    }
   }
 }
 
@@ -2614,4 +2616,232 @@ export function derivePhoneNumberFromMessage(
 
 export function getDisplayLabelForConversation(conversation: Conversation): string {
   return conversation.name?.trim() || extractPhoneFromJid(conversation.phone) || conversation.phone;
+}
+
+// ── Catalog: Productos y Servicios ───────────────────────────────────────────
+
+export type CatalogItemType = "product" | "service";
+export type StockStatus = "available" | "unavailable" | "on_demand";
+
+export interface CatalogItem {
+  id: string;
+  business_id: string;
+  item_type: CatalogItemType;
+  name: string;
+  category: string | null;
+  description: string | null;
+  price: string | null;       // maps to price_text column
+  promo_price: string | null;
+  stock_status: StockStatus | null;
+  duration: string | null;
+  requires_booking: boolean;
+  payment_options: string | null;
+  financing_options: string | null;
+  internal_notes: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CatalogItemInput = Omit<CatalogItem, "id" | "business_id" | "sort_order" | "created_at" | "updated_at">;
+
+export interface CatalogCapacity {
+  count: number;
+  limit: number;
+  canAdd: boolean;
+}
+
+const CATALOG_SELECT =
+  "id, business_id, item_type, name, category, description, price_text, promo_price, stock_status, duration, requires_booking, payment_options, financing_options, internal_notes, is_active, sort_order, created_at, updated_at";
+
+function mapRowToCatalogItem(row: Record<string, unknown>): CatalogItem {
+  return {
+    id: row.id as string,
+    business_id: row.business_id as string,
+    item_type: (row.item_type as CatalogItemType) ?? "product",
+    name: row.name as string,
+    category: (row.category as string | null) ?? null,
+    description: (row.description as string | null) ?? null,
+    price: (row.price_text as string | null) ?? null,
+    promo_price: (row.promo_price as string | null) ?? null,
+    stock_status: (row.stock_status as StockStatus | null) ?? null,
+    duration: (row.duration as string | null) ?? null,
+    requires_booking: (row.requires_booking as boolean) ?? false,
+    payment_options: (row.payment_options as string | null) ?? null,
+    financing_options: (row.financing_options as string | null) ?? null,
+    internal_notes: (row.internal_notes as string | null) ?? null,
+    is_active: (row.is_active as boolean) ?? true,
+    sort_order: (row.sort_order as number) ?? 0,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
+export async function countBusinessItems(businessId: string): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const { count, error } = await supabase
+    .from("products")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function getCatalogCapacity(
+  businessId: string
+): Promise<CatalogCapacity> {
+  const supabase = getSupabaseAdminClient();
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("plan_code")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const { data: plan } = await supabase
+    .from("plans")
+    .select("product_limit")
+    .eq("code", sub?.plan_code ?? "starter")
+    .maybeSingle();
+  const limit = (plan?.product_limit as number | null) ?? 10;
+  const count = await countBusinessItems(businessId);
+  return { count, limit, canAdd: count < limit };
+}
+
+export async function listBusinessItems(businessId: string): Promise<CatalogItem[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(CATALOG_SELECT)
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => mapRowToCatalogItem(row as Record<string, unknown>));
+}
+
+export async function createBusinessItem(
+  businessId: string,
+  input: CatalogItemInput
+): Promise<CatalogItem> {
+  const supabase = getSupabaseAdminClient();
+
+  const capacity = await getCatalogCapacity(businessId);
+  if (!capacity.canAdd) {
+    const err = new Error(
+      `Alcanzaste el límite de productos y servicios de tu plan (${capacity.limit}).`
+    );
+    (err as Error & { code: string }).code = "CATALOG_LIMIT_EXCEEDED";
+    throw err;
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("products")
+    .insert({
+      id: randomUUID(),
+      business_id: businessId,
+      item_type: input.item_type ?? "product",
+      name: input.name,
+      category: input.category ?? null,
+      description: input.description ?? null,
+      price_text: input.price ?? null,
+      promo_price: input.promo_price ?? null,
+      stock_status: input.stock_status ?? "available",
+      duration: input.duration ?? null,
+      requires_booking: input.requires_booking ?? false,
+      payment_options: input.payment_options ?? null,
+      financing_options: input.financing_options ?? null,
+      internal_notes: input.internal_notes ?? null,
+      is_active: input.is_active ?? true,
+      sort_order: capacity.count,
+      created_at: now,
+      updated_at: now,
+    })
+    .select(CATALOG_SELECT)
+    .single();
+  if (error) throw error;
+  return mapRowToCatalogItem(data as Record<string, unknown>);
+}
+
+export async function updateBusinessItem(
+  businessId: string,
+  itemId: string,
+  input: Partial<CatalogItemInput>
+): Promise<CatalogItem> {
+  const supabase = getSupabaseAdminClient();
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.item_type !== undefined) patch.item_type = input.item_type;
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.category !== undefined) patch.category = input.category;
+  if (input.description !== undefined) patch.description = input.description;
+  if (input.price !== undefined) patch.price_text = input.price;
+  if (input.promo_price !== undefined) patch.promo_price = input.promo_price;
+  if (input.stock_status !== undefined) patch.stock_status = input.stock_status;
+  if (input.duration !== undefined) patch.duration = input.duration;
+  if (input.requires_booking !== undefined) patch.requires_booking = input.requires_booking;
+  if (input.payment_options !== undefined) patch.payment_options = input.payment_options;
+  if (input.financing_options !== undefined) patch.financing_options = input.financing_options;
+  if (input.internal_notes !== undefined) patch.internal_notes = input.internal_notes;
+  if (input.is_active !== undefined) patch.is_active = input.is_active;
+
+  const { data, error } = await supabase
+    .from("products")
+    .update(patch)
+    .eq("id", itemId)
+    .eq("business_id", businessId) // ownership check
+    .is("deleted_at", null)
+    .select(CATALOG_SELECT)
+    .single();
+  if (error) throw error;
+  return mapRowToCatalogItem(data as Record<string, unknown>);
+}
+
+export async function deleteBusinessItem(
+  businessId: string,
+  itemId: string
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("products")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", itemId)
+    .eq("business_id", businessId); // ownership check
+  if (error) throw error;
+}
+
+export async function toggleBusinessItemActive(
+  businessId: string,
+  itemId: string
+): Promise<CatalogItem> {
+  const supabase = getSupabaseAdminClient();
+  const { data: current, error: fetchErr } = await supabase
+    .from("products")
+    .select("is_active")
+    .eq("id", itemId)
+    .eq("business_id", businessId)
+    .is("deleted_at", null)
+    .single();
+  if (fetchErr) throw fetchErr;
+  const next = !(current as { is_active: boolean }).is_active;
+  return updateBusinessItem(businessId, itemId, { is_active: next });
+}
+
+// Items formatted for AI prompt — no internal_notes, active only, max 30
+export async function listActiveItemsForPrompt(
+  businessId = getBusinessId()
+): Promise<CatalogItem[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(CATALOG_SELECT)
+    .eq("business_id", businessId)
+    .eq("is_active", true)
+    .is("deleted_at", null)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(30);
+  if (error) throw error;
+  return (data ?? []).map((row) => mapRowToCatalogItem(row as Record<string, unknown>));
 }

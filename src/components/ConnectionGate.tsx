@@ -7,6 +7,7 @@ import DashboardHeader from "./DashboardHeader";
 import ConversationList from "./ConversationList";
 import ConversationPanel from "./ConversationPanel";
 import BusinessConfig from "./BusinessConfig";
+import ItemCatalog from "./ItemCatalog";
 import PlanOverview from "./PlanOverview";
 import TeamManagement from "./TeamManagement";
 
@@ -37,7 +38,7 @@ interface ConversationUpdate {
   needs_phone_mapping: boolean;
 }
 
-type DashboardView = "conversations" | "business" | "team" | "plan" | "connect";
+type DashboardView = "conversations" | "business" | "catalog" | "team" | "plan" | "connect";
 type ConnectionStatus = "disconnected" | "qr" | "connecting" | "connected";
 
 function pickPreferredConversation(a: Conversation, b: Conversation): Conversation {
@@ -188,6 +189,8 @@ export default function ConnectionGate({ currentView }: Props) {
   let content: React.ReactNode = null;
   if (currentView === "business") {
     content = <BusinessConfig />;
+  } else if (currentView === "catalog") {
+    content = <ItemCatalog />;
   } else if (currentView === "team") {
     content = <TeamManagement />;
   } else if (currentView === "plan") {

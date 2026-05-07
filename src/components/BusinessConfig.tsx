@@ -1,28 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import TemplateSelector from "./TemplateSelector";
-
-interface Product {
-  name: string;
-  price: string;
-  description: string;
-}
 
 interface Profile {
   name: string;
   description: string;
-  products: Product[];
   extra: string;
 }
 
-const EMPTY_PRODUCT = (): Product => ({ name: "", price: "", description: "" });
-
 const inputClass =
   "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400";
-
-const inputInlineClass =
-  "border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400";
 
 function SectionHeader({
   label,
@@ -46,7 +35,6 @@ export default function BusinessConfig() {
   const [profile, setProfile] = useState<Profile>({
     name: "",
     description: "",
-    products: [],
     extra: "",
   });
   const [saving, setSaving] = useState(false);
@@ -60,10 +48,6 @@ export default function BusinessConfig() {
         setProfile({
           name: data.name ?? "",
           description: data.description ?? "",
-          products:
-            Array.isArray(data.products) && data.products.length > 0
-              ? data.products
-              : [],
           extra: data.extra ?? "",
         });
         setLoading(false);
@@ -74,34 +58,10 @@ export default function BusinessConfig() {
     reloadProfile();
   }, [reloadProfile]);
 
-  const profileIsEmpty =
-    !profile.description && profile.products.length === 0 && !profile.extra;
+  const profileIsEmpty = !profile.description && !profile.extra;
 
-  function updateField(field: keyof Omit<Profile, "products">, value: string) {
+  function updateField(field: keyof Profile, value: string) {
     setProfile((p) => ({ ...p, [field]: value }));
-    setSaved(false);
-  }
-
-  function addProduct() {
-    setProfile((p) => ({ ...p, products: [...p.products, EMPTY_PRODUCT()] }));
-    setSaved(false);
-  }
-
-  function updateProduct(index: number, field: keyof Product, value: string) {
-    setProfile((p) => {
-      const products = p.products.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      );
-      return { ...p, products };
-    });
-    setSaved(false);
-  }
-
-  function removeProduct(index: number) {
-    setProfile((p) => ({
-      ...p,
-      products: p.products.filter((_, i) => i !== index),
-    }));
     setSaved(false);
   }
 
@@ -110,7 +70,7 @@ export default function BusinessConfig() {
     await fetch("/api/business", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile),
+      body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra }),
     });
     setSaving(false);
     setSaved(true);
@@ -129,7 +89,7 @@ export default function BusinessConfig() {
     <div className="h-full overflow-y-auto bg-gray-50">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
 
-        {/* ── Encabezado ── */}
+        {/* Encabezado */}
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
             Configuración
@@ -141,13 +101,13 @@ export default function BusinessConfig() {
           </p>
         </div>
 
-        {/* ── Plantillas por Rubro ── */}
+        {/* Plantillas por Rubro */}
         <TemplateSelector
           profileIsEmpty={profileIsEmpty}
           onApplied={reloadProfile}
         />
 
-        {/* ── Sección 1: Identidad del negocio ── */}
+        {/* Sección 1: Identidad del negocio */}
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <SectionHeader
             label="Sección 1"
@@ -182,85 +142,28 @@ export default function BusinessConfig() {
           </div>
         </section>
 
-        {/* ── Sección 2: Catálogo de productos / servicios ── */}
+        {/* Sección 2: Catálogo → link al nuevo módulo */}
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <SectionHeader
-              label="Sección 2"
-              title="Catálogo de productos / servicios"
-              description="Cada item que cargues (nombre, precio y descripción) aparece en las respuestas de la IA cuando un cliente pregunta qué ofrecés o cuánto sale."
-            />
-            <button
-              onClick={addProduct}
-              className="shrink-0 text-sm text-emerald-600 hover:text-emerald-700 font-medium px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
-            >
-              + Agregar
-            </button>
-          </div>
-
-          {profile.products.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
-              <p className="text-sm text-gray-500">
-                No hay productos o servicios cargados.
+          <SectionHeader
+            label="Sección 2"
+            title="Catálogo de productos y servicios"
+            description="Gestioná lo que vendés desde la sección dedicada. La IA usa esa información para responder consultas sobre precios, stock y disponibilidad."
+          />
+          <Link
+            href="/app/catalog"
+            className="flex items-center justify-between p-4 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition-colors group"
+          >
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">Ir al Catálogo</p>
+              <p className="text-xs text-emerald-600 mt-0.5">
+                Agregá productos y servicios con categoría, precio, stock y más.
               </p>
-              <button
-                onClick={addProduct}
-                className="mt-2 text-sm text-emerald-600 hover:underline"
-              >
-                Agregar el primero
-              </button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {profile.products.map((product, index) => (
-                <div
-                  key={index}
-                  className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold text-gray-500 w-6 text-center shrink-0">
-                      {index + 1}
-                    </span>
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={product.name}
-                        onChange={(e) => updateProduct(index, "name", e.target.value)}
-                        placeholder="Nombre del producto/servicio *"
-                        className={inputInlineClass}
-                      />
-                      <input
-                        type="text"
-                        value={product.price}
-                        onChange={(e) => updateProduct(index, "price", e.target.value)}
-                        placeholder="Precio (ej: $5000 / $50 USD)"
-                        className={inputInlineClass}
-                      />
-                    </div>
-                    <button
-                      onClick={() => removeProduct(index)}
-                      className="text-gray-400 hover:text-red-500 transition-colors text-xl leading-none shrink-0"
-                      title="Eliminar"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="pl-9">
-                    <input
-                      type="text"
-                      value={product.description}
-                      onChange={(e) => updateProduct(index, "description", e.target.value)}
-                      placeholder="Descripción breve (opcional)"
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            <span className="text-emerald-500 group-hover:translate-x-1 transition-transform text-lg">→</span>
+          </Link>
         </section>
 
-        {/* ── Sección 3: Instrucciones adicionales ── */}
+        {/* Sección 3: Instrucciones adicionales */}
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <SectionHeader
             label="Sección 3"
@@ -276,7 +179,7 @@ export default function BusinessConfig() {
           />
         </section>
 
-        {/* ── Botón guardar ── */}
+        {/* Botón guardar */}
         <div className="flex items-center justify-end gap-3 pb-4">
           {saved && (
             <span className="text-sm text-emerald-600 font-medium">

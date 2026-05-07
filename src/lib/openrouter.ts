@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { getBusinessProfile } from "./db";
+import { getBusinessProfile, listActiveItemsForPrompt } from "./db";
 import { SYSTEM_PROMPT } from "./system-prompt";
 import type { Message } from "./db";
 
@@ -79,15 +79,14 @@ function sanitizeForPrompt(input: string, maxLength = 2000): string {
 }
 
 async function buildSystemPrompt(): Promise<string> {
-  const profile = await getBusinessProfile().catch(() => null);
+  const [profile, items] = await Promise.all([
+    getBusinessProfile().catch(() => null),
+    listActiveItemsForPrompt().catch(() => []),
+  ]);
+
   if (!profile) return SYSTEM_PROMPT;
 
-  if (
-    !profile.name &&
-    !profile.description &&
-    profile.products.length === 0 &&
-    !profile.extra
-  ) {
+  if (!profile.name && !profile.description && items.length === 0 && !profile.extra) {
     return SYSTEM_PROMPT;
   }
 
@@ -103,13 +102,25 @@ async function buildSystemPrompt(): Promise<string> {
     lines.push("", sanitizeForPrompt(profile.description, 800));
   }
 
-  if (profile.products.length > 0) {
+  if (items.length > 0) {
     lines.push("", "CATÁLOGO DE PRODUCTOS / SERVICIOS:");
-    for (const p of profile.products) {
-      let item = `• ${sanitizeForPrompt(p.name, 120)}`;
-      if (p.price) item += ` — ${sanitizeForPrompt(p.price, 80)}`;
-      if (p.description) item += `: ${sanitizeForPrompt(p.description, 300)}`;
-      lines.push(item);
+    for (const item of items) {
+      let line = `• ${sanitizeForPrompt(item.name, 120)}`;
+      if (item.category) line += ` (${sanitizeForPrompt(item.category, 80)})`;
+      if (item.price) {
+        line += ` — ${sanitizeForPrompt(item.price, 80)}`;
+        if (item.promo_price) line += ` (promo: ${sanitizeForPrompt(item.promo_price, 80)})`;
+      }
+      if (item.stock_status === "unavailable") line += " | Sin stock";
+      else if (item.stock_status === "on_demand") line += " | Bajo pedido";
+      if (item.item_type === "service") {
+        if (item.duration) line += ` | Duración: ${sanitizeForPrompt(item.duration, 80)}`;
+        if (item.requires_booking) line += " | Requiere turno";
+      }
+      lines.push(line);
+      if (item.description) {
+        lines.push(`  ${sanitizeForPrompt(item.description, 200)}`);
+      }
     }
   }
 
