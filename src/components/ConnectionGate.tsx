@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import QRScreen from "./QRScreen";
-import DashboardHeader from "./DashboardHeader";
+import DashboardSidebar from "./DashboardSidebar";
 import ConversationList from "./ConversationList";
 import ConversationPanel from "./ConversationPanel";
 import BusinessConfig from "./BusinessConfig";
@@ -287,18 +287,18 @@ export default function ConnectionGate({ currentView }: Props) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100svh", background: "var(--bg)" }}>
-      {/* Desktop header — hidden on mobile */}
-      <div className="hidden md:block">
-        <DashboardHeader
-          phone={phone}
+    <div style={{ display: "flex", height: "100svh", background: "var(--bg)" }}>
+      {/* Desktop sidebar — hidden on mobile */}
+      <div className="hidden md:flex" style={{ height: "100%", flexShrink: 0 }}>
+        <DashboardSidebar
           activeView={currentView}
+          phone={phone}
           onDisconnect={handleDisconnect}
         />
       </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      {/* Right side: content + mobile tab bar */}
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Desktop content */}
         <div className="hidden md:flex" style={{ flex: 1, overflow: "hidden" }}>
           {content}
@@ -307,10 +307,10 @@ export default function ConnectionGate({ currentView }: Props) {
         <div className="flex md:hidden" style={{ flex: 1, overflow: "hidden", flexDirection: "column" }}>
           {mobileContent}
         </div>
-      </div>
 
-      {/* Mobile tab bar */}
-      <MobileTabBar activeView={currentView} />
+        {/* Mobile tab bar */}
+        <MobileTabBar activeView={currentView} />
+      </div>
     </div>
   );
 }
