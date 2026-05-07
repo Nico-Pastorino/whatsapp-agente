@@ -23,6 +23,7 @@ interface PlanSummary {
   features: Record<string, unknown> | null;
   template_tiers_allowed: string[];
   upgrade_options: UpgradeOption[];
+  downgrade_options: UpgradeOption[];
   cancel_at_period_end: boolean;
   cancelled_at: number | null;
 }
@@ -302,6 +303,47 @@ function UpgradeCard({
   );
 }
 
+function DowngradeCard({
+  option,
+  onDowngrade,
+  loading,
+}: {
+  option: UpgradeOption;
+  onDowngrade: (code: string) => void;
+  loading: boolean;
+}) {
+  const included = PLAN_INCLUDED[option.code] ?? [];
+  const tagline = PLAN_TAGLINE[option.code] ?? "";
+
+  return (
+    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5">
+      <div className="mb-3">
+        <p className="text-base font-semibold text-gray-900">{option.name}</p>
+        <p className="text-xs text-gray-500 mt-0.5">{tagline}</p>
+        <p className="mt-2 text-2xl font-semibold text-gray-900">
+          {formatMoney(option.price_monthly, option.currency)}
+          <span className="text-sm font-normal text-gray-400"> / mes</span>
+        </p>
+      </div>
+      <ul className="space-y-1.5 mb-5 flex-1">
+        {included.slice(0, 5).map((f) => (
+          <li key={f} className="flex items-start gap-2 text-xs text-gray-600">
+            <span className="mt-0.5 text-emerald-500 shrink-0">✓</span>
+            {f}
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={() => onDowngrade(option.code)}
+        disabled={loading}
+        className="w-full py-2.5 rounded-xl border border-gray-300 bg-white hover:border-gray-400 disabled:opacity-50 text-gray-800 text-sm font-semibold transition-colors"
+      >
+        {loading ? "Actualizando..." : `Bajar a ${option.name}`}
+      </button>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function PlanOverview() {
@@ -314,6 +356,9 @@ export default function PlanOverview() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [downgradeTarget, setDowngradeTarget] = useState<UpgradeOption | null>(null);
+  const [downgradeLoading, setDowngradeLoading] = useState<string | null>(null);
 
   async function startCheckout(planCode?: string, checkoutType?: string) {
     setCheckoutLoading(true);
@@ -388,6 +433,30 @@ export default function PlanOverview() {
       setCheckoutError(err instanceof Error ? err.message : "No se pudo reactivar el plan.");
     } finally {
       setReactivateLoading(false);
+    }
+  }
+
+  async function handleDowngradePlan() {
+    if (!downgradeTarget) return;
+    setDowngradeLoading(downgradeTarget.code);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/plan/downgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan_code: downgradeTarget.code }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(payload.error ?? "No se pudo bajar de plan.");
+      }
+      setShowDowngradeModal(false);
+      setDowngradeTarget(null);
+      await refreshPlan();
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : "No se pudo bajar de plan.");
+    } finally {
+      setDowngradeLoading(null);
     }
   }
 
@@ -604,11 +673,16 @@ export default function PlanOverview() {
 
         {/* Upgrade / Renew */}
         {(plan.upgrade_options.length > 0 ||
+          plan.downgrade_options.length > 0 ||
           plan.status === "canceled" ||
           plan.status === "past_due") && (
           <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-900 mb-4">
-              {plan.upgrade_options.length > 0 ? "Mejorar tu plan" : "Renovar suscripción"}
+              {plan.upgrade_options.length > 0
+                ? "Cambiar tu plan"
+                : plan.downgrade_options.length > 0
+                  ? "Bajar de plan"
+                  : "Renovar suscripción"}
             </h3>
 
             {checkoutError && (
@@ -635,6 +709,27 @@ export default function PlanOverview() {
                     loading={upgradeLoading === opt.code && checkoutLoading}
                   />
                 ))}
+              </div>
+            )}
+
+            {plan.downgrade_options.length > 0 && (
+              <div className="mt-4">
+                <p className="mb-4 text-sm text-gray-500">
+                  Si querés seguir usando el producto con un plan menor, podés bajar de plan ahora mismo.
+                </p>
+                <div className={`grid gap-4 ${plan.downgrade_options.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                  {plan.downgrade_options.map((opt) => (
+                    <DowngradeCard
+                      key={opt.code}
+                      option={opt}
+                      onDowngrade={() => {
+                        setDowngradeTarget(opt);
+                        setShowDowngradeModal(true);
+                      }}
+                      loading={downgradeLoading === opt.code}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -665,6 +760,42 @@ export default function PlanOverview() {
                 className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {cancelLoading ? "Cancelando..." : "Cancelar al finalizar período"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDowngradeModal && downgradeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <h3 className="text-xl font-semibold text-gray-900">
+              ¿Querés bajar a {downgradeTarget.name}?
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              El cambio se aplica ahora mismo y se limpiará cualquier cancelación programada.
+              Si tu negocio supera los límites del plan elegido, el sistema no va a permitir el downgrade.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDowngradeModal(false);
+                  setDowngradeTarget(null);
+                }}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700"
+              >
+                Mantener plan actual
+              </button>
+              <button
+                type="button"
+                onClick={handleDowngradePlan}
+                disabled={downgradeLoading === downgradeTarget.code}
+                className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {downgradeLoading === downgradeTarget.code
+                  ? "Actualizando..."
+                  : `Bajar a ${downgradeTarget.name}`}
               </button>
             </div>
           </div>

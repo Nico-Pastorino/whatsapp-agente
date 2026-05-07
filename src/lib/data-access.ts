@@ -161,6 +161,7 @@ export interface PlanSummary {
   features: Record<string, unknown> | null;
   template_tiers_allowed: string[];
   upgrade_options: UpgradeOption[];
+  downgrade_options: UpgradeOption[];
   cancel_at_period_end: boolean;
   cancelled_at: number | null;
 }
@@ -252,6 +253,24 @@ export function canUpgradeTo(
   const targetRank = PLAN_HIERARCHY[targetPlan] ?? 0;
   if (targetRank <= currentRank) {
     return { allowed: false, reason: "No se permite downgrade de plan." };
+  }
+  return { allowed: true };
+}
+
+export function canDowngradeTo(
+  currentPlan: string,
+  targetPlan: string
+): { allowed: boolean; reason?: string } {
+  if (!(ACTIVE_PLAN_CODES as readonly string[]).includes(targetPlan)) {
+    return { allowed: false, reason: "Plan de destino inválido." };
+  }
+  if (currentPlan === targetPlan) {
+    return { allowed: false, reason: "Ya estás en este plan." };
+  }
+  const currentRank = PLAN_HIERARCHY[currentPlan] ?? 0;
+  const targetRank = PLAN_HIERARCHY[targetPlan] ?? 0;
+  if (targetRank >= currentRank) {
+    return { allowed: false, reason: "El plan elegido no es un downgrade." };
   }
   return { allowed: true };
 }
@@ -1255,6 +1274,20 @@ export async function getPlanSummary(
       currency: p.currency ?? "ARS",
     }));
 
+  const downgradeOptions: UpgradeOption[] = (allPlans ?? [])
+    .filter(
+      (p) =>
+        (PLAN_HIERARCHY[p.code] ?? 0) < currentRank &&
+        typeof p.price_monthly === "number"
+    )
+    .sort((a, b) => (PLAN_HIERARCHY[b.code] ?? 0) - (PLAN_HIERARCHY[a.code] ?? 0))
+    .map((p) => ({
+      code: p.code,
+      name: p.name,
+      price_monthly: p.price_monthly as number,
+      currency: p.currency ?? "ARS",
+    }));
+
   return {
     plan_code: currentPlanCode,
     plan_name: plan?.name ?? "Starter",
@@ -1275,6 +1308,7 @@ export async function getPlanSummary(
     features: featuresObj,
     template_tiers_allowed: templateTiersAllowed,
     upgrade_options: upgradeOptions,
+    downgrade_options: downgradeOptions,
     cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
     cancelled_at: toUnixSeconds(subscription.cancelled_at),
   };
@@ -1300,6 +1334,17 @@ export async function countPendingBusinessInvitations(businessId: string): Promi
     .eq("business_id", businessId)
     .eq("status", "pending")
     .gt("expires_at", now);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function countBusinessWhatsappNumbers(businessId: string): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const { count, error } = await supabase
+    .from("whatsapp_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId);
 
   if (error) throw error;
   return count ?? 0;
@@ -1857,6 +1902,80 @@ export async function reactivatePlan(businessId: string): Promise<void> {
   const { error } = await supabase
     .from("subscriptions")
     .update({
+      cancel_at_period_end: false,
+      cancelled_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("business_id", businessId);
+
+  if (error) throw error;
+}
+
+export async function downgradePlan(
+  businessId: string,
+  targetPlanCode: string
+): Promise<void> {
+  const downgradeCheck = canDowngradeTo(
+    (await getPlanSummary(businessId)).plan_code,
+    targetPlanCode
+  );
+  if (!downgradeCheck.allowed) {
+    throw new TeamManagementError(downgradeCheck.reason ?? "No se pudo bajar de plan.", 409);
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: targetPlan, error: planError } = await supabase
+    .from("plans")
+    .select("code, name, product_limit, users_limit, whatsapp_numbers_limit")
+    .eq("code", targetPlanCode)
+    .maybeSingle();
+
+  if (planError || !targetPlan) {
+    throw planError ?? new TeamManagementError("Plan de destino inválido.", 400);
+  }
+
+  const [memberCount, pendingInvites, productCount, whatsappCount] = await Promise.all([
+    countBusinessMembers(businessId),
+    countPendingBusinessInvitations(businessId),
+    countBusinessItems(businessId),
+    countBusinessWhatsappNumbers(businessId),
+  ]);
+
+  const totalUsersReserved = memberCount + pendingInvites;
+  if (
+    typeof targetPlan.users_limit === "number" &&
+    totalUsersReserved > targetPlan.users_limit
+  ) {
+    throw new TeamManagementError(
+      `No podés bajar a ${targetPlan.name} porque usás ${totalUsersReserved} usuarios reservados y ese plan permite ${targetPlan.users_limit}.`,
+      409
+    );
+  }
+
+  if (
+    typeof targetPlan.product_limit === "number" &&
+    productCount > targetPlan.product_limit
+  ) {
+    throw new TeamManagementError(
+      `No podés bajar a ${targetPlan.name} porque tenés ${productCount} productos y ese plan permite ${targetPlan.product_limit}.`,
+      409
+    );
+  }
+
+  if (
+    typeof targetPlan.whatsapp_numbers_limit === "number" &&
+    whatsappCount > targetPlan.whatsapp_numbers_limit
+  ) {
+    throw new TeamManagementError(
+      `No podés bajar a ${targetPlan.name} porque tenés ${whatsappCount} números de WhatsApp y ese plan permite ${targetPlan.whatsapp_numbers_limit}.`,
+      409
+    );
+  }
+
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({
+      plan_code: targetPlanCode,
       cancel_at_period_end: false,
       cancelled_at: null,
       updated_at: new Date().toISOString(),
