@@ -72,6 +72,7 @@ export interface OutboxItem {
   target_jid: string;
   content: string;
   sent: number;
+  retry_count: number;
   created_at: number;
 }
 
@@ -1549,9 +1550,10 @@ export async function getPendingOutbox(limit = 20): Promise<OutboxItem[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("outbox_messages")
-    .select("id, conversation_id, contact_id, target_jid, content, sent, created_at")
+    .select("id, conversation_id, contact_id, target_jid, content, sent, retry_count, created_at")
     .eq("business_id", getBusinessId())
     .eq("sent", false)
+    .lt("retry_count", 3)
     .order("created_at", { ascending: true })
     .limit(limit);
   if (error) throw error;
@@ -1562,6 +1564,7 @@ export async function getPendingOutbox(limit = 20): Promise<OutboxItem[]> {
     target_jid: row.target_jid,
     content: row.content,
     sent: row.sent ? 1 : 0,
+    retry_count: row.retry_count ?? 0,
     created_at: toUnixSeconds(row.created_at) ?? 0,
   }));
 }
@@ -1580,14 +1583,19 @@ export async function markOutboxSent(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function setOutboxError(id: string, errorMessage: string): Promise<void> {
+export async function setOutboxError(
+  id: string,
+  errorMessage: string,
+  newRetryCount?: number
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
+  const patch: Record<string, unknown> = { error: errorMessage, sent: false };
+  if (typeof newRetryCount === "number") {
+    patch.retry_count = newRetryCount;
+  }
   const { error } = await supabase
     .from("outbox_messages")
-    .update({
-      error: errorMessage,
-      sent: false,
-    })
+    .update(patch)
     .eq("business_id", getBusinessId())
     .eq("id", id);
   if (error) throw error;

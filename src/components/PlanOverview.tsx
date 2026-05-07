@@ -40,6 +40,126 @@ function formatMoney(value: number | null, currency: string): string {
   }).format(value);
 }
 
+const ONBOARDING_STEPS = [
+  {
+    n: "1",
+    title: "Completá el pago",
+    desc: "Hacé click en 'Pagar ahora' para activar tu plan. El acceso se habilita automáticamente al confirmar el pago.",
+    active: true,
+  },
+  {
+    n: "2",
+    title: "Conectá tu WhatsApp",
+    desc: "Escaneá el código QR desde tu celular para vincular el número del negocio.",
+    active: false,
+  },
+  {
+    n: "3",
+    title: "Configurá tu asistente",
+    desc: "Cargá el nombre del negocio, descripción, catálogo de productos y datos de contacto. La IA usará esa información para responder.",
+    active: false,
+  },
+  {
+    n: "4",
+    title: "Probá una conversación",
+    desc: "Enviá un mensaje desde otro celular a tu número conectado y verificá que la IA responde correctamente.",
+    active: false,
+  },
+  {
+    n: "5",
+    title: "¡Listo para operar!",
+    desc: "El asistente responde 24/7. Podés cambiar a Modo Humano cuando quieras tomar una conversación vos mismo.",
+    active: false,
+  },
+];
+
+function OnboardingGuide({
+  plan,
+  onPay,
+  checkoutLoading,
+  checkoutError,
+}: {
+  plan: PlanSummary;
+  onPay: () => void;
+  checkoutLoading: boolean;
+  checkoutError: string | null;
+}) {
+  return (
+    <div className="h-full overflow-y-auto bg-gray-50">
+      <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
+        {/* Header */}
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
+            Primeros pasos
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold text-gray-900">
+            Activá tu cuenta y empezá a vender
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Plan <strong>{plan.plan_name}</strong> · {formatMoney(plan.price_monthly, plan.currency)} / mes
+          </p>
+        </div>
+
+        {/* Steps */}
+        <ol className="space-y-3">
+          {ONBOARDING_STEPS.map((step) => (
+            <li
+              key={step.n}
+              className={`flex gap-4 rounded-2xl border p-5 ${
+                step.active
+                  ? "border-emerald-300 bg-white shadow-sm"
+                  : "border-gray-200 bg-white opacity-50"
+              }`}
+            >
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                  step.active
+                    ? "bg-emerald-500 text-white"
+                    : "bg-gray-100 text-gray-400"
+                }`}
+              >
+                {step.n}
+              </span>
+              <div>
+                <p className="font-semibold text-gray-900">{step.title}</p>
+                <p className="mt-1 text-sm leading-6 text-gray-500">{step.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        {/* Payment CTA */}
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 space-y-4">
+          <p className="text-sm font-medium text-emerald-800">
+            Completá el pago para desbloquear el acceso a WhatsApp, inbox y asistente IA.
+          </p>
+          {checkoutError && (
+            <p className="text-sm text-red-600">{checkoutError}</p>
+          )}
+          <button
+            onClick={onPay}
+            disabled={checkoutLoading}
+            className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
+          >
+            {checkoutLoading ? "Redirigiendo a pago..." : `Pagar ahora — ${formatMoney(plan.price_monthly, plan.currency)}`}
+          </button>
+        </div>
+
+        {/* Already paid hint */}
+        <p className="text-center text-xs text-gray-400">
+          ¿Ya pagaste y no se activó?{" "}
+          <button
+            onClick={() => window.location.reload()}
+            className="text-emerald-600 hover:underline"
+          >
+            Actualizá la página
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function PlanOverview() {
   const [plan, setPlan] = useState<PlanSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,14 +222,13 @@ export default function PlanOverview() {
     );
   }
 
+  if (plan.status === "pending_payment") {
+    return <OnboardingGuide plan={plan} onPay={handlePay} checkoutLoading={checkoutLoading} checkoutError={checkoutError} />;
+  }
+
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-        {plan.status === "pending_payment" && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
-            <strong>Tu suscripción está pendiente de pago.</strong> Accedé al inbox y conectá WhatsApp después de completar el pago.
-          </div>
-        )}
         {(plan.status === "canceled" || plan.status === "past_due") && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
             <strong>Tu suscripción está inactiva.</strong> Renová tu plan para volver a operar.
@@ -200,13 +319,13 @@ export default function PlanOverview() {
           <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900">Acciones</h3>
 
-            {plan.status === "pending_payment" && (
-              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-sm font-medium text-amber-800">
-                  Tu plan está pendiente de pago.
+            {(plan.status === "canceled" || plan.status === "past_due") && (
+              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                <p className="text-sm font-medium text-red-800">
+                  Tu suscripción está inactiva.
                 </p>
-                <p className="mt-1 text-sm text-amber-700">
-                  Activá tu suscripción para acceder al inbox y conectar WhatsApp.
+                <p className="mt-1 text-sm text-red-700">
+                  Renová tu plan para volver a operar.
                 </p>
               </div>
             )}
@@ -216,13 +335,13 @@ export default function PlanOverview() {
             )}
 
             <div className="mt-4 space-y-3">
-              {(plan.status === "pending_payment" || plan.status === "canceled" || plan.status === "past_due") && (
+              {(plan.status === "canceled" || plan.status === "past_due") && (
                 <button
                   onClick={handlePay}
                   disabled={checkoutLoading}
                   className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
                 >
-                  {checkoutLoading ? "Redirigiendo a pago..." : plan.status === "pending_payment" ? "Pagar ahora" : "Renovar plan"}
+                  {checkoutLoading ? "Redirigiendo a pago..." : "Renovar plan"}
                 </button>
               )}
               {(plan.status === "active" || plan.status === "trial") && (

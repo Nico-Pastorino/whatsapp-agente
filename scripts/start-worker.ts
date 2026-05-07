@@ -79,8 +79,10 @@ setInterval(async () => {
 
       console.log(`[outbox] resolved targetJid=${targetJid}`);
       if (!preferred.targetJid) {
-        await setOutboxError(item.id, "needs_phone_mapping");
-        console.error(`[outbox] send error=${item.id}`);
+        // needs_phone_mapping is a permanent error (no phone linked to contact).
+        // Set retry_count to max (3) so the worker stops retrying this item.
+        await setOutboxError(item.id, "needs_phone_mapping", 3);
+        console.error(`[outbox] send error=${item.id} — contact needs phone mapping, will not retry`);
         continue;
       }
 
@@ -95,11 +97,14 @@ setInterval(async () => {
       await markOutboxSent(item.id);
       console.log(`[outbox] sent ok=${item.id} externalId=${sentId ?? ""}`);
     } catch (err) {
-      await setOutboxError(
-        item.id,
-        err instanceof Error ? err.message : "Error enviando outbox"
-      ).catch(() => undefined);
-      console.error(`[outbox] sent error=${item.id}:`, err);
+      const nextRetry = item.retry_count + 1;
+      const errMsg = err instanceof Error ? err.message : "Error enviando outbox";
+      await setOutboxError(item.id, errMsg, nextRetry).catch(() => undefined);
+      if (nextRetry >= 3) {
+        console.error(`[outbox] sent error=${item.id} (reintento ${nextRetry}/3, ABANDONADO):`, errMsg);
+      } else {
+        console.warn(`[outbox] sent error=${item.id} (reintento ${nextRetry}/3):`, errMsg);
+      }
     }
   }
 }, 2000);

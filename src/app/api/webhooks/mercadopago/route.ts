@@ -57,24 +57,35 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabaseAdminClient();
 
-    // 1. Update payment record
-    const { data: paymentRecord } = await supabase
+    // 1. Idempotency check — if this payment was already approved, return 200 without
+    //    re-activating the subscription. MercadoPago may retry webhooks on timeout.
+    const { data: existing } = await supabase
+      .from("payments")
+      .select("status, business_id")
+      .eq("id", externalRef)
+      .maybeSingle();
+
+    if (existing?.status === "approved") {
+      console.log(`[webhook/mp] payment ${externalRef} already approved — skipping (idempotent)`);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (!existing) {
+      console.warn("[webhook/mp] payment record not found for external_reference:", externalRef);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2. Mark payment as approved
+    await supabase
       .from("payments")
       .update({
         mp_payment_id: mpPaymentId,
         status: "approved",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", externalRef)
-      .select("business_id")
-      .maybeSingle();
+      .eq("id", externalRef);
 
-    if (!paymentRecord?.business_id) {
-      console.warn("[webhook/mp] payment record not found for external_reference:", externalRef);
-      return NextResponse.json({ ok: true });
-    }
-
-    // 2. Activate subscription for 30 days
+    // 3. Activate subscription for 30 days
     const now = new Date();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     await supabase
@@ -85,9 +96,9 @@ export async function POST(req: NextRequest) {
         current_period_end: periodEnd.toISOString(),
         updated_at: now.toISOString(),
       })
-      .eq("business_id", paymentRecord.business_id);
+      .eq("business_id", existing.business_id);
 
-    console.log(`[webhook/mp] subscription activated for business=${paymentRecord.business_id}`);
+    console.log(`[webhook/mp] subscription activated for business=${existing.business_id}`);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[webhook/mp] error:", err);
