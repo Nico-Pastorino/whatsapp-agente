@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
@@ -32,7 +32,7 @@ function formatDate(value: number | null): string {
   });
 }
 
-export default function InviteAcceptPage() {
+function InviteAcceptPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token")?.trim() ?? "";
@@ -335,5 +335,21 @@ export default function InviteAcceptPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function InviteAcceptPageFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-emerald-500" />
+    </div>
+  );
+}
+
+export default function InviteAcceptPage() {
+  return (
+    <Suspense fallback={<InviteAcceptPageFallback />}>
+      <InviteAcceptPageContent />
+    </Suspense>
   );
 }
