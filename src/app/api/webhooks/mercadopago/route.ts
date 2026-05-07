@@ -153,6 +153,8 @@ export async function POST(req: NextRequest) {
         status: "active",
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
+        cancel_at_period_end: false,
+        cancelled_at: null,
         updated_at: now.toISOString(),
       })
       .eq("business_id", existing.business_id);

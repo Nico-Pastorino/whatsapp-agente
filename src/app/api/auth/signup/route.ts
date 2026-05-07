@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { createAppSessionToken, getSessionCookieOptions } from "@/lib/app-session";
-import { APP_SESSION_COOKIE } from "@/lib/app-session-shared";
+import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
-const VALID_PLANS = new Set(["starter", "pro", "premium"]);
+const VALID_PLANS = new Set(["starter", "growth", "pro"]);
 
 function slugify(text: string): string {
   return text
@@ -125,5 +125,6 @@ export async function POST(req: NextRequest) {
   const token = createAppSessionToken({ sub: userId, email, fullName });
   const response = NextResponse.json({ ok: true });
   response.cookies.set(APP_SESSION_COOKIE, token, getSessionCookieOptions());
+  response.cookies.set(ACTIVE_BUSINESS_COOKIE, businessId, getSessionCookieOptions());
   return response;
 }

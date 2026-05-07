@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { getBusinessId, getWorkerInstanceName } from "./env";
 import { getSupabaseAdminClient } from "./supabase";
 import {
@@ -123,6 +123,8 @@ interface SubscriptionRow {
   monthly_ai_reply_limit: number | null;
   current_period_start?: string | null;
   current_period_end?: string | null;
+  cancel_at_period_end?: boolean | null;
+  cancelled_at?: string | null;
 }
 
 interface UsageRow {
@@ -159,6 +161,71 @@ export interface PlanSummary {
   features: Record<string, unknown> | null;
   template_tiers_allowed: string[];
   upgrade_options: UpgradeOption[];
+  cancel_at_period_end: boolean;
+  cancelled_at: number | null;
+}
+
+export type BusinessMemberRole = "owner" | "admin" | "agent";
+
+export interface BusinessMember {
+  id: string;
+  business_id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  role: BusinessMemberRole;
+  status: "active" | "unavailable";
+  created_at: number | null;
+}
+
+export interface BusinessTeamInviteStatus {
+  allowed: boolean;
+  used_active: number;
+  used_pending: number;
+  used_total: number;
+  limit: number | null;
+  reason?: string;
+}
+
+export type BusinessInvitationStatus = "pending" | "accepted" | "expired" | "revoked";
+
+export interface BusinessInvitation {
+  id: string;
+  business_id: string;
+  email: string;
+  role: Extract<BusinessMemberRole, "admin" | "agent">;
+  token: string;
+  status: BusinessInvitationStatus;
+  invited_by: string | null;
+  accepted_by: string | null;
+  expires_at: number | null;
+  accepted_at: number | null;
+  created_at: number | null;
+  updated_at: number | null;
+}
+
+export interface TeamCapacitySummary {
+  used_active: number;
+  used_pending: number;
+  used_total: number;
+  limit: number | null;
+  can_invite: boolean;
+  invite_block_reason: string | null;
+}
+
+export interface AvailableBusiness {
+  business_id: string;
+  business_name: string;
+  role: BusinessMemberRole;
+}
+
+export class TeamManagementError extends Error {
+  status: number;
+
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
 }
 
 // ── Plan hierarchy ───────────────────────────────────────────────────────────
@@ -201,10 +268,14 @@ export async function getPlanFeatures(
   if (!sub?.plan_code) return {};
   const { data: plan } = await supabase
     .from("plans")
-    .select("features")
+    .select("features, users_limit")
     .eq("code", sub.plan_code)
     .maybeSingle();
-  return (plan?.features as Record<string, unknown>) ?? {};
+  const features = (plan?.features as Record<string, unknown> | null) ?? {};
+  return {
+    ...features,
+    max_users: typeof plan?.users_limit === "number" ? plan.users_limit : null,
+  };
 }
 
 export async function canUseTemplate(
@@ -252,6 +323,140 @@ function normalizePhoneNumber(value: string | null | undefined): string | null {
   if (!value) return null;
   const cleaned = value.replace(/[^\d]/g, "");
   return cleaned.length >= 7 ? cleaned : null;
+}
+
+function normalizeEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function isValidBusinessMemberRole(value: string): value is BusinessMemberRole {
+  return value === "owner" || value === "admin" || value === "agent";
+}
+
+function isValidInvitationRole(value: string): value is Extract<BusinessMemberRole, "admin" | "agent"> {
+  return value === "admin" || value === "agent";
+}
+
+function generateInvitationToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function invitationExpiresAt(days = 7): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function resolveInvitationStatus(status: string, expiresAt: string | null | undefined): BusinessInvitationStatus {
+  if (status === "accepted" || status === "revoked" || status === "expired") {
+    return status;
+  }
+
+  if (expiresAt && Date.parse(expiresAt) <= Date.now()) {
+    return "expired";
+  }
+
+  return "pending";
+}
+
+function assertCanManageTeam(role: BusinessMemberRole): void {
+  if (role === "agent") {
+    throw new TeamManagementError("No tenés permisos para gestionar el equipo.", 403);
+  }
+}
+
+async function findAuthUserByEmail(email: string) {
+  const supabase = getSupabaseAdminClient();
+  let page = 1;
+
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: 200,
+    });
+
+    if (error) throw error;
+
+    const user = data.users.find((entry) => entry.email?.toLowerCase() === email);
+    if (user) return user;
+
+    if (data.users.length < 200) return null;
+    page += 1;
+  }
+}
+
+async function ensureProfileForAuthUser(userId: string, email: string, fullName?: string | null): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const normalizedEmail = normalizeEmail(email);
+  const { data: existing, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, email, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) throw profileError;
+
+  if (!existing) {
+    const { error } = await supabase.from("profiles").insert({
+      id: userId,
+      email: normalizedEmail,
+      full_name: fullName?.trim() || null,
+    });
+    if (error) throw error;
+    return;
+  }
+
+  if (existing.email !== normalizedEmail || (!existing.full_name && fullName?.trim())) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        email: normalizedEmail,
+        full_name: existing.full_name ?? fullName?.trim() ?? null,
+      })
+      .eq("id", userId);
+    if (error) throw error;
+  }
+}
+
+async function countOwnersForBusiness(businessId: string): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const { count, error } = await supabase
+    .from("business_members")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .eq("role", "owner");
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+function mapBusinessInvitationRow(row: {
+  id: string;
+  business_id: string;
+  email: string;
+  role: string;
+  token: string;
+  status: string;
+  invited_by: string | null;
+  accepted_by: string | null;
+  expires_at: string | null;
+  accepted_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}): BusinessInvitation {
+  const effectiveStatus = resolveInvitationStatus(row.status, row.expires_at);
+  return {
+    id: row.id,
+    business_id: row.business_id,
+    email: row.email,
+    role: row.role as Extract<BusinessMemberRole, "admin" | "agent">,
+    token: row.token,
+    status: effectiveStatus,
+    invited_by: row.invited_by,
+    accepted_by: row.accepted_by,
+    expires_at: toUnixSeconds(row.expires_at),
+    accepted_at: toUnixSeconds(row.accepted_at),
+    created_at: toUnixSeconds(row.created_at),
+    updated_at: toUnixSeconds(row.updated_at),
+  };
 }
 
 async function getAgentPhoneNumber(): Promise<string | null> {
@@ -999,7 +1204,7 @@ export async function getPlanSummary(
     supabase
       .from("subscriptions")
       .select(
-        "plan_code, status, monthly_message_limit, monthly_ai_reply_limit, current_period_start, current_period_end"
+        "plan_code, status, monthly_message_limit, monthly_ai_reply_limit, current_period_start, current_period_end, cancel_at_period_end, cancelled_at"
       )
       .eq("business_id", businessId)
       .single(),
@@ -1070,7 +1275,595 @@ export async function getPlanSummary(
     features: featuresObj,
     template_tiers_allowed: templateTiersAllowed,
     upgrade_options: upgradeOptions,
+    cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    cancelled_at: toUnixSeconds(subscription.cancelled_at),
   };
+}
+
+export async function countBusinessMembers(businessId: string): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const { count, error } = await supabase
+    .from("business_members")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function countPendingBusinessInvitations(businessId: string): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const { count, error } = await supabase
+    .from("business_invitations")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .eq("status", "pending")
+    .gt("expires_at", now);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+export async function canInviteMember(
+  businessId: string
+): Promise<BusinessTeamInviteStatus> {
+  const [usedActive, usedPending, plan] = await Promise.all([
+    countBusinessMembers(businessId),
+    countPendingBusinessInvitations(businessId),
+    getPlanSummary(businessId),
+  ]);
+  const limit = plan.users_limit;
+  const usedTotal = usedActive + usedPending;
+
+  if (typeof limit !== "number") {
+    return {
+      allowed: true,
+      used_active: usedActive,
+      used_pending: usedPending,
+      used_total: usedTotal,
+      limit: null,
+    };
+  }
+
+  if (usedTotal >= limit) {
+    return {
+      allowed: false,
+      used_active: usedActive,
+      used_pending: usedPending,
+      used_total: usedTotal,
+      limit,
+      reason: "Alcanzaste el límite de usuarios de tu plan.",
+    };
+  }
+
+  return {
+    allowed: true,
+    used_active: usedActive,
+    used_pending: usedPending,
+    used_total: usedTotal,
+    limit,
+  };
+}
+
+export async function getBusinessMembers(businessId: string): Promise<BusinessMember[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data: members, error } = await supabase
+    .from("business_members")
+    .select("id, business_id, user_id, role, created_at")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const memberRows = (members ?? []) as Array<{
+    id: string;
+    business_id: string;
+    user_id: string;
+    role: BusinessMemberRole;
+    created_at: string | null;
+  }>;
+
+  if (memberRows.length === 0) return [];
+
+  const userIds = memberRows.map((member) => member.user_id);
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, email, full_name")
+    .in("id", userIds);
+
+  if (profilesError) throw profilesError;
+
+  const profilesByUserId = new Map(
+    (profiles ?? []).map((profile) => [
+      profile.id,
+      {
+        email: profile.email,
+        full_name: profile.full_name,
+      },
+    ])
+  );
+
+  const authUsers = new Map<string, { status: BusinessMember["status"] }>();
+  await Promise.all(
+    userIds.map(async (userId) => {
+      const { data } = await supabase.auth.admin.getUserById(userId);
+      authUsers.set(userId, { status: data.user ? "active" : "unavailable" });
+    })
+  );
+
+  return memberRows.map((member) => {
+    const profile = profilesByUserId.get(member.user_id);
+    return {
+      id: member.id,
+      business_id: member.business_id,
+      user_id: member.user_id,
+      email: profile?.email ?? "",
+      full_name: profile?.full_name ?? null,
+      role: member.role,
+      status: authUsers.get(member.user_id)?.status ?? "unavailable",
+      created_at: toUnixSeconds(member.created_at),
+    };
+  });
+}
+
+export async function listBusinessInvitations(businessId: string): Promise<BusinessInvitation[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("business_invitations")
+    .select(
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+    )
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) =>
+    mapBusinessInvitationRow(
+      row as {
+        id: string;
+        business_id: string;
+        email: string;
+        role: string;
+        token: string;
+        status: string;
+        invited_by: string | null;
+        accepted_by: string | null;
+        expires_at: string | null;
+        accepted_at: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }
+    )
+  );
+}
+
+export async function getBusinessInvitationByToken(token: string): Promise<BusinessInvitation | null> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("business_invitations")
+    .select(
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+    )
+    .eq("token", token)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return mapBusinessInvitationRow(
+    data as {
+      id: string;
+      business_id: string;
+      email: string;
+      role: string;
+      token: string;
+      status: string;
+      invited_by: string | null;
+      accepted_by: string | null;
+      expires_at: string | null;
+      accepted_at: string | null;
+      created_at: string | null;
+      updated_at: string | null;
+    }
+  );
+}
+
+export async function createBusinessInvitation(
+  businessId: string,
+  invitedByUserId: string,
+  actorRole: BusinessMemberRole,
+  email: string,
+  role: Extract<BusinessMemberRole, "admin" | "agent">
+): Promise<BusinessInvitation> {
+  assertCanManageTeam(actorRole);
+
+  if (!isValidInvitationRole(role)) {
+    throw new TeamManagementError("Rol inválido.", 400);
+  }
+
+  if (actorRole === "admin" && role !== "agent") {
+    throw new TeamManagementError("Un admin solo puede invitar agentes.", 403);
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    throw new TeamManagementError("Ingresá un email válido.", 400);
+  }
+
+  const inviteStatus = await canInviteMember(businessId);
+  if (!inviteStatus.allowed) {
+    throw new TeamManagementError(
+      inviteStatus.reason ?? "No se puede invitar otro usuario.",
+      409
+    );
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const [{ data: matchingProfiles, error: profilesError }, { data: existingInvite, error: inviteError }] =
+    await Promise.all([
+      supabase.from("profiles").select("id").eq("email", normalizedEmail),
+      supabase
+        .from("business_invitations")
+        .select(
+          "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+        )
+        .eq("business_id", businessId)
+        .eq("email", normalizedEmail)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+  if (profilesError) throw profilesError;
+  if (inviteError) throw inviteError;
+
+  const matchingProfileIds = (matchingProfiles ?? []).map((profile) => profile.id);
+  if (matchingProfileIds.length > 0) {
+    const { data: existingMember, error: existingMemberError } = await supabase
+      .from("business_members")
+      .select("id")
+      .eq("business_id", businessId)
+      .in("user_id", matchingProfileIds)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingMemberError) throw existingMemberError;
+    if (existingMember?.id) {
+      throw new TeamManagementError("Ese usuario ya forma parte del negocio.", 409);
+    }
+  }
+
+  if (existingInvite) {
+    return mapBusinessInvitationRow(
+      existingInvite as {
+        id: string;
+        business_id: string;
+        email: string;
+        role: string;
+        token: string;
+        status: string;
+        invited_by: string | null;
+        accepted_by: string | null;
+        expires_at: string | null;
+        accepted_at: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+      }
+    );
+  }
+
+  const { data: createdInvite, error: createError } = await supabase
+    .from("business_invitations")
+    .insert({
+      business_id: businessId,
+      email: normalizedEmail,
+      role,
+      token: generateInvitationToken(),
+      status: "pending",
+      invited_by: invitedByUserId,
+      expires_at: invitationExpiresAt(),
+      updated_at: new Date().toISOString(),
+    })
+    .select(
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+    )
+    .single();
+
+  if (createError || !createdInvite) throw createError ?? new TeamManagementError("No se pudo crear la invitación.", 500);
+
+  return mapBusinessInvitationRow(
+    createdInvite as {
+      id: string;
+      business_id: string;
+      email: string;
+      role: string;
+      token: string;
+      status: string;
+      invited_by: string | null;
+      accepted_by: string | null;
+      expires_at: string | null;
+      accepted_at: string | null;
+      created_at: string | null;
+      updated_at: string | null;
+    }
+  );
+}
+
+export async function revokeBusinessInvitation(
+  businessId: string,
+  actorRole: BusinessMemberRole,
+  invitationId: string
+): Promise<void> {
+  assertCanManageTeam(actorRole);
+  const supabase = getSupabaseAdminClient();
+  const { data: invitation, error } = await supabase
+    .from("business_invitations")
+    .select("id, status")
+    .eq("id", invitationId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!invitation?.id) throw new TeamManagementError("Invitación no encontrada.", 404);
+  if (invitation.status !== "pending") {
+    throw new TeamManagementError("Solo podés revocar invitaciones pendientes.", 409);
+  }
+
+  const { error: updateError } = await supabase
+    .from("business_invitations")
+    .update({
+      status: "revoked",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", invitationId)
+    .eq("business_id", businessId);
+
+  if (updateError) throw updateError;
+}
+
+export async function acceptBusinessInvitation(
+  token: string,
+  userId: string,
+  userEmail: string
+): Promise<{ businessId: string; alreadyMember: boolean }> {
+  const normalizedToken = token.trim();
+  if (!normalizedToken) throw new TeamManagementError("Invitación inválida.", 400);
+
+  const invitation = await getBusinessInvitationByToken(normalizedToken);
+  if (!invitation) {
+    throw new TeamManagementError("La invitación no existe o ya no está disponible.", 404);
+  }
+
+  if (invitation.status === "revoked") {
+    throw new TeamManagementError("Esta invitación fue revocada.", 409);
+  }
+  if (invitation.status === "accepted") {
+    throw new TeamManagementError("Esta invitación ya fue utilizada.", 409);
+  }
+  if (invitation.status === "expired") {
+    throw new TeamManagementError("Esta invitación venció.", 409);
+  }
+
+  const normalizedEmail = normalizeEmail(userEmail);
+  if (normalizedEmail !== invitation.email) {
+    throw new TeamManagementError("Esta invitación fue enviada a otro email.", 403);
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: existingMember, error: memberError } = await supabase
+    .from("business_members")
+    .select("id")
+    .eq("business_id", invitation.business_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (memberError) throw memberError;
+
+  let alreadyMember = false;
+  if (!existingMember?.id) {
+    const { error: insertError } = await supabase.from("business_members").insert({
+      business_id: invitation.business_id,
+      user_id: userId,
+      role: invitation.role,
+    });
+    if (insertError) throw insertError;
+  } else {
+    alreadyMember = true;
+  }
+
+  const { error: updateError } = await supabase
+    .from("business_invitations")
+    .update({
+      status: "accepted",
+      accepted_by: userId,
+      accepted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", invitation.id);
+
+  if (updateError) throw updateError;
+
+  return {
+    businessId: invitation.business_id,
+    alreadyMember,
+  };
+}
+
+export async function updateBusinessMemberRole(
+  businessId: string,
+  actorRole: BusinessMemberRole,
+  memberId: string,
+  nextRole: BusinessMemberRole
+): Promise<BusinessMember> {
+  assertCanManageTeam(actorRole);
+
+  if (!isValidBusinessMemberRole(nextRole)) {
+    throw new TeamManagementError("Rol inválido.", 400);
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: member, error } = await supabase
+    .from("business_members")
+    .select("id, business_id, user_id, role")
+    .eq("id", memberId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!member?.id) {
+    throw new TeamManagementError("Miembro no encontrado.", 404);
+  }
+
+  const currentRole = member.role as BusinessMemberRole;
+  if (currentRole === nextRole) {
+    const members = await getBusinessMembers(businessId);
+    const unchanged = members.find((entry) => entry.id === memberId);
+    if (!unchanged) throw new TeamManagementError("Miembro no encontrado.", 404);
+    return unchanged;
+  }
+
+  if (actorRole === "admin" && (currentRole === "owner" || nextRole === "owner")) {
+    throw new TeamManagementError("Un admin no puede modificar owners.", 403);
+  }
+
+  if (currentRole === "owner" && nextRole !== "owner") {
+    const ownersCount = await countOwnersForBusiness(businessId);
+    if (ownersCount <= 1) {
+      throw new TeamManagementError("No podés dejar al negocio sin owners.", 409);
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("business_members")
+    .update({ role: nextRole })
+    .eq("id", memberId)
+    .eq("business_id", businessId);
+
+  if (updateError) throw updateError;
+
+  const members = await getBusinessMembers(businessId);
+  const updated = members.find((entry) => entry.id === memberId);
+  if (!updated) throw new TeamManagementError("Miembro no encontrado.", 404);
+  return updated;
+}
+
+export async function removeBusinessMember(
+  businessId: string,
+  actorRole: BusinessMemberRole,
+  memberId: string
+): Promise<void> {
+  assertCanManageTeam(actorRole);
+
+  const supabase = getSupabaseAdminClient();
+  const { data: member, error } = await supabase
+    .from("business_members")
+    .select("id, business_id, role")
+    .eq("id", memberId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!member?.id) {
+    throw new TeamManagementError("Miembro no encontrado.", 404);
+  }
+
+  const targetRole = member.role as BusinessMemberRole;
+
+  if (actorRole === "admin" && targetRole === "owner") {
+    throw new TeamManagementError("Un admin no puede remover owners.", 403);
+  }
+
+  if (targetRole === "owner") {
+    const ownersCount = await countOwnersForBusiness(businessId);
+    if (ownersCount <= 1) {
+      throw new TeamManagementError("No podés eliminar al último owner.", 409);
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from("business_members")
+    .delete()
+    .eq("id", memberId)
+    .eq("business_id", businessId);
+
+  if (deleteError) throw deleteError;
+}
+
+export async function listAvailableBusinessesForUser(userId: string): Promise<AvailableBusiness[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("business_members")
+    .select("business_id, role, businesses!inner(display_name)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row) => ({
+    business_id: row.business_id,
+    role: row.role as BusinessMemberRole,
+    business_name:
+      typeof row.businesses === "object" && row.businesses && "display_name" in row.businesses
+        ? String(row.businesses.display_name ?? "")
+        : "",
+  }));
+}
+
+export async function userBelongsToBusiness(userId: string, businessId: string): Promise<boolean> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("business_members")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data?.id);
+}
+
+export async function cancelPlanAtPeriodEnd(businessId: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const { data: sub, error: fetchError } = await supabase
+    .from("subscriptions")
+    .select("status")
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (!sub?.status || (sub.status !== "active" && sub.status !== "trial")) {
+    throw new TeamManagementError("Solo podés cancelar un plan activo.", 409);
+  }
+
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({
+      cancel_at_period_end: true,
+      cancelled_at: now,
+      updated_at: now,
+    })
+    .eq("business_id", businessId);
+
+  if (error) throw error;
+}
+
+export async function reactivatePlan(businessId: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("subscriptions")
+    .update({
+      cancel_at_period_end: false,
+      cancelled_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("business_id", businessId);
+
+  if (error) throw error;
 }
 
 export async function getBusinessSubscriptionStatus(

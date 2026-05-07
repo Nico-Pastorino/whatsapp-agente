@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface Props {
   phone: string | null;
-  activeView: "conversations" | "business" | "plan" | "connect";
+  activeView: "conversations" | "business" | "team" | "plan" | "connect";
   onDisconnect: () => void;
 }
 
@@ -14,6 +15,10 @@ export default function DashboardHeader({
   onDisconnect,
 }: Props) {
   const router = useRouter();
+  const [businesses, setBusinesses] = useState<
+    Array<{ business_id: string; business_name: string; role: "owner" | "admin" | "agent" }>
+  >([]);
+  const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
 
   const navItems: Array<{
     key: Props["activeView"];
@@ -22,9 +27,46 @@ export default function DashboardHeader({
   }> = [
     { key: "conversations", label: "Conversaciones", href: "/app/conversations" },
     { key: "business", label: "Mi Negocio", href: "/app/business" },
+    { key: "team", label: "Equipo", href: "/app/team" },
     { key: "plan", label: "Mi Plan", href: "/app/plan" },
     { key: "connect", label: "Conectar", href: "/app/connect" },
   ];
+
+  useEffect(() => {
+    fetch("/api/businesses", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json() as Promise<{
+          active_business_id: string | null;
+          businesses: Array<{
+            business_id: string;
+            business_name: string;
+            role: "owner" | "admin" | "agent";
+          }>;
+        }>;
+      })
+      .then((payload) => {
+        if (!payload) return;
+        setBusinesses(payload.businesses ?? []);
+        setActiveBusinessId(payload.active_business_id ?? null);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  async function handleBusinessChange(nextBusinessId: string) {
+    if (!nextBusinessId || nextBusinessId === activeBusinessId) return;
+    const res = await fetch("/api/business/select", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId: nextBusinessId }),
+    });
+    if (!res.ok) {
+      alert("No se pudo cambiar de negocio.");
+      return;
+    }
+    setActiveBusinessId(nextBusinessId);
+    router.refresh();
+  }
 
   async function handleDisconnect() {
     if (
@@ -72,6 +114,20 @@ export default function DashboardHeader({
           <span className="font-semibold text-gray-800">Agente WhatsApp</span>
           <span className="text-sm text-gray-400">{phone ?? "Sin número conectado"}</span>
         </div>
+
+        {businesses.length > 1 && (
+          <select
+            value={activeBusinessId ?? ""}
+            onChange={(e) => handleBusinessChange(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
+            {businesses.map((business) => (
+              <option key={business.business_id} value={business.business_id}>
+                {business.business_name}
+              </option>
+            ))}
+          </select>
+        )}
 
         <nav className="flex items-center gap-1 ml-2">
           {navItems.map((item) => (

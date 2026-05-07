@@ -23,6 +23,8 @@ interface PlanSummary {
   features: Record<string, unknown> | null;
   template_tiers_allowed: string[];
   upgrade_options: UpgradeOption[];
+  cancel_at_period_end: boolean;
+  cancelled_at: number | null;
 }
 
 // ── Formatting ────────────────────────────────────────────────────────────────
@@ -309,6 +311,9 @@ export default function PlanOverview() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   async function startCheckout(planCode?: string, checkoutType?: string) {
     setCheckoutLoading(true);
@@ -337,6 +342,52 @@ export default function PlanOverview() {
     } finally {
       setCheckoutLoading(false);
       setUpgradeLoading(null);
+    }
+  }
+
+  async function refreshPlan() {
+    const res = await fetch("/api/plan", { cache: "no-store" });
+    const payload = (await res.json().catch(() => ({}))) as PlanSummary & { error?: string };
+    if (!res.ok) {
+      throw new Error(payload.error ?? "No se pudo cargar el plan.");
+    }
+    setPlan(payload);
+  }
+
+  async function handleCancelPlan() {
+    setCancelLoading(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/plan/cancel", { method: "POST" });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(payload.error ?? "No se pudo programar la cancelación.");
+      }
+      setShowCancelModal(false);
+      await refreshPlan();
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error ? err.message : "No se pudo programar la cancelación."
+      );
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
+  async function handleReactivatePlan() {
+    setReactivateLoading(true);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/plan/reactivate", { method: "POST" });
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(payload.error ?? "No se pudo reactivar el plan.");
+      }
+      await refreshPlan();
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : "No se pudo reactivar el plan.");
+    } finally {
+      setReactivateLoading(false);
     }
   }
 
@@ -400,6 +451,13 @@ export default function PlanOverview() {
         {(plan.status === "canceled" || plan.status === "past_due") && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
             <strong>Tu suscripción está inactiva.</strong> Renová tu plan para volver a operar.
+          </div>
+        )}
+
+        {plan.cancel_at_period_end && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+            <strong>Cancelación programada.</strong> Tu plan se cancelará el día{" "}
+            {formatDate(plan.current_period_end)}.
           </div>
         )}
 
@@ -510,6 +568,40 @@ export default function PlanOverview() {
           </div>
         </section>
 
+        <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">Estado del plan</h3>
+          <p className="text-sm text-gray-600">
+            Estado actual: <strong>{plan.status}</strong>
+          </p>
+          {plan.cancel_at_period_end ? (
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-amber-700">
+                Tu plan se cancelará el día {formatDate(plan.current_period_end)}.
+              </p>
+              <button
+                onClick={handleReactivatePlan}
+                disabled={reactivateLoading}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 transition hover:border-gray-400 disabled:opacity-50"
+              >
+                {reactivateLoading ? "Reactivando..." : "Reactivar plan"}
+              </button>
+            </div>
+          ) : plan.status === "active" || plan.status === "trial" ? (
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-500">
+                Tu asistente seguirá activo hasta el final del período ya pagado si cancelás ahora.
+              </p>
+              <button
+                onClick={() => setShowCancelModal(true)}
+                disabled={cancelLoading}
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+              >
+                Cancelar plan
+              </button>
+            </div>
+          ) : null}
+        </section>
+
         {/* Upgrade / Renew */}
         {(plan.upgrade_options.length > 0 ||
           plan.status === "canceled" ||
@@ -549,6 +641,35 @@ export default function PlanOverview() {
         )}
 
       </div>
+
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+            <h3 className="text-xl font-semibold text-gray-900">¿Querés cancelar tu plan?</h3>
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              Tu asistente seguirá activo hasta el final del período ya pagado. Después
+              de esa fecha, el acceso quedará pausado.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700"
+              >
+                Mantener plan
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelPlan}
+                disabled={cancelLoading}
+                className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {cancelLoading ? "Cancelando..." : "Cancelar al finalizar período"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -23,6 +23,17 @@ export function toDashboardAuthResponse(error: unknown): NextResponse {
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
 
+  if (
+    error instanceof Error &&
+    "status" in error &&
+    typeof (error as { status?: unknown }).status === "number"
+  ) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: (error as { status: number }).status }
+    );
+  }
+
   console.error("[dashboard-auth] unexpected error:", error);
   return NextResponse.json({ error: "Error interno del servidor." }, { status: 500 });
 }

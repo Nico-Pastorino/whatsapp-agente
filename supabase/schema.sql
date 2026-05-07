@@ -131,8 +131,25 @@ create table subscriptions (
   status subscription_status not null default 'active',
   current_period_start timestamptz not null default now(),
   current_period_end timestamptz not null default (now() + interval '30 days'),
+  cancel_at_period_end boolean not null default false,
+  cancelled_at timestamptz,
   monthly_message_limit integer,
   monthly_ai_reply_limit integer,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table business_invitations (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  email text not null,
+  role text not null check (role in ('admin', 'agent')),
+  token text not null unique,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'expired', 'revoked')),
+  invited_by uuid references auth.users(id) on delete set null,
+  accepted_by uuid references auth.users(id) on delete set null,
+  expires_at timestamptz not null,
+  accepted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -234,38 +251,38 @@ insert into plans (
   (
     'starter',
     'Starter',
-    0,
+    49000,
     'ARS',
-    300,
-    150,
-    30,
+    500,
+    500,
+    10,
+    3,
     1,
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "template_tiers": ["basic"]}'::jsonb
+  ),
+  (
+    'growth',
+    'Growth',
+    89000,
+    'ARS',
+    2000,
+    2000,
+    100,
+    10,
     1,
-    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true}'::jsonb
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "template_tiers": ["basic", "commercial"]}'::jsonb
   ),
   (
     'pro',
     'Pro',
-    49900,
-    'ARS',
-    1500,
-    800,
-    200,
-    5,
-    1,
-    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true}'::jsonb
-  ),
-  (
-    'premium',
-    'Premium',
-    99900,
+    149000,
     'ARS',
     5000,
-    3000,
-    1000,
-    20,
+    10000,
+    500,
+    25,
     3,
-    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "priority_support": true}'::jsonb
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "priority_support": true, "template_tiers": ["basic", "commercial", "premium"]}'::jsonb
   )
 on conflict (code) do update
 set

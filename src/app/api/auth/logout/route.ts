@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { APP_SESSION_COOKIE } from "@/lib/app-session-shared";
+import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
 export async function POST(req: Request) {
   const cookieHeader = req.headers.get("cookie") ?? "";
@@ -14,6 +14,13 @@ export async function POST(req: Request) {
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(APP_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  res.cookies.set(ACTIVE_BUSINESS_COOKIE, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

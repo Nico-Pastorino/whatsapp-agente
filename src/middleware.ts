@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/favicon.ico"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/favicon.ico", "/invite/accept"]);
 const PUBLIC_API_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/signup",
+  "/api/auth/signup-invite",
+  "/api/invite/resolve",
+  "/api/invite/accept",
   "/api/webhooks/mercadopago",
 ]);
 

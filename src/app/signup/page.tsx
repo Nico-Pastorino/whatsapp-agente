@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 const PLAN_INFO: Record<string, { name: string; price: string }> = {
   starter: { name: "Starter", price: "$ 49.000 / mes" },
-  pro: { name: "Pro", price: "$ 99.000 / mes" },
-  premium: { name: "Premium", price: "$ 199.000 / mes" },
+  growth: { name: "Growth", price: "$ 89.000 / mes" },
+  pro: { name: "Pro", price: "$ 149.000 / mes" },
 };
 
 function SignupForm() {
