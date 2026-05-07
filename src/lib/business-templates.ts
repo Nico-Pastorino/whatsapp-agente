@@ -12,6 +12,7 @@ export interface BusinessTemplate {
   suggestedCategories: string[];
   commercialIntents: string[];
   recommendedFields: string[];
+  suggestedEmojis: string[];
   comingSoon?: boolean;
 }
 
@@ -68,6 +69,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Formas de envío y costo",
       "Política de cambios y devoluciones",
     ],
+    suggestedEmojis: ["📱", "✅", "🚚", "💳", "🔋"],
   },
   {
     id: "clothing",
@@ -120,6 +122,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Tiempo de entrega",
       "Enlace al catálogo (si existe)",
     ],
+    suggestedEmojis: ["👕", "📦", "✨", "✅"],
   },
   {
     id: "hair_salon",
@@ -171,6 +174,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Si se requiere seña y monto",
       "Recomendaciones previas al turno",
     ],
+    suggestedEmojis: ["✨", "📅", "✅"],
   },
   {
     id: "restaurant",
@@ -224,6 +228,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Teléfono para reservas",
       "Enlace al menú completo (si existe)",
     ],
+    suggestedEmojis: ["🍽️", "🛵", "📍", "✅"],
   },
   {
     id: "events",
@@ -276,6 +281,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
       "Cómo reservar mesa o VIP",
       "Medios de pago en puerta",
     ],
+    suggestedEmojis: ["🎟️", "🎉", "📍", "✅", "🕺"],
   },
   // Coming soon
   {
@@ -292,6 +298,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     suggestedCategories: [],
     commercialIntents: [],
     recommendedFields: [],
+    suggestedEmojis: [],
     comingSoon: true,
   },
   {
@@ -308,6 +315,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     suggestedCategories: [],
     commercialIntents: [],
     recommendedFields: [],
+    suggestedEmojis: [],
     comingSoon: true,
   },
   {
@@ -324,6 +332,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     suggestedCategories: [],
     commercialIntents: [],
     recommendedFields: [],
+    suggestedEmojis: [],
     comingSoon: true,
   },
   {
@@ -340,6 +349,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     suggestedCategories: [],
     commercialIntents: [],
     recommendedFields: [],
+    suggestedEmojis: [],
     comingSoon: true,
   },
   {
@@ -356,6 +366,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     suggestedCategories: [],
     commercialIntents: [],
     recommendedFields: [],
+    suggestedEmojis: [],
     comingSoon: true,
   },
   {
@@ -372,6 +383,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     suggestedCategories: [],
     commercialIntents: [],
     recommendedFields: [],
+    suggestedEmojis: [],
     comingSoon: true,
   },
   {
@@ -388,6 +400,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     suggestedCategories: [],
     commercialIntents: [],
     recommendedFields: [],
+    suggestedEmojis: [],
     comingSoon: true,
   },
 ];
@@ -419,6 +432,13 @@ export function buildExtraFromTemplate(template: BusinessTemplate): string {
     lines.push("");
     lines.push(
       `Cuando el cliente mencione estas palabras, mostrar interés de compra: ${template.commercialIntents.join(", ")}.`
+    );
+  }
+
+  if (template.suggestedEmojis.length > 0) {
+    lines.push("");
+    lines.push(
+      `Emojis sugeridos para este rubro (usarlos con moderación, máximo 1 o 2 por respuesta): ${template.suggestedEmojis.join(" ")}`
     );
   }
 
