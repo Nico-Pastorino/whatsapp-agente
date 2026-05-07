@@ -51,6 +51,7 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
 
   const activeTemplates = BUSINESS_TEMPLATES.filter((t) => !t.comingSoon);
   const soonTemplates = BUSINESS_TEMPLATES.filter((t) => t.comingSoon);
+  const availableTemplates = activeTemplates.filter((t) => !isTemplateLocked(t.tier, planCode)).length;
 
   async function applyTemplate(mode: "merge" | "replace") {
     if (!selected) return;
@@ -103,53 +104,84 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
         </div>
       )}
 
-      {/* Active templates grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-        {activeTemplates.map((t) => {
-          const locked = isTemplateLocked(t.tier, planCode);
-          return (
-            <TemplateCard
-              key={t.id}
-              template={t}
-              isApplied={appliedId === t.id}
-              isLocked={locked}
-              onSelect={() => {
-                setError(null);
-                if (locked) {
-                  setLockedSelected(t);
-                } else {
-                  setSelected(t);
-                }
-              }}
-            />
-          );
-        })}
+      <div
+        style={{
+          marginBottom: 14,
+          borderRadius: 16,
+          border: "1px solid var(--hairline)",
+          background: "var(--surface-2)",
+          padding: 14,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 14, flexWrap: "wrap" }}>
+          <div>
+            <div className="page-sub" style={{ marginBottom: 4 }}>plantillas activas</div>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
+              {availableTemplates} disponibles con tu plan actual.
+            </p>
+          </div>
+          <span className="atd-pill green" style={{ fontSize: 11 }}>
+            {planCode.toUpperCase()}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 xl:grid-cols-3">
+          {activeTemplates.map((t) => {
+            const locked = isTemplateLocked(t.tier, planCode);
+            return (
+              <TemplateCard
+                key={t.id}
+                template={t}
+                isApplied={appliedId === t.id}
+                isLocked={locked}
+                onSelect={() => {
+                  setError(null);
+                  if (locked) {
+                    setLockedSelected(t);
+                  } else {
+                    setSelected(t);
+                  }
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
 
       {/* Coming soon grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-        {soonTemplates.map((t) => {
-          const locked = isTemplateLocked(t.tier, planCode);
-          return (
-            <div
-              key={t.id}
-              style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "10px 12px", borderRadius: 12,
-                border: "1px dashed var(--hairline)", opacity: 0.55,
-                userSelect: "none",
-              }}
-            >
-              <span style={{ fontSize: 16 }}>{t.emoji}</span>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 500, color: "var(--ink-2)", margin: 0 }}>{t.name}</p>
-                <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
-                  {locked ? `Plan ${requiredPlanLabel(t.tier)}` : "Próximamente"}
-                </p>
+      <div style={{ marginTop: 18 }}>
+        <div style={{ marginBottom: 10 }}>
+          <div className="page-sub" style={{ marginBottom: 4 }}>próximamente</div>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
+            Rubros que vamos a sumar pronto o que requieren un plan superior.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {soonTemplates.map((t) => {
+            const locked = isTemplateLocked(t.tier, planCode);
+            return (
+              <div
+                key={t.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "12px 14px", borderRadius: 14,
+                  border: "1px dashed var(--hairline-2)", background: "rgba(255,255,255,0.55)",
+                  opacity: 0.8,
+                  userSelect: "none",
+                  minHeight: 72,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{t.emoji}</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: 0 }}>{t.name}</p>
+                  <p style={{ fontSize: 11, color: "var(--muted)", margin: "2px 0 0" }}>
+                    {locked ? `Plan ${requiredPlanLabel(t.tier)}` : "Próximamente"}
+                  </p>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {selected && (
@@ -186,11 +218,12 @@ function TemplateCard({
 }) {
   return (
     <div style={{
-      padding: 14, borderRadius: 14,
+      padding: 16, borderRadius: 16,
       border: `1px solid ${isApplied ? "var(--green)" : "var(--hairline)"}`,
       background: isApplied ? "var(--green-tint)" : "var(--surface)",
-      display: "flex", flexDirection: "column", gap: 10,
+      display: "flex", flexDirection: "column", gap: 12,
       opacity: isLocked ? 0.78 : 1,
+      minHeight: 250,
     }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>{template.emoji}</span>
@@ -203,21 +236,32 @@ function TemplateCard({
               </span>
             )}
           </div>
-          <p style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.4 }}>
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--ink-3)",
+              marginTop: 4,
+              lineHeight: 1.5,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical" as const,
+              overflow: "hidden",
+            }}
+          >
             {template.description}
           </p>
         </div>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-        {template.suggestedCategories.slice(0, 3).map((cat) => (
-          <span key={cat} className="atd-pill" style={{ fontSize: 10, background: "var(--surface-2)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {template.suggestedCategories.slice(0, 2).map((cat) => (
+          <span key={cat} className="atd-pill" style={{ fontSize: 10, background: "var(--surface-2)", maxWidth: "100%" }}>
             {cat}
           </span>
         ))}
-        {template.suggestedCategories.length > 3 && (
-          <span style={{ fontSize: 10, color: "var(--muted)" }}>
-            +{template.suggestedCategories.length - 3} más
+        {template.suggestedCategories.length > 2 && (
+          <span className="atd-pill" style={{ fontSize: 10, background: "transparent", border: "1px dashed var(--hairline-2)", color: "var(--muted)" }}>
+            +{template.suggestedCategories.length - 2} categorías
           </span>
         )}
       </div>
@@ -226,7 +270,7 @@ function TemplateCard({
         onClick={onSelect}
         disabled={isApplied}
         className={`atd-btn ${isApplied ? "secondary" : "primary"} sm`}
-        style={{ width: "100%", fontSize: 12 }}
+        style={{ width: "100%", fontSize: 12, marginTop: "auto" }}
       >
         {isApplied ? "✓ Aplicada" : isLocked ? `Requiere ${requiredPlanLabel(template.tier)}` : "Usar plantilla"}
       </button>

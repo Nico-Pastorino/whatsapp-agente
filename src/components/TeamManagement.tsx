@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import DashboardContentShell from "./DashboardContentShell";
 
 type BusinessMemberRole = "owner" | "admin" | "agent";
 type BusinessInvitationStatus = "pending" | "accepted" | "expired" | "revoked";
@@ -275,8 +276,7 @@ export default function TeamManagement() {
     !data.can_invite && typeof data.limit === "number" && data.used_total >= data.limit;
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
+    <DashboardContentShell maxWidth={1180}>
         <div className="page-header">
           <div>
             <div className="page-sub">05 · {data.used_total} de {data.limit ?? "∞"} usuarios</div>
@@ -344,6 +344,7 @@ export default function TeamManagement() {
           </div>
         )}
 
+        <div className="lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-3">
         <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <div className="page-sub" style={{ marginBottom: 4 }}>Invitar persona</div>
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Crear invitación</h3>
@@ -362,7 +363,7 @@ export default function TeamManagement() {
                 disabled={inviteLoading || !data.can_invite}
                 className="atd-input"
               />
-              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto" }}>
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto" }} className="min-[430px]:grid-cols-[minmax(0,1fr)_minmax(180px,220px)_auto]">
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as "admin" | "agent")}
@@ -390,6 +391,46 @@ export default function TeamManagement() {
             </div>
           )}
         </section>
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div className="page-sub" style={{ marginBottom: 4 }}>Capacidad del plan</div>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Usuarios disponibles</h3>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
+            El owner cuenta como usuario y las invitaciones pendientes también reservan lugar.
+          </p>
+          <div style={{ borderRadius: 16, background: "var(--surface-2)", padding: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 10, fontSize: 13, color: "var(--ink-2)" }}>
+              <span>Usuarios: <strong style={{ color: "var(--ink)" }}>{data.used_total} / {data.limit ?? "∞"}</strong></span>
+              <span>{data.plan.name}</span>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: "var(--surface)", overflow: "hidden" }}>
+              <div
+                style={{
+                  width: typeof data.limit === "number" && data.limit > 0 ? `${Math.min(100, (data.used_total / data.limit) * 100)}%` : "0%",
+                  height: "100%",
+                  borderRadius: 999,
+                  background: isLimitReached ? "#c0392b" : "var(--green-soft)",
+                }}
+              />
+            </div>
+            <div style={{ display: "grid", gap: 8, marginTop: 14 }} className="min-[430px]:grid-cols-3">
+              <div style={{ borderRadius: 12, background: "var(--surface)", padding: 12 }}>
+                <div className="page-sub" style={{ marginBottom: 4 }}>activos</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{data.used_active}</div>
+              </div>
+              <div style={{ borderRadius: 12, background: "var(--surface)", padding: 12 }}>
+                <div className="page-sub" style={{ marginBottom: 4 }}>pendientes</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{data.used_pending}</div>
+              </div>
+              <div style={{ borderRadius: 12, background: "var(--surface)", padding: 12 }}>
+                <div className="page-sub" style={{ marginBottom: 4 }}>disponibles</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>
+                  {typeof data.limit === "number" ? Math.max(0, data.limit - data.used_total) : "∞"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        </div>
 
         <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <div className="page-sub" style={{ marginBottom: 4 }}>Miembros activos</div>
@@ -397,7 +438,7 @@ export default function TeamManagement() {
           <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
             Personas que ya pueden entrar al dashboard de este negocio.
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "grid", gap: 10 }} className="lg:grid-cols-2">
             {data.members.length === 0 ? (
               <div style={{ padding: "28px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 14, fontSize: 13, color: "var(--muted)" }}>
                 No hay miembros cargados en este negocio.
@@ -438,7 +479,7 @@ export default function TeamManagement() {
                       </div>
 
                       {canManageTeam ? (
-                        <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto auto" }}>
+                        <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }} className="min-[430px]:grid-cols-[minmax(0,1fr)_auto_auto]">
                           <select
                             value={selectedRole}
                             onChange={(e) =>
@@ -490,7 +531,7 @@ export default function TeamManagement() {
             Invitaciones creadas para sumar personas al equipo.
           </p>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "grid", gap: 10 }} className="lg:grid-cols-2">
             {visibleInvitations.length === 0 ? (
               <div style={{ padding: "28px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 14, fontSize: 13, color: "var(--muted)" }}>
                 No hay invitaciones creadas todavía.
@@ -519,7 +560,7 @@ export default function TeamManagement() {
                         </div>
                       </div>
 
-                      <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr auto auto" }}>
+                      <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr" }} className="min-[430px]:grid-cols-[minmax(0,1fr)_auto_auto]">
                         <input
                           value={inviteLink}
                           readOnly
@@ -545,7 +586,6 @@ export default function TeamManagement() {
             )}
           </div>
         </section>
-      </div>
-    </div>
+    </DashboardContentShell>
   );
 }

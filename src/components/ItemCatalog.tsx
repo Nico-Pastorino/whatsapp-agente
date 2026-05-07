@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 import type { CatalogItem, CatalogItemType, StockStatus } from "@/lib/db";
+import DashboardContentShell from "./DashboardContentShell";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -118,9 +119,9 @@ function ItemCard({
   toggling: boolean;
 }) {
   return (
-    <div className="atd-card" style={{ padding: 14, opacity: item.is_active ? 1 : 0.6 }}>
+    <div className="atd-card" style={{ padding: 16, opacity: item.is_active ? 1 : 0.6, height: "100%" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{item.name}</p>
@@ -178,14 +179,14 @@ function ItemCard({
       )}
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 6, paddingTop: 8, borderTop: "1px solid var(--hairline)" }}>
-        <button onClick={onEdit} style={{ flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
+      <div style={{ display: "grid", gap: 6, paddingTop: 10, borderTop: "1px solid var(--hairline)", gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+        <button onClick={onEdit} style={{ padding: "8px 0", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
           Editar
         </button>
-        <button onClick={onToggle} disabled={toggling} style={{ flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 500, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", borderRadius: 8, opacity: toggling ? 0.5 : 1 }}>
+        <button onClick={onToggle} disabled={toggling} style={{ padding: "8px 0", fontSize: 12, fontWeight: 500, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", borderRadius: 8, opacity: toggling ? 0.5 : 1 }}>
           {toggling ? "..." : item.is_active ? "Desactivar" : "Activar"}
         </button>
-        <button onClick={onDelete} style={{ flex: 1, padding: "6px 0", fontSize: 12, fontWeight: 500, color: "#c0392b", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
+        <button onClick={onDelete} style={{ padding: "8px 0", fontSize: 12, fontWeight: 500, color: "#c0392b", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
           Eliminar
         </button>
       </div>
@@ -549,8 +550,7 @@ export default function ItemCatalog() {
   }
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
+    <DashboardContentShell maxWidth={1180}>
 
         {/* Header */}
         <div className="page-header">
@@ -603,46 +603,53 @@ export default function ItemCatalog() {
         </div>
 
         {/* Filters */}
-        <div style={{ padding: "12px 20px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, categoría o descripción..."
-            className="atd-input"
-          />
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {(["all", "product", "service"] as FilterType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setFilterType(t)}
-                className="atd-pill"
-                style={{
-                  background: filterType === t ? "var(--ink)" : "var(--surface)",
-                  color: filterType === t ? "#fff" : "var(--ink-2)",
-                  border: filterType === t ? "none" : "1px solid var(--hairline)",
-                  cursor: "pointer", fontSize: 12,
-                }}
-              >
-                {t === "all" ? "Todos" : t === "product" ? "Productos" : "Servicios"}
-              </button>
-            ))}
-            <div style={{ width: 1, background: "var(--hairline)", alignSelf: "stretch" }} />
-            {(["all", "active", "inactive"] as FilterStatus[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className="atd-pill"
-                style={{
-                  background: filterStatus === s ? "var(--ink)" : "var(--surface)",
-                  color: filterStatus === s ? "#fff" : "var(--ink-2)",
-                  border: filterStatus === s ? "none" : "1px solid var(--hairline)",
-                  cursor: "pointer", fontSize: 12,
-                }}
-              >
-                {s === "all" ? "Cualquier estado" : s === "active" ? "Activos" : "Inactivos"}
-              </button>
-            ))}
+        <div style={{ padding: "12px 20px 0" }}>
+          <div className="atd-card" style={{ padding: 16 }}>
+            <div style={{ display: "grid", gap: 12 }}>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nombre, categoría o descripción..."
+                className="atd-input"
+              />
+              <div style={{ display: "grid", gap: 10 }} className="lg:grid-cols-[auto_1fr]">
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(["all", "product", "service"] as FilterType[]).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setFilterType(t)}
+                      className="atd-pill"
+                      style={{
+                        background: filterType === t ? "var(--ink)" : "var(--surface)",
+                        color: filterType === t ? "#fff" : "var(--ink-2)",
+                        border: filterType === t ? "none" : "1px solid var(--hairline)",
+                        cursor: "pointer", fontSize: 12,
+                      }}
+                    >
+                      {t === "all" ? "Todos" : t === "product" ? "Productos" : "Servicios"}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(["all", "active", "inactive"] as FilterStatus[]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setFilterStatus(s)}
+                      className="atd-pill"
+                      style={{
+                        background: filterStatus === s ? "var(--ink)" : "var(--surface)",
+                        color: filterStatus === s ? "#fff" : "var(--ink-2)",
+                        border: filterStatus === s ? "none" : "1px solid var(--hairline)",
+                        cursor: "pointer", fontSize: 12,
+                      }}
+                    >
+                      {s === "all" ? "Cualquier estado" : s === "active" ? "Activos" : "Inactivos"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -681,7 +688,7 @@ export default function ItemCatalog() {
               )}
             </div>
           ) : (
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
               {filteredItems.map((item) => (
                 <ItemCard
                   key={item.id}
@@ -700,7 +707,7 @@ export default function ItemCatalog() {
           )}
         </div>
 
-      </div>
+      
 
       {/* Item form overlay */}
       {showForm && (
@@ -735,6 +742,6 @@ export default function ItemCatalog() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardContentShell>
   );
 }

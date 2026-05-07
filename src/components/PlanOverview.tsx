@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { UpgradeOption } from "@/lib/db";
+import DashboardContentShell from "./DashboardContentShell";
 
 interface PlanSummary {
   plan_code: string;
@@ -513,8 +514,7 @@ export default function PlanOverview() {
   const lockedFeatures = PLAN_LOCKED[currentCode] ?? [];
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
+    <DashboardContentShell maxWidth={1180}>
 
         <div className="page-header">
           <div>
@@ -575,48 +575,54 @@ export default function PlanOverview() {
           </div>
         )}
 
-        {/* Usage */}
-        <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
-          <div className="page-sub" style={{ marginBottom: 10 }}>uso del plan</div>
-          {[
-            { label: "Usuarios", used: plan.users_limit ? 1 : 0, limit: plan.users_limit },
-            { label: "Productos", used: plan.inbound_messages_count, limit: plan.conversation_limit },
-            { label: "Mensajes IA", used: plan.ai_replies_count, limit: plan.monthly_ai_reply_limit },
-          ].map(({ label, used, limit }, i) => {
-            const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
-            const barColor = pct >= 90 ? "#c0392b" : pct >= 70 ? "var(--human)" : "var(--green-soft)";
-            return (
-              <div key={label} style={{ padding: "10px 0", borderTop: i ? "1px dashed var(--hairline-2)" : "none" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6, color: "var(--ink-2)" }}>
-                  <span>{label}</span>
-                  <span className="mono">{used.toLocaleString("es-AR")} / {limit ? limit.toLocaleString("es-AR") : "∞"}</span>
+        <div className="lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-3">
+          {/* Usage */}
+          <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
+            <div className="page-sub" style={{ marginBottom: 10 }}>uso del plan</div>
+            {[
+              { label: "Usuarios", used: plan.users_limit ? 1 : 0, limit: plan.users_limit },
+              { label: "Productos", used: plan.inbound_messages_count, limit: plan.conversation_limit },
+              { label: "Mensajes IA", used: plan.ai_replies_count, limit: plan.monthly_ai_reply_limit },
+            ].map(({ label, used, limit }, i) => {
+              const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
+              const barColor = pct >= 90 ? "#c0392b" : pct >= 70 ? "var(--human)" : "var(--green-soft)";
+              return (
+                <div key={label} style={{ padding: "10px 0", borderTop: i ? "1px dashed var(--hairline-2)" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6, color: "var(--ink-2)" }}>
+                    <span>{label}</span>
+                    <span className="mono">{used.toLocaleString("es-AR")} / {limit ? limit.toLocaleString("es-AR") : "∞"}</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden" }}>
+                    <div style={{ width: `${limit ? pct : 0}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width .4s" }} />
+                  </div>
                 </div>
-                <div style={{ height: 6, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden" }}>
-                  <div style={{ width: `${limit ? pct : 0}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width .4s" }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
 
-        {/* Features */}
-        <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
-          <div className="page-sub" style={{ marginBottom: 10 }}>incluido en {plan.plan_name}</div>
-          {includedFeatures.map((f) => (
-            <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: includedFeatures.indexOf(f) ? "1px dashed var(--hairline-2)" : "none", fontSize: 13, color: "var(--ink-2)" }}>
-              <span style={{ color: "var(--green-soft)", flexShrink: 0 }}>✓</span> {f}
-            </div>
-          ))}
-          {lockedFeatures.length > 0 && (
-            <>
-              <div className="page-sub" style={{ marginTop: 14, marginBottom: 8 }}>próximos planes</div>
-              {lockedFeatures.map((f) => (
-                <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: lockedFeatures.indexOf(f) ? "1px dashed var(--hairline-2)" : "none", fontSize: 13, color: "var(--muted)" }}>
-                  <span style={{ flexShrink: 0 }}>🔒</span> {f}
+          {/* Features */}
+          <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
+            <div className="page-sub" style={{ marginBottom: 10 }}>incluido en {plan.plan_name}</div>
+            <div className="grid gap-x-6 lg:grid-cols-2">
+              <div>
+                {includedFeatures.map((f) => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: includedFeatures.indexOf(f) ? "1px dashed var(--hairline-2)" : "none", fontSize: 13, color: "var(--ink-2)" }}>
+                    <span style={{ color: "var(--green-soft)", flexShrink: 0 }}>✓</span> {f}
+                  </div>
+                ))}
+              </div>
+              {lockedFeatures.length > 0 && (
+                <div>
+                  <div className="page-sub" style={{ marginTop: 14, marginBottom: 8 }}>próximos planes</div>
+                  {lockedFeatures.map((f) => (
+                    <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: lockedFeatures.indexOf(f) ? "1px dashed var(--hairline-2)" : "none", fontSize: 13, color: "var(--muted)" }}>
+                      <span style={{ flexShrink: 0 }}>🔒</span> {f}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </>
-          )}
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Upgrade cards */}
@@ -661,7 +667,7 @@ export default function PlanOverview() {
           </div>
         )}
 
-      </div>
+      
 
       {/* Cancel modal */}
       {showCancelModal && (
@@ -698,6 +704,6 @@ export default function PlanOverview() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardContentShell>
   );
 }

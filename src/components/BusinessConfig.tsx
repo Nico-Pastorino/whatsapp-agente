@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import DashboardContentShell from "./DashboardContentShell";
 import TemplateSelector from "./TemplateSelector";
 
 interface Profile {
@@ -85,8 +86,7 @@ export default function BusinessConfig() {
   }
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 0 100px" }}>
+    <DashboardContentShell maxWidth={1180}>
 
         <div className="page-header">
           <div>
@@ -197,7 +197,6 @@ export default function BusinessConfig() {
           </button>
         </div>
 
-      </div>
-    </div>
+    </DashboardContentShell>
   );
 }
