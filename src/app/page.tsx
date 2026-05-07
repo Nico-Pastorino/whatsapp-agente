@@ -1,22 +1,6 @@
 import Link from "next/link";
-
-// ── Logo ─────────────────────────────────────────────────────────────────────
-
-function AtendeWordmark({ size = 20, color = "var(--ink)" }: { size?: number; color?: string }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "baseline" }}>
-      <span style={{ fontFamily: "var(--font-serif)", fontSize: size, fontWeight: 600, color, letterSpacing: "-0.01em", lineHeight: 1 }}>
-        atendé
-      </span>
-      <span style={{
-        display: "inline-block", width: size * 0.32, height: size * 0.32,
-        borderRadius: "50%", background: "var(--accent)",
-        marginLeft: 2, position: "relative", bottom: size * 0.35,
-        flexShrink: 0,
-      }} />
-    </span>
-  );
-}
+import BrandWordmark from "@/components/public/BrandWordmark";
+import { PUBLIC_PLAN_LIST } from "@/lib/plan-display";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -37,12 +21,12 @@ const STEPS = [
 ];
 
 const SMALL_FEATURES = [
-  { num: "02", title: "Modo turno", desc: "Tomá el control con un toque. La IA cede." },
-  { num: "03", title: "Plantillas x rubro", desc: "Configurá en menos de un minuto." },
-  { num: "04", title: "Notas", desc: "Anotá contexto interno sobre el cliente." },
-  { num: "05", title: "Catálogo", desc: "Productos, precios y stock sin esfuerzo." },
-  { num: "06", title: "Valoración", desc: "Sabé si la IA está respondiendo bien." },
-  { num: "07", title: "Equipo", desc: "Sumate con tu equipo de atención." },
+  { num: "02", title: "Modo humano", desc: "Tomá el control cuando quieras. La IA se detiene." },
+  { num: "03", title: "Plantillas por rubro", desc: "Configurá tu asistente en minutos según tu negocio." },
+  { num: "04", title: "Catálogo", desc: "Cargá productos, precios y servicios para respuestas más precisas." },
+  { num: "05", title: "Equipo", desc: "Invitá personas y definí roles según tu plan." },
+  { num: "06", title: "Métricas", desc: "Entendé qué preguntan y cómo responde tu asistente." },
+  { num: "07", title: "Valoración", desc: "Detectá si la IA está ayudando o necesita ajustes." },
 ];
 
 const TEMPLATES = [
@@ -52,59 +36,6 @@ const TEMPLATES = [
   { emoji: "🍽️", name: "Restaurante / comida", desc: "Menú, horarios, delivery y más.", count: "5 de 18 plantillas" },
   { emoji: "🎵", name: "Eventos / bolche", desc: "Programación, ubicación, lineup y fangs.", count: "9 de 13 plantillas" },
   { emoji: "🔧", name: "Servicios", desc: "Cotizaciones, horarios y soluciones.", count: "4 de 11 plantillas" },
-];
-
-const PLANS = [
-  {
-    code: "starter",
-    name: "Starter",
-    label: "Para probar antes de pagar.",
-    price: "$0",
-    period: "",
-    bullets: [
-      "1 número de WhatsApp",
-      "500 conversaciones/mes",
-      "500 respuestas IA",
-      "10 productos en catálogo",
-      "1 usuario del equipo",
-    ],
-    cta: "Probar gratis",
-    featured: false,
-  },
-  {
-    code: "growth",
-    name: "Growth",
-    label: "Van vendiendo",
-    price: "$24.900",
-    period: "/mes",
-    bullets: [
-      "1 número de WhatsApp",
-      "2.000 conversaciones/mes",
-      "2.000 respuestas IA",
-      "100 productos en catálogo",
-      "5 plantillas comerciales",
-      "Equipo hasta 10 personas",
-    ],
-    cta: "Probar Growth",
-    featured: true,
-  },
-  {
-    code: "pro",
-    name: "Pro",
-    label: "Para negocios con volumen y equipo.",
-    price: "$59.900",
-    period: "/mes",
-    bullets: [
-      "3 números de WhatsApp",
-      "5.000 conversaciones/mes",
-      "10.000 respuestas IA",
-      "500 productos en catálogo",
-      "Plantillas premium",
-      "Equipo ilimitado",
-    ],
-    cta: "Hablar con ventas",
-    featured: false,
-  },
 ];
 
 // ── Phone Mockup ──────────────────────────────────────────────────────────────
@@ -202,7 +133,7 @@ export default function HomePage() {
         borderBottom: "1px solid var(--hairline)",
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <AtendeWordmark size={20} />
+          <BrandWordmark size={20} />
 
           <div className="hidden md:flex" style={{ gap: 32, fontSize: 14, color: "var(--ink-2)" }}>
             <a href="#como-funciona" style={{ color: "inherit", textDecoration: "none" }}>Cómo funciona</a>
@@ -229,7 +160,7 @@ export default function HomePage() {
             {/* Badge */}
             <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 13px", borderRadius: 99, background: "var(--surface)", border: "1px solid var(--hairline)", marginBottom: 28 }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-2)" }}>Beta abierta · enero 2026</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-2)" }}>Asistente comercial para WhatsApp</span>
             </div>
 
             {/* Heading */}
@@ -242,7 +173,7 @@ export default function HomePage() {
 
             {/* Body */}
             <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--ink-2)", margin: "0 0 32px", maxWidth: 420 }}>
-              Respondé consultas, captá clientes y vendé más sin estar todo el día pendiente del celular. La IA habla con la información de tu negocio. Vos decidís cuándo entrar.
+              Respondé consultas, captá clientes y vendé más sin estar todo el día pendiente del celular. La IA responde con la información real de tu negocio. Vos decidís cuándo entrar.
             </p>
 
             {/* CTAs */}
@@ -257,7 +188,7 @@ export default function HomePage() {
 
             {/* Trust */}
             <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>
-              · Sin tarjeta &nbsp;·&nbsp; 7 días gratis &nbsp;·&nbsp; Plantillas por rubro
+              · Planes claros &nbsp;·&nbsp; onboarding simple &nbsp;·&nbsp; plantillas por rubro
             </p>
           </div>
 
@@ -329,47 +260,34 @@ export default function HomePage() {
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>tu WhatsApp</span>{" "}
             necesita.
           </h2>
+          <p style={{ maxWidth: 540, margin: "14px 0 0", fontSize: 15, lineHeight: 1.7, color: "var(--ink-3)" }}>
+            Una estructura simple para atender, vender y controlar la calidad sin que la experiencia se rompa en mobile.
+          </p>
         </div>
 
-        {/* Bento grid */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1.9fr 1fr 1fr 1fr",
-          gridTemplateRows: "1fr 1fr",
-          gap: 12,
-          minHeight: 280,
-        }}>
-          {/* Large card — spans 2 rows */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-stretch">
           <div style={{
-            gridColumn: "1", gridRow: "1 / 3",
             background: "var(--green)", borderRadius: 20, padding: "28px 28px 32px",
             display: "flex", flexDirection: "column", justifyContent: "flex-end",
+            minHeight: 260,
           }}>
             <p style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 12, fontFamily: "var(--font-mono)" }}>01</p>
             <h3 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: "0 0 10px", lineHeight: 1.2 }}>IA para responder</h3>
             <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.55)", margin: 0, lineHeight: 1.55 }}>
-              Habla con la información de tu negocio. Aprende del tono.
+              Responde consultas con la información real de tu negocio.
             </p>
           </div>
 
-          {/* 6 small cards */}
-          {SMALL_FEATURES.map((f) => (
-            <div key={f.num} style={{ background: "var(--surface)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--hairline)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <p style={{ fontSize: 10, fontWeight: 500, color: "var(--muted)", marginBottom: 8, fontFamily: "var(--font-mono)" }}>{f.num}</p>
-              <div>
-                <h4 style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 5px" }}>{f.title}</h4>
-                <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0, lineHeight: 1.45 }}>{f.desc}</p>
+          <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 xl:grid-cols-3">
+            {SMALL_FEATURES.map((f) => (
+              <div key={f.num} style={{ background: "var(--surface)", borderRadius: 18, padding: "20px 20px 18px", border: "1px solid var(--hairline)", display: "flex", flexDirection: "column", gap: 14, minHeight: 168 }}>
+                <p style={{ fontSize: 10, fontWeight: 500, color: "var(--muted)", margin: 0, fontFamily: "var(--font-mono)" }}>{f.num}</p>
+                <div>
+                  <h4 style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: "0 0 8px", lineHeight: 1.3 }}>{f.title}</h4>
+                  <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, lineHeight: 1.55 }}>{f.desc}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Métricas wide card */}
-        <div style={{ marginTop: 12, background: "var(--surface)", borderRadius: 16, padding: "18px 24px", border: "1px solid var(--hairline)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 500, color: "var(--muted)", marginBottom: 4, fontFamily: "var(--font-mono)" }}>08</p>
-            <h4 style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 3px" }}>Métricas</h4>
-            <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0 }}>Quién preguntó, cuánto y qué respondieron.</p>
+            ))}
           </div>
         </div>
       </section>
@@ -404,37 +322,39 @@ export default function HomePage() {
       <section id="planes" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 36 }}>
           <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: 0 }}>
-            Pagás lo que usás.
+            Elegí el plan que mejor acompaña a tu negocio.
           </h2>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>Precio por asistente al mes, IVA incluido.</span>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>Precios mensuales en ARS.</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 12, alignItems: "stretch" }}>
-          {PLANS.map((plan) => (
+          {PUBLIC_PLAN_LIST.map((plan) => {
+            const featured = plan.code === "growth";
+
+            return (
             <div key={plan.code} style={{
               borderRadius: 22, padding: "28px 28px 24px",
-              background: plan.featured ? "var(--ink)" : "var(--surface)",
-              border: plan.featured ? "none" : "1px solid var(--hairline)",
+              background: featured ? "var(--ink)" : "var(--surface)",
+              border: featured ? "none" : "1px solid var(--hairline)",
               display: "flex", flexDirection: "column", position: "relative",
             }}>
-              {plan.featured && (
+              {plan.badge && (
                 <div style={{ position: "absolute", top: -13, right: 22, padding: "4px 14px", borderRadius: 99, background: "var(--accent)", color: "#fff", fontSize: 11, fontWeight: 700 }}>
-                  Más vendido
+                  {plan.badge}
                 </div>
               )}
-              <p style={{ fontSize: 12, fontWeight: 500, color: plan.featured ? "var(--accent)" : "var(--muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10, fontFamily: "var(--font-mono)" }}>
-                {plan.label}
+              <p style={{ fontSize: 12, fontWeight: 500, color: featured ? "var(--accent)" : "var(--muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10, fontFamily: "var(--font-mono)" }}>
+                {plan.description}
               </p>
-              <h3 style={{ fontSize: 22, fontWeight: 700, color: plan.featured ? "#fff" : "var(--ink)", margin: "0 0 4px" }}>{plan.name}</h3>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, margin: "0 0 24px" }}>
-                <span style={{ fontSize: 38, fontWeight: 700, color: plan.featured ? "#fff" : "var(--ink)", lineHeight: 1 }}>{plan.price}</span>
-                {plan.period && <span style={{ fontSize: 14, color: plan.featured ? "rgba(255,255,255,0.45)" : "var(--muted)" }}>{plan.period}</span>}
-              </div>
+              <h3 style={{ fontSize: 22, fontWeight: 700, color: featured ? "#fff" : "var(--ink)", margin: "0 0 8px" }}>{plan.name}</h3>
+              <p style={{ fontSize: 38, fontWeight: 700, color: featured ? "#fff" : "var(--ink)", lineHeight: 1.02, margin: "0 0 24px" }}>
+                {plan.priceLabel}
+              </p>
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
-                {plan.bullets.map((b) => (
-                  <li key={b} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: plan.featured ? "rgba(255,255,255,0.7)" : "var(--ink-2)" }}>
-                    <span style={{ color: plan.featured ? "rgba(255,255,255,0.35)" : "var(--green)", flexShrink: 0, fontSize: 14, fontWeight: 600 }}>✓</span>
-                    {b}
+                {plan.features.map((feature) => (
+                  <li key={feature} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13, color: featured ? "rgba(255,255,255,0.7)" : "var(--ink-2)", lineHeight: 1.5 }}>
+                    <span style={{ color: featured ? "rgba(255,255,255,0.45)" : "var(--green)", flexShrink: 0, fontSize: 14, fontWeight: 600 }}>✓</span>
+                    {feature}
                   </li>
                 ))}
               </ul>
@@ -444,14 +364,15 @@ export default function HomePage() {
                   display: "block", textAlign: "center",
                   padding: "13px 20px", borderRadius: 12,
                   fontSize: 14, fontWeight: 600, textDecoration: "none",
-                  background: plan.featured ? "var(--accent)" : "var(--ink)",
-                  color: "#fff",
+                  background: featured ? "var(--accent)" : "var(--ink)",
+                  color: "#fff", whiteSpace: "nowrap",
                 }}
               >
                 {plan.cta}
               </Link>
             </div>
-          ))}
+          );
+          })}
         </div>
       </section>
 
@@ -510,7 +431,7 @@ export default function HomePage() {
               Hablar con ventas
             </a>
           </div>
-          <AtendeWordmark size={20} color="rgba(255,255,255,0.5)" />
+          <BrandWordmark size={20} color="rgba(255,255,255,0.5)" />
         </div>
       </section>
 

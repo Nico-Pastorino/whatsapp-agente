@@ -55,7 +55,7 @@ const PLAN_INCLUDED: Record<string, string[]> = {
     "IA básica para responder consultas",
     "Modo humano (tomás el control)",
     "1 número de WhatsApp",
-    "Hasta 3 usuarios del equipo",
+    "1 usuario del equipo",
     "Hasta 10 productos/servicios",
     "1 plantilla básica de rubro",
     "Configuración del negocio",
