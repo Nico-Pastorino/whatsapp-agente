@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
 import { requireDashboardBusinessContext } from "@/lib/dashboard-auth";
-import { getBusinessSubscriptionStatus } from "@/lib/db";
+import { checkAccountAccess } from "@/lib/db";
 import ConnectionGate from "@/components/ConnectionGate";
-
-const BLOCKED_STATUSES = new Set(["pending_payment", "canceled", "past_due"]);
 
 export default async function BusinessPage() {
   const ctx = await requireDashboardBusinessContext().catch(() => null);
   if (ctx) {
-    const status = await getBusinessSubscriptionStatus(ctx.businessId).catch(() => "none");
-    if (BLOCKED_STATUSES.has(status)) {
+    const access = await checkAccountAccess(ctx.businessId).catch(() => null);
+    if (access && !access.canUseApp) {
       redirect("/app/plan");
     }
   }

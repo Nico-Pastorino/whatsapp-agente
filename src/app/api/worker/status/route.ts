@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getConnectionState } from "@/lib/db";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
       const state = await getConnectionState(businessId);
 
       return NextResponse.json({

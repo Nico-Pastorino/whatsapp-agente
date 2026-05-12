@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import AuthShell from "@/components/public/AuthShell";
 import { Eye, Arrow } from "@/components/atende/Icons";
 import { getPublicPlan } from "@/lib/plan-display";
@@ -18,9 +18,7 @@ function getFriendlyError(message: string): string {
 }
 
 function SignupForm() {
-  const searchParams = useSearchParams();
-  const planCode = searchParams.get("plan") ?? "starter";
-  const plan = getPublicPlan(planCode);
+  const trialPlan = getPublicPlan("growth");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -41,7 +39,7 @@ function SignupForm() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, email, password, businessName, planCode: plan.code }),
+        body: JSON.stringify({ fullName, email, password, businessName, planCode: trialPlan.code }),
       });
 
       if (res.ok) {
@@ -62,12 +60,12 @@ function SignupForm() {
   const planBanner = (
     <div className="rounded-[24px] border border-[rgba(31,107,74,0.18)] bg-[var(--green-tint)] px-5 py-4 text-center shadow-[var(--shadow-1)]">
       <p className="font-[var(--font-mono)] text-[11px] uppercase tracking-[0.22em] text-[var(--green-soft)]">
-        Plan seleccionado
+        Prueba gratuita
       </p>
       <p className="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-[var(--green-ink)]">
-        {plan.name}
+        {trialPlan.name}
       </p>
-      <p className="mt-1 text-sm text-[var(--green-soft)]">{plan.priceLabel}</p>
+      <p className="mt-1 text-sm text-[var(--green-soft)]">14 días sin cargo · luego {trialPlan.priceLabel}</p>
     </div>
   );
 
@@ -75,7 +73,7 @@ function SignupForm() {
     <AuthShell
       eyebrow="Crear cuenta"
       title="Creá tu cuenta"
-      subtitle="Elegiste un plan para tu negocio. Completá tus datos y seguí al pago para activarlo."
+      subtitle="Creá tu cuenta y probá Growth durante 14 días. Después activás la suscripción para que el bot siga respondiendo."
       planBanner={planBanner}
       footer={
         <>

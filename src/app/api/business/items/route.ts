@@ -4,13 +4,13 @@ import {
   listBusinessItems,
   createBusinessItem,
 } from "@/lib/db";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
       const [items, capacity] = await Promise.all([
         listBusinessItems(businessId),
         getCatalogCapacity(businessId),
@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
       const body = await req.json();
 
       const name = typeof body.name === "string" ? body.name.trim() : "";

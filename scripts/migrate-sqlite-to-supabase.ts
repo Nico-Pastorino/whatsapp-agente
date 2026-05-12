@@ -103,12 +103,18 @@ async function main(): Promise<void> {
     if (productsError) throw productsError;
   }
 
+  const now = new Date();
+  const trialEndsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
   const { error: subscriptionError } = await supabase.from("subscriptions").upsert(
     {
       business_id: businessId,
-      plan_code: "starter",
-      status: "active",
-      updated_at: new Date().toISOString(),
+      plan_code: "growth",
+      status: "trial",
+      trial_started_at: now.toISOString(),
+      trial_ends_at: trialEndsAt,
+      current_period_start: now.toISOString(),
+      current_period_end: trialEndsAt,
+      updated_at: now.toISOString(),
     },
     { onConflict: "business_id", ignoreDuplicates: false }
   );

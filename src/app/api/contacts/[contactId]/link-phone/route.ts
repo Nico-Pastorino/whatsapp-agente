@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { linkPhoneToContact } from "@/lib/db";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
 
 interface Ctx {
   params: Promise<{ contactId: string }>;
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
       const { contactId } = await params;
       const id = contactId?.trim();
 

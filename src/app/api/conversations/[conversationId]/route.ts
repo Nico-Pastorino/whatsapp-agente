@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteConversation, getConversationById } from "@/lib/db";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ interface Ctx {
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
       const { conversationId } = await params;
       const id = conversationId?.trim();
 

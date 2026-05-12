@@ -5,6 +5,7 @@ import {
   requireDashboardSession,
   type DashboardBusinessContext,
 } from "./dashboard-auth";
+import { checkAccountAccess } from "./db";
 
 export async function withDashboardSession<T>(
   handler: (session: Awaited<ReturnType<typeof requireDashboardSession>>) => Promise<T>
@@ -16,6 +17,22 @@ export async function withDashboardBusinessContext<T>(
   handler: (context: DashboardBusinessContext) => Promise<T>
 ): Promise<T> {
   return handler(await requireDashboardBusinessContext());
+}
+
+export async function withActiveDashboardBusinessContext<T>(
+  handler: (context: DashboardBusinessContext) => Promise<T>
+): Promise<T> {
+  const context = await requireDashboardBusinessContext();
+  const access = await checkAccountAccess(context.businessId);
+  if (!access.canUseApp) {
+    throw new DashboardAuthError(
+      access.reason === "trial_expired"
+        ? "Tu prueba gratuita finalizó. Para continuar usando el bot de WhatsApp, activá tu plan."
+        : "Tu cuenta no está activa. Activá tu plan para continuar.",
+      403
+    );
+  }
+  return handler(context);
 }
 
 export function toDashboardAuthResponse(error: unknown): NextResponse {

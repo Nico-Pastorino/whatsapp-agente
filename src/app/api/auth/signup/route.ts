@@ -5,6 +5,8 @@ import { createAppSessionToken, getSessionCookieOptions } from "@/lib/app-sessio
 import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
 const VALID_PLANS = new Set(["starter", "growth", "pro"]);
+const TRIAL_PLAN_CODE = "growth";
+const TRIAL_DAYS = 14;
 
 function slugify(text: string): string {
   return text
@@ -23,15 +25,16 @@ export async function POST(req: NextRequest) {
   const email: string = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password: string = typeof body.password === "string" ? body.password : "";
   const businessName: string = typeof body.businessName === "string" ? body.businessName.trim() : "";
-  const planCode: string = typeof body.planCode === "string" ? body.planCode.trim() : "";
+  const requestedPlanCode: string = typeof body.planCode === "string" ? body.planCode.trim() : "";
+  const planCode = TRIAL_PLAN_CODE;
 
-  if (!fullName || !email || !password || !businessName || !planCode) {
+  if (!fullName || !email || !password || !businessName) {
     return NextResponse.json({ error: "Todos los campos son obligatorios." }, { status: 400 });
   }
   if (password.length < 8) {
     return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres." }, { status: 400 });
   }
-  if (!VALID_PLANS.has(planCode)) {
+  if (requestedPlanCode && !VALID_PLANS.has(requestedPlanCode)) {
     return NextResponse.json({ error: "Plan no válido." }, { status: 400 });
   }
 
@@ -66,7 +69,10 @@ export async function POST(req: NextRequest) {
   const userId = authData.user.id;
   const businessId = randomUUID();
   const slug = `${slugify(businessName)}-${businessId.slice(0, 8)}`;
-  const now = new Date().toISOString();
+  const nowDate = new Date();
+  const trialEndDate = new Date(nowDate.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const now = nowDate.toISOString();
+  const trialEndsAt = trialEndDate.toISOString();
 
   try {
     // Profile
@@ -79,6 +85,7 @@ export async function POST(req: NextRequest) {
       display_name: businessName,
       updated_at: now,
     });
+    console.log(`[signup] business created business_id=${businessId}`);
 
     // Business settings
     await supabase.from("business_settings").insert({
@@ -88,6 +95,7 @@ export async function POST(req: NextRequest) {
       system_prompt_override: "",
       updated_at: now,
     });
+    console.log(`[signup] business_settings created business_id=${businessId}`);
 
     // Business member (owner)
     await supabase.from("business_members").insert({
@@ -96,18 +104,19 @@ export async function POST(req: NextRequest) {
       role: "owner",
     });
 
-    // Starter ($0) auto-activates; paid plans stay pending until payment is confirmed.
-    const isFree = plan.price_monthly === 0 || planCode === "starter";
-    const periodEnd = new Date();
-    periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    // New businesses always start on a 14-day Growth trial. Paid activation
+    // happens only through Mercado Pago subscription webhooks.
     await supabase.from("subscriptions").insert({
       business_id: businessId,
       plan_code: planCode,
-      status: isFree ? "active" : "pending_payment",
-      current_period_start: isFree ? now : null,
-      current_period_end: isFree ? periodEnd.toISOString() : null,
+      status: "trial",
+      trial_started_at: now,
+      trial_ends_at: trialEndsAt,
+      current_period_start: now,
+      current_period_end: trialEndsAt,
       updated_at: now,
     });
+    console.log(`[signup] subscription trial created business_id=${businessId} plan=${planCode} trial_ends_at=${trialEndsAt}`);
 
     // WhatsApp session placeholder
     await supabase.from("whatsapp_sessions").insert({

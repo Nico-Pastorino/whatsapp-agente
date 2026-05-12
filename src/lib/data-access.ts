@@ -123,6 +123,15 @@ interface SubscriptionRow {
   monthly_ai_reply_limit: number | null;
   current_period_start?: string | null;
   current_period_end?: string | null;
+  trial_started_at?: string | null;
+  trial_ends_at?: string | null;
+  paid_at?: string | null;
+  subscription_started_at?: string | null;
+  subscription_ends_at?: string | null;
+  mercado_pago_preapproval_id?: string | null;
+  mercado_pago_preapproval_status?: string | null;
+  mercado_pago_payment_id?: string | null;
+  mercado_pago_preference_id?: string | null;
   cancel_at_period_end?: boolean | null;
   cancelled_at?: string | null;
 }
@@ -132,6 +141,41 @@ interface UsageRow {
   inbound_messages_count: number;
   ai_replies_count: number;
   human_messages_count: number;
+}
+
+type CachedValue<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+const SUBSCRIPTION_CACHE_TTL_MS = 60_000;
+const BUSINESS_PROFILE_CACHE_TTL_MS = 5 * 60_000;
+const SUBSCRIPTION_SELECT =
+  "plan_code, status, monthly_message_limit, monthly_ai_reply_limit, current_period_start, current_period_end, trial_started_at, trial_ends_at, paid_at, subscription_started_at, subscription_ends_at, mercado_pago_preapproval_id, mercado_pago_preapproval_status, cancel_at_period_end, cancelled_at";
+const subscriptionCache = new Map<string, CachedValue<SubscriptionRow | null>>();
+const businessProfileCache = new Map<string, CachedValue<BusinessProfile>>();
+
+function getCachedValue<T>(cache: Map<string, CachedValue<T>>, key: string): T | null {
+  const cached = cache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return cached.value;
+}
+
+function setCachedValue<T>(
+  cache: Map<string, CachedValue<T>>,
+  key: string,
+  value: T,
+  ttlMs: number
+): void {
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+function invalidateBusinessCaches(businessId: string): void {
+  subscriptionCache.delete(businessId);
+  businessProfileCache.delete(businessId);
 }
 
 export interface UpgradeOption {
@@ -145,6 +189,17 @@ export interface PlanSummary {
   plan_code: string;
   plan_name: string;
   status: SubscriptionRow["status"];
+  access_status: AccountAccessStatus;
+  can_use_app: boolean;
+  access_reason: string;
+  days_left_trial: number | null;
+  trial_started_at: number | null;
+  trial_ends_at: number | null;
+  paid_at: number | null;
+  subscription_started_at: number | null;
+  subscription_ends_at: number | null;
+  mercado_pago_preapproval_id: string | null;
+  mercado_pago_preapproval_status: string | null;
   current_period_start: number | null;
   current_period_end: number | null;
   monthly_message_limit: number | null;
@@ -164,6 +219,18 @@ export interface PlanSummary {
   downgrade_options: UpgradeOption[];
   cancel_at_period_end: boolean;
   cancelled_at: number | null;
+}
+
+export type AccountAccessStatus = "trial" | "active" | "pending_payment" | "past_due" | "canceled" | "blocked" | "none";
+
+export interface AccountAccessResult {
+  canUseApp: boolean;
+  status: AccountAccessStatus;
+  subscriptionStatus: SubscriptionRow["status"] | "none";
+  daysLeftTrial: number | null;
+  reason: string;
+  planCode: string | null;
+  trialEndsAt: number | null;
 }
 
 export type BusinessMemberRole = "owner" | "admin" | "agent";
@@ -332,10 +399,6 @@ function toUnixSeconds(value: string | null | undefined): number | null {
 
 function monthStartIso(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function defaultSlugFromBusinessId(businessId: string): string {
-  return `business-${businessId.slice(0, 8)}`;
 }
 
 function normalizePhoneNumber(value: string | null | undefined): string | null {
@@ -548,59 +611,33 @@ function buildIdentityCandidates(rawJid: string): Array<{ type: IdentityType; va
   );
 }
 
-async function ensureBusinessBootstrap(businessId = getBusinessId()): Promise<void> {
+async function getCurrentUsage(businessId = getBusinessId()): Promise<UsageRow> {
   const supabase = getSupabaseAdminClient();
-  const instanceName = getWorkerInstanceName();
-  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("usage_monthly")
+    .select("id, inbound_messages_count, ai_replies_count, human_messages_count")
+    .eq("business_id", businessId)
+    .eq("month_start", monthStartIso())
+    .maybeSingle();
 
-  await supabase.from("businesses").upsert(
-    {
-      id: businessId,
-      slug: defaultSlugFromBusinessId(businessId),
-      display_name: "",
-      updated_at: now,
-    },
-    { onConflict: "id", ignoreDuplicates: true }
-  );
-
-  await supabase.from("business_settings").upsert(
-    {
-      business_id: businessId,
-      description: "",
-      extra: "",
-      system_prompt_override: "",
-      updated_at: now,
-    },
-    { onConflict: "business_id", ignoreDuplicates: true }
-  );
-
-  await supabase.from("subscriptions").upsert(
-    {
-      business_id: businessId,
-      plan_code: "starter",
-      status: "active",
-      updated_at: now,
-    },
-    { onConflict: "business_id", ignoreDuplicates: true }
-  );
-
-  await supabase.from("whatsapp_sessions").upsert(
-    {
-      business_id: businessId,
-      instance_name: instanceName,
-      status: "disconnected",
-      desired_action: "none",
-      updated_at: now,
-    },
-    { onConflict: "business_id,instance_name", ignoreDuplicates: true }
-  );
+  if (error) throw error;
+  if (!data) {
+    return {
+      id: "",
+      inbound_messages_count: 0,
+      ai_replies_count: 0,
+      human_messages_count: 0,
+    };
+  }
+  return data as UsageRow;
 }
 
-async function getCurrentUsage(businessId = getBusinessId()): Promise<UsageRow> {
-  await ensureBusinessBootstrap(businessId);
+async function ensureCurrentUsageRow(businessId = getBusinessId()): Promise<UsageRow> {
+  const existing = await getCurrentUsage(businessId);
+  if (existing.id) return existing;
+
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
-
   const { data, error } = await supabase
     .from("usage_monthly")
     .upsert(
@@ -618,11 +655,110 @@ async function getCurrentUsage(businessId = getBusinessId()): Promise<UsageRow> 
   return data as UsageRow;
 }
 
+async function getCachedSubscription(
+  businessId = getBusinessId()
+): Promise<SubscriptionRow | null> {
+  const cached = getCachedValue(subscriptionCache, businessId);
+  if (cached !== null) return cached;
+
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select(SUBSCRIPTION_SELECT)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (error) throw error;
+  const subscription = (data as SubscriptionRow | null) ?? null;
+  setCachedValue(subscriptionCache, businessId, subscription, SUBSCRIPTION_CACHE_TTL_MS);
+  console.log(`[subscription/cache] loaded business_id=${businessId}`);
+  return subscription;
+}
+
+function evaluateAccountAccess(
+  subscription: SubscriptionRow | null
+): AccountAccessResult {
+  if (!subscription) {
+    return {
+      canUseApp: false,
+      status: "none",
+      subscriptionStatus: "none",
+      daysLeftTrial: null,
+      reason: "missing_subscription",
+      planCode: null,
+      trialEndsAt: null,
+    };
+  }
+
+  const status = subscription.status;
+  const trialEndsAt = toUnixSeconds(subscription.trial_ends_at);
+
+  if (status === "active") {
+    return {
+      canUseApp: true,
+      status: "active",
+      subscriptionStatus: status,
+      daysLeftTrial: null,
+      reason: "active_subscription",
+      planCode: subscription.plan_code ?? null,
+      trialEndsAt,
+    };
+  }
+
+  if (status === "trial") {
+    if (!subscription.trial_ends_at) {
+      return {
+        canUseApp: false,
+        status: "blocked",
+        subscriptionStatus: status,
+        daysLeftTrial: null,
+        reason: "missing_trial_end",
+        planCode: subscription.plan_code ?? null,
+        trialEndsAt,
+      };
+    }
+
+    const now = Date.now();
+    const trialEndMs = new Date(subscription.trial_ends_at).getTime();
+    if (Number.isFinite(trialEndMs) && trialEndMs >= now) {
+      return {
+        canUseApp: true,
+        status: "trial",
+        subscriptionStatus: status,
+        daysLeftTrial: Math.max(0, Math.ceil((trialEndMs - now) / (24 * 60 * 60 * 1000))),
+        reason: "trial_active",
+        planCode: subscription.plan_code ?? null,
+        trialEndsAt,
+      };
+    }
+
+    return {
+      canUseApp: false,
+      status: "blocked",
+      subscriptionStatus: status,
+      daysLeftTrial: 0,
+      reason: "trial_expired",
+      planCode: subscription.plan_code ?? null,
+      trialEndsAt,
+    };
+  }
+
+  return {
+    canUseApp: false,
+    status,
+    subscriptionStatus: status,
+    daysLeftTrial: null,
+    reason: status,
+    planCode: subscription.plan_code ?? null,
+    trialEndsAt,
+  };
+}
+
 async function incrementUsage(
   field: "inbound_messages_count" | "ai_replies_count" | "human_messages_count",
   businessId = getBusinessId()
 ): Promise<void> {
-  const usage = await getCurrentUsage(businessId);
+  const usage = await ensureCurrentUsageRow(businessId);
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("usage_monthly")
@@ -632,6 +768,8 @@ async function incrementUsage(
     })
     .eq("id", usage.id);
   if (error) throw error;
+  subscriptionCache.delete(businessId);
+  console.log(`[subscription/update] cancel_at_period_end business_id=${businessId}`);
 }
 
 async function getContactById(
@@ -680,6 +818,8 @@ async function upsertContactIdentity(
     { onConflict: "business_id,identity_value", ignoreDuplicates: true }
   );
   if (error) throw error;
+  subscriptionCache.delete(businessId);
+  console.log(`[subscription/update] reactivated business_id=${businessId}`);
 }
 
 async function updateContactRow(
@@ -971,8 +1111,6 @@ export async function getBestOutgoingJidForConversation(
 export async function resolveContactIdentity(
   params: ResolveContactIdentityParams
 ): Promise<ResolvedContactIdentity> {
-  await ensureBusinessBootstrap();
-
   const supabase = getSupabaseAdminClient();
   const businessId = params.businessId ?? getBusinessId();
   const parsed = parseWhatsAppIdentity(params.rawJid);
@@ -1175,16 +1313,11 @@ export async function resolveContactIdentity(
 }
 
 export async function canUseAssistant(businessId = getBusinessId()): Promise<boolean> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("status, monthly_message_limit, monthly_ai_reply_limit")
-    .eq("business_id", businessId)
-    .single();
-  if (error || !data) throw error ?? new Error("subscriptions missing");
+  const subscription = await getCachedSubscription(businessId);
+  if (!subscription) throw new Error("subscriptions missing");
 
-  const subscription = data as SubscriptionRow;
-  if (!["active", "trial"].includes(subscription.status)) return false;
+  const access = evaluateAccountAccess(subscription);
+  if (!access.canUseApp) return false;
 
   const usage = await getCurrentUsage(businessId);
   if (
@@ -1202,6 +1335,12 @@ export async function canUseAssistant(businessId = getBusinessId()): Promise<boo
   return true;
 }
 
+export async function checkAccountAccess(
+  businessId = getBusinessId()
+): Promise<AccountAccessResult> {
+  return evaluateAccountAccess(await getCachedSubscription(businessId));
+}
+
 export async function recordInboundMessageUsage(businessId = getBusinessId()): Promise<void> {
   await incrementUsage("inbound_messages_count", businessId);
 }
@@ -1217,22 +1356,16 @@ export async function recordHumanMessageUsage(businessId = getBusinessId()): Pro
 export async function getPlanSummary(
   businessId = getBusinessId()
 ): Promise<PlanSummary> {
-  await ensureBusinessBootstrap(businessId);
   const supabase = getSupabaseAdminClient();
-  const [{ data: subscription, error: subscriptionError }, usage] = await Promise.all([
-    supabase
-      .from("subscriptions")
-      .select(
-        "plan_code, status, monthly_message_limit, monthly_ai_reply_limit, current_period_start, current_period_end, cancel_at_period_end, cancelled_at"
-      )
-      .eq("business_id", businessId)
-      .single(),
+  const [subscription, usage] = await Promise.all([
+    getCachedSubscription(businessId),
     getCurrentUsage(businessId),
   ]);
 
-  if (subscriptionError || !subscription) {
-    throw subscriptionError ?? new Error("subscriptions missing");
+  if (!subscription) {
+    throw new Error("subscriptions missing");
   }
+  const access = evaluateAccountAccess(subscription);
 
   const { data: plan, error: planError } = await supabase
     .from("plans")
@@ -1292,6 +1425,17 @@ export async function getPlanSummary(
     plan_code: currentPlanCode,
     plan_name: plan?.name ?? "Starter",
     status: subscription.status,
+    access_status: access.status,
+    can_use_app: access.canUseApp,
+    access_reason: access.reason,
+    days_left_trial: access.daysLeftTrial,
+    trial_started_at: toUnixSeconds(subscription.trial_started_at),
+    trial_ends_at: toUnixSeconds(subscription.trial_ends_at),
+    paid_at: toUnixSeconds(subscription.paid_at),
+    subscription_started_at: toUnixSeconds(subscription.subscription_started_at),
+    subscription_ends_at: toUnixSeconds(subscription.subscription_ends_at),
+    mercado_pago_preapproval_id: subscription.mercado_pago_preapproval_id ?? null,
+    mercado_pago_preapproval_status: subscription.mercado_pago_preapproval_status ?? null,
     current_period_start: toUnixSeconds(subscription.current_period_start),
     current_period_end: toUnixSeconds(subscription.current_period_end),
     monthly_message_limit: subscription.monthly_message_limit,
@@ -1983,23 +2127,21 @@ export async function downgradePlan(
     .eq("business_id", businessId);
 
   if (error) throw error;
+  subscriptionCache.delete(businessId);
+  console.log(`[subscription/update] downgraded business_id=${businessId} plan=${targetPlanCode}`);
 }
 
 export async function getBusinessSubscriptionStatus(
   businessId: string
 ): Promise<SubscriptionRow["status"] | "none"> {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("status")
-    .eq("business_id", businessId)
-    .maybeSingle();
-  if (error) throw error;
-  return (data?.status as SubscriptionRow["status"]) ?? "none";
+  const subscription = await getCachedSubscription(businessId);
+  return subscription?.status ?? "none";
 }
 
 export async function getBusinessProfile(businessId = getBusinessId()): Promise<BusinessProfile> {
-  await ensureBusinessBootstrap(businessId);
+  const cached = getCachedValue(businessProfileCache, businessId);
+  if (cached) return cached;
+
   const supabase = getSupabaseAdminClient();
   const [
     { data: business, error: businessError },
@@ -2027,7 +2169,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
     throw businessError ?? settingsError ?? productsError;
   }
 
-  return {
+  const profile = {
     id: businessId,
     name: business?.display_name ?? "",
     description: settings?.description ?? "",
@@ -2043,6 +2185,9 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
       toUnixSeconds(settings?.updated_at) ?? 0
     ),
   };
+  setCachedValue(businessProfileCache, businessId, profile, BUSINESS_PROFILE_CACHE_TTL_MS);
+  console.log(`[business/cache] profile loaded business_id=${businessId}`);
+  return profile;
 }
 
 export async function setBusinessProfile(patch: {
@@ -2064,6 +2209,7 @@ export async function setBusinessProfile(patch: {
     extra: patch.extra,
     updated_at: now,
   }).eq("business_id", businessId);
+  console.log(`[business/update] settings updated business_id=${businessId}`);
 
   if (patch.products !== undefined) {
     await supabase.from("products").delete().eq("business_id", businessId);
@@ -2083,6 +2229,7 @@ export async function setBusinessProfile(patch: {
       if (error) throw error;
     }
   }
+  businessProfileCache.delete(businessId);
 }
 
 export async function getOrCreateConversation(input: {
@@ -2351,19 +2498,24 @@ export async function insertMessage(
 
 export async function isExternalMessageDuplicate(externalMessageId: string): Promise<boolean> {
   const supabase = getSupabaseAdminClient();
+  const businessId = getBusinessId();
   const [msgResult, outboxResult] = await Promise.all([
     supabase
       .from("messages")
-      .select("id", { count: "exact", head: true })
-      .eq("business_id", getBusinessId())
-      .eq("external_message_id", externalMessageId),
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("external_message_id", externalMessageId)
+      .limit(1),
     supabase
       .from("outbox_messages")
-      .select("id", { count: "exact", head: true })
-      .eq("business_id", getBusinessId())
-      .eq("external_message_id", externalMessageId),
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("external_message_id", externalMessageId)
+      .limit(1),
   ]);
-  return (msgResult.count ?? 0) > 0 || (outboxResult.count ?? 0) > 0;
+  if (msgResult.error) throw msgResult.error;
+  if (outboxResult.error) throw outboxResult.error;
+  return (msgResult.data?.length ?? 0) > 0 || (outboxResult.data?.length ?? 0) > 0;
 }
 
 export async function setMessageExternalId(
@@ -2427,7 +2579,6 @@ export async function getRecentHistory(
 export async function getConnectionState(
   businessId = getBusinessId()
 ): Promise<ConnectionState> {
-  await ensureBusinessBootstrap(businessId);
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("whatsapp_sessions")
@@ -2812,11 +2963,7 @@ export async function getCatalogCapacity(
   businessId: string
 ): Promise<CatalogCapacity> {
   const supabase = getSupabaseAdminClient();
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("plan_code")
-    .eq("business_id", businessId)
-    .maybeSingle();
+  const sub = await getCachedSubscription(businessId);
   const { data: plan } = await supabase
     .from("plans")
     .select("product_limit")

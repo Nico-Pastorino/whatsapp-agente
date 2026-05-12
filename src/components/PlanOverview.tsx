@@ -8,6 +8,17 @@ interface PlanSummary {
   plan_code: string;
   plan_name: string;
   status: "trial" | "active" | "past_due" | "canceled" | "pending_payment";
+  access_status: "trial" | "active" | "pending_payment" | "past_due" | "canceled" | "blocked" | "none";
+  can_use_app: boolean;
+  access_reason: string;
+  days_left_trial: number | null;
+  trial_started_at: number | null;
+  trial_ends_at: number | null;
+  paid_at: number | null;
+  subscription_started_at: number | null;
+  subscription_ends_at: number | null;
+  mercado_pago_preapproval_id: string | null;
+  mercado_pago_preapproval_status: string | null;
   current_period_start: number | null;
   current_period_end: number | null;
   monthly_message_limit: number | null;
@@ -152,6 +163,19 @@ function OnboardingGuide({
   checkoutLoading: boolean;
   checkoutError: string | null;
 }) {
+  const trialExpired = plan.access_reason === "trial_expired";
+  const pendingPayment = plan.status === "pending_payment";
+  const title = trialExpired
+    ? "Tu prueba gratuita finalizó"
+    : pendingPayment
+      ? "Estamos esperando la confirmación del pago"
+      : "Activá tu cuenta y seguí vendiendo";
+  const description = trialExpired
+    ? "Para continuar usando el bot de WhatsApp, activá tu plan."
+    : pendingPayment
+      ? "Cuando Mercado Pago apruebe la suscripción, tu cuenta se activará automáticamente."
+      : "Hacé click en 'Pagar ahora' para activar tu plan. El acceso se habilita automáticamente al confirmar el pago.";
+
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
       <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
@@ -160,7 +184,7 @@ function OnboardingGuide({
             Primeros pasos
           </p>
           <h2 className="mt-2 text-3xl font-semibold text-gray-900">
-            Activá tu cuenta y empezá a vender
+            {title}
           </h2>
           <p className="mt-2 text-sm text-gray-500">
             Plan <strong>{plan.plan_name}</strong> ·{" "}
@@ -197,7 +221,7 @@ function OnboardingGuide({
 
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 space-y-4">
           <p className="text-sm font-medium text-emerald-800">
-            Completá el pago para desbloquear el acceso a WhatsApp, inbox y asistente IA.
+            {description}
           </p>
           {checkoutError && (
             <p className="text-sm text-red-600">{checkoutError}</p>
@@ -498,7 +522,7 @@ export default function PlanOverview() {
     );
   }
 
-  if (plan.status === "pending_payment") {
+  if (plan.status === "pending_payment" || !plan.can_use_app) {
     return (
       <OnboardingGuide
         plan={plan}
@@ -522,6 +546,32 @@ export default function PlanOverview() {
             <h1 className="page-title">Mi plan</h1>
           </div>
         </div>
+
+        {plan.status === "trial" && plan.can_use_app && (
+          <div style={{ margin: "0 20px 14px", padding: 16, borderRadius: 16, background: "rgba(31,107,74,0.09)", border: "1px solid rgba(31,107,74,0.18)", display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--green-ink)" }}>
+                Estás usando tu prueba gratuita de 14 días.
+              </div>
+              <div style={{ fontSize: 13, color: "var(--green-soft)", marginTop: 2 }}>
+                Te quedan {plan.days_left_trial ?? 0} días para probar todas las funciones de Growth.
+              </div>
+            </div>
+            <button
+              onClick={() => startCheckout()}
+              disabled={checkoutLoading}
+              className="atd-btn green sm"
+            >
+              {checkoutLoading ? "Redirigiendo..." : "Activar Growth"}
+            </button>
+          </div>
+        )}
+
+        {plan.status === "trial" && plan.can_use_app && (plan.days_left_trial ?? 0) <= 3 && (
+          <div style={{ margin: "0 20px 14px", padding: 12, borderRadius: 12, background: "rgba(234,179,8,0.12)", color: "#854d0e", fontSize: 13 }}>
+            Tu prueba gratuita termina pronto. Activá tu plan para que el bot siga respondiendo sin interrupciones.
+          </div>
+        )}
 
         {/* Hero plan card (dark) */}
         <div style={{ margin: "0 20px 14px", padding: 20, borderRadius: 22, background: "var(--ink)", color: "var(--bg)", position: "relative", overflow: "hidden" }}>

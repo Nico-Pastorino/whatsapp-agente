@@ -206,12 +206,22 @@ async function run(): Promise<void> {
   console.log("  ✓ business_settings");
 
   // 3. subscriptions
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
   const { error: subErr } = await supabase.from("subscriptions").upsert(
-    { business_id: businessId, plan_code: "starter", status: "active", updated_at: now },
+    {
+      business_id: businessId,
+      plan_code: "growth",
+      status: "trial",
+      trial_started_at: now,
+      trial_ends_at: trialEndsAt,
+      current_period_start: now,
+      current_period_end: trialEndsAt,
+      updated_at: now,
+    },
     { onConflict: "business_id", ignoreDuplicates: true }
   );
   if (subErr) throw new Error(`subscriptions: ${subErr.message}`);
-  console.log("  ✓ subscriptions (starter / active)");
+  console.log("  ✓ subscriptions (growth / trial 14 días)");
 
   // 4. whatsapp_sessions
   const { error: sessionErr } = await supabase.from("whatsapp_sessions").upsert(

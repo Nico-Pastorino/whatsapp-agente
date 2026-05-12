@@ -24,6 +24,7 @@ import "./env-loader";
 import fs from "node:fs";
 import {
   clearRequestedSessionAction,
+  checkAccountAccess,
   getBestOutgoingJidForConversation,
   getConnectionState,
   getRequestedSessionAction,
@@ -68,6 +69,15 @@ setInterval(async () => {
 
   const state = await getConnectionState().catch(() => null);
   if (!state || state.status !== "connected") return;
+
+  const access = await checkAccountAccess().catch((err) => {
+    console.error("[worker] Error validando acceso de cuenta:", err);
+    return null;
+  });
+  if (!access?.canUseApp) {
+    console.log(`[worker] Outbox bloqueado (${access?.reason ?? "access_check_failed"})`);
+    return;
+  }
 
   const pending = await getPendingOutbox(20).catch(() => []);
   for (const item of pending) {

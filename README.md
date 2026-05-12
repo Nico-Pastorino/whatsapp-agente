@@ -55,6 +55,10 @@ OPENAI_MODEL=gpt-4o-mini
 NEXT_PUBLIC_DEMO_WHATSAPP_URL=https://wa.me/5491100000000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
+# Mercado Pago
+MERCADOPAGO_ACCESS_TOKEN=APP_USR-...
+MERCADOPAGO_WEBHOOK_SECRET=...
+
 # Worker
 BUSINESS_ID=uuid-del-negocio-para-el-worker
 WORKER_INSTANCE_NAME=main
@@ -216,6 +220,14 @@ El script es idempotente. Si lo corrés dos veces:
 - no duplica el negocio
 - no duplica la membresía
 - no duplica la suscripción
+
+## Trial, planes y Mercado Pago
+
+- Las cuentas nuevas creadas desde `/signup` empiezan en `plan_code=growth`, `status=trial`, con 14 días de prueba.
+- El plan pago solo se activa desde webhooks de Mercado Pago (`preapproval` autorizado o `payment` aprobado).
+- Si el trial vence sin suscripción autorizada, `checkAccountAccess` bloquea APIs críticas y el worker no responde automáticamente.
+- Aplicar `supabase/migrations/014_trial_recurrent_billing.sql` en proyectos existentes antes de deployar este flujo.
+- Configurar el webhook de Mercado Pago hacia `NEXT_PUBLIC_APP_URL/api/webhooks/mercadopago` y guardar el secret en `MERCADOPAGO_WEBHOOK_SECRET`.
 
 ### 3. Asignar `BUSINESS_ID` al worker
 

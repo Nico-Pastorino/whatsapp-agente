@@ -10,6 +10,7 @@ import {
   getRecentHistory,
   recordAiReplyUsage,
   recordInboundMessageUsage,
+  checkAccountAccess,
 } from "../db";
 import { extractPhoneFromJid } from "../whatsapp-jid";
 import { getConnectionState } from "../db";
@@ -163,6 +164,12 @@ async function processMessage(sock: WASocket, msg: any): Promise<void> {
   const fresh = await getConversationById(convo.id);
   if (!fresh || fresh.mode !== "AI") {
     console.log(`[bot] Modo ${fresh?.mode ?? "?"} — no respondo automáticamente`);
+    return;
+  }
+
+  const access = await checkAccountAccess();
+  if (!access.canUseApp) {
+    console.log(`[bot] Cuenta bloqueada (${access.reason}) — no respondo automáticamente`);
     return;
   }
 

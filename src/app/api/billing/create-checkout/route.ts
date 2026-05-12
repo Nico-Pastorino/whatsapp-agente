@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { MercadoPagoConfig, PreApproval } from "mercadopago";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
-import { canUpgradeTo } from "@/lib/db";
+import { canUpgradeTo, checkAccountAccess } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ function getAppUrl(): string {
 
 export async function POST(req: NextRequest) {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withDashboardBusinessContext(async ({ businessId, user }) => {
       const body = await req.json().catch(() => ({})) as Record<string, unknown>;
       const requestedPlanCode =
         typeof body.plan_code === "string" ? body.plan_code.trim() : null;
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
       const { data: subscription, error: subError } = await supabase
         .from("subscriptions")
-        .select("plan_code, status")
+        .select("plan_code, status, trial_ends_at")
         .eq("business_id", businessId)
         .single();
       if (subError || !subscription) {
@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
         .from("payments")
         .insert({
           business_id: businessId,
+          user_id: user.sub,
+          email: user.email,
           plan_code: targetPlanCode,
           checkout_type: checkoutType,
           status: "pending",
@@ -73,8 +75,12 @@ export async function POST(req: NextRequest) {
           currency: plan.currency ?? "ARS",
           metadata: {
             triggered_by: checkoutType,
+            user_id: user.sub,
+            business_id: businessId,
+            email: user.email,
             current_plan: currentPlanCode,
             target_plan: targetPlanCode,
+            plan_code: targetPlanCode,
           },
           updated_at: new Date().toISOString(),
         })
@@ -85,7 +91,6 @@ export async function POST(req: NextRequest) {
       }
 
       const appUrl = getAppUrl();
-      const notificationUrl = `${appUrl}/api/webhooks/mercadopago`;
 
       console.log(`[mp/checkout] business_id=${businessId}`);
       console.log(`[mp/checkout] checkout_type=${checkoutType}`);
@@ -93,52 +98,63 @@ export async function POST(req: NextRequest) {
       console.log(`[mp/checkout] target_plan=${targetPlanCode}`);
       console.log(`[mp/checkout] amount=${plan.price_monthly} ${plan.currency ?? "ARS"}`);
       console.log(`[mp/checkout] payment_record_id=${payment.id}`);
-      console.log(`[mp/checkout] notification_url=${notificationUrl}`);
 
       const client = getMpClient();
-      const preferenceClient = new Preference(client);
+      const preApprovalClient = new PreApproval(client);
 
       const title =
         checkoutType === "upgrade"
           ? `Upgrade a ${plan.name} — Agente WhatsApp`
           : `Plan ${plan.name} — Agente WhatsApp`;
 
-      const result = await preferenceClient.create({
+      const access = await checkAccountAccess(businessId);
+      const now = new Date();
+      const trialEnd =
+        subscription.trial_ends_at && new Date(subscription.trial_ends_at).getTime() > now.getTime()
+          ? new Date(subscription.trial_ends_at)
+          : null;
+
+      const result = await preApprovalClient.create({
         body: {
-          items: [
-            {
-              id: targetPlanCode,
-              title,
-              quantity: 1,
-              currency_id: "ARS",
-              unit_price: plan.price_monthly,
-            },
-          ],
-          back_urls: {
-            success: `${appUrl}/payment/success`,
-            failure: `${appUrl}/payment/failure`,
-            pending: `${appUrl}/payment/pending`,
-          },
-          notification_url: notificationUrl,
-          auto_return: "approved",
+          reason: title,
+          payer_email: user.email,
           external_reference: payment.id,
-          metadata: {
-            business_id: businessId,
-            plan_code: targetPlanCode,
-            checkout_type: checkoutType,
-            current_plan: currentPlanCode,
-            payment_id: payment.id,
+          back_url: `${appUrl}/payment/success`,
+          status: "pending",
+          auto_recurring: {
+            frequency: 1,
+            frequency_type: "months",
+            transaction_amount: plan.price_monthly,
+            currency_id: plan.currency ?? "ARS",
+            ...(trialEnd ? { start_date: trialEnd.toISOString() } : {}),
           },
         },
       });
 
-      console.log(`[mp/checkout] preference created id=${result.id}`);
+      if (!result.id || !result.init_point) {
+        return NextResponse.json({ error: "Mercado Pago no devolvió un checkout válido." }, { status: 502 });
+      }
+
+      console.log(`[mp/checkout] preapproval created id=${result.id}`);
       console.log(`[mp/checkout] checkout_url=${result.init_point}`);
 
       await supabase
         .from("payments")
-        .update({ mp_preference_id: result.id, updated_at: new Date().toISOString() })
+        .update({
+          mp_preapproval_id: result.id,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", payment.id);
+
+      await supabase
+        .from("subscriptions")
+        .update({
+          mercado_pago_preapproval_id: result.id,
+          mercado_pago_preapproval_status: result.status ?? "pending",
+          ...(access.canUseApp ? {} : { status: "pending_payment" }),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("business_id", businessId);
 
       return NextResponse.json({ checkoutUrl: result.init_point });
     });

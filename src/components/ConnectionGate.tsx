@@ -54,6 +54,13 @@ type DashboardView =
 
 type ConnectionStatus = "disconnected" | "qr" | "connecting" | "connected";
 
+interface TrialPlanState {
+  status: "trial" | "active" | "past_due" | "canceled" | "pending_payment";
+  can_use_app: boolean;
+  days_left_trial: number | null;
+  plan_name: string;
+}
+
 function pickPreferredConversation(a: Conversation, b: Conversation): Conversation {
   const aPhone = a.phone.endsWith("@s.whatsapp.net") ? 1 : 0;
   const bPhone = b.phone.endsWith("@s.whatsapp.net") ? 1 : 0;
@@ -115,18 +122,27 @@ export default function ConnectionGate({ currentView }: Props) {
   const [initialChecked, setInitialChecked] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [trialPlan, setTrialPlan] = useState<TrialPlanState | null>(null);
 
   useEffect(() => {
-    const interval = setInterval(loadConnectionStatus, 2000);
+    const interval = setInterval(loadConnectionStatus, currentView === "connect" ? 3000 : 15000);
     loadConnectionStatus().finally(() => setInitialChecked(true));
     return () => clearInterval(interval);
-  }, []);
+  }, [currentView]);
 
   useEffect(() => {
+    if (currentView !== "conversations") return;
     loadConversations();
-    const interval = setInterval(loadConversations, 2000);
+    const interval = setInterval(loadConversations, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentView]);
+
+  useEffect(() => {
+    if (currentView === "plan") return;
+    loadPlan();
+    const interval = setInterval(loadPlan, 60_000);
+    return () => clearInterval(interval);
+  }, [currentView]);
 
   async function loadConnectionStatus() {
     try {
@@ -150,6 +166,15 @@ export default function ConnectionGate({ currentView }: Props) {
           ? current
           : deduped[0]?.id ?? null
       );
+    } catch {}
+  }
+
+  async function loadPlan() {
+    try {
+      const res = await fetch("/api/plan", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as TrialPlanState;
+      setTrialPlan(data);
     } catch {}
   }
 
@@ -286,6 +311,22 @@ export default function ConnectionGate({ currentView }: Props) {
     }
   }
 
+  const showTrialBanner =
+    currentView !== "plan" &&
+    trialPlan?.status === "trial" &&
+    trialPlan.can_use_app;
+
+  const trialBanner = showTrialBanner ? (
+    <div style={{ padding: "10px 16px", background: "rgba(31,107,74,0.09)", borderBottom: "1px solid rgba(31,107,74,0.16)", color: "var(--green-ink)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 13 }}>
+        Estás usando tu prueba gratuita de 14 días. Te quedan {trialPlan.days_left_trial ?? 0} días.
+      </span>
+      <Link href="/app/plan" className="atd-btn green sm">
+        Activar {trialPlan.plan_name}
+      </Link>
+    </div>
+  ) : null;
+
   return (
     <div style={{ display: "flex", height: "100svh", background: "var(--bg)" }}>
       {/* Desktop sidebar — hidden on mobile */}
@@ -299,6 +340,7 @@ export default function ConnectionGate({ currentView }: Props) {
 
       {/* Right side: content + mobile tab bar */}
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {trialBanner}
         {/* Desktop content */}
         <div className="hidden md:flex" style={{ flex: 1, overflow: "hidden" }}>
           {content}

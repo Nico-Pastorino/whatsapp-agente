@@ -2,6 +2,7 @@ create extension if not exists "pgcrypto";
 
 drop table if exists worker_commands cascade;
 drop table if exists outbox_messages cascade;
+drop table if exists payments cascade;
 drop table if exists messages cascade;
 drop table if exists conversations cascade;
 drop table if exists contact_identities cascade;
@@ -24,7 +25,7 @@ drop type if exists subscription_status cascade;
 create type conversation_mode as enum ('AI', 'HUMAN');
 create type message_role as enum ('user', 'assistant', 'human');
 create type whatsapp_connection_status as enum ('disconnected', 'qr', 'connecting', 'connected');
-create type subscription_status as enum ('trial', 'active', 'past_due', 'canceled');
+create type subscription_status as enum ('trial', 'active', 'past_due', 'canceled', 'pending_payment');
 
 create table businesses (
   id uuid primary key,
@@ -127,10 +128,19 @@ create table messages (
 
 create table subscriptions (
   business_id uuid primary key references businesses(id) on delete cascade,
-  plan_code text not null default 'starter' references plans(code),
-  status subscription_status not null default 'active',
-  current_period_start timestamptz not null default now(),
-  current_period_end timestamptz not null default (now() + interval '30 days'),
+  plan_code text not null default 'growth' references plans(code),
+  status subscription_status not null default 'trial',
+  current_period_start timestamptz,
+  current_period_end timestamptz,
+  trial_started_at timestamptz,
+  trial_ends_at timestamptz,
+  paid_at timestamptz,
+  subscription_started_at timestamptz,
+  subscription_ends_at timestamptz,
+  mercado_pago_preapproval_id text,
+  mercado_pago_preapproval_status text,
+  mercado_pago_payment_id text,
+  mercado_pago_preference_id text,
   cancel_at_period_end boolean not null default false,
   cancelled_at timestamptz,
   monthly_message_limit integer,
@@ -191,7 +201,28 @@ create table outbox_messages (
   sent boolean not null default false,
   sent_at timestamptz,
   error text,
+  external_message_id text,
   created_at timestamptz not null default now()
+);
+
+create table payments (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  email text,
+  plan_code text not null references plans(code),
+  mp_payment_id text,
+  mp_preference_id text,
+  mp_preapproval_id text,
+  status text not null default 'pending'
+    check (status in ('pending','approved','rejected','cancelled')),
+  amount integer not null,
+  currency text not null default 'ARS',
+  checkout_type text not null default 'initial'
+    check (checkout_type in ('initial','upgrade','renewal')),
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table worker_commands (
@@ -228,6 +259,21 @@ create index idx_business_members_user
 
 create index idx_outbox_pending
   on outbox_messages (business_id, sent, created_at);
+
+create index idx_payments_business
+  on payments (business_id, created_at desc);
+
+create index idx_payments_mp_id
+  on payments (mp_payment_id)
+  where mp_payment_id is not null;
+
+create index idx_payments_mp_preapproval
+  on payments (mp_preapproval_id)
+  where mp_preapproval_id is not null;
+
+create index idx_subscriptions_mp_preapproval
+  on subscriptions (mercado_pago_preapproval_id)
+  where mercado_pago_preapproval_id is not null;
 
 create index idx_whatsapp_sessions_instance
   on whatsapp_sessions (business_id, instance_name);

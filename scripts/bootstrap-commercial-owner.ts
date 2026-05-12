@@ -184,13 +184,15 @@ async function run() {
 
   const periodStart = new Date();
   const periodEnd = new Date(periodStart);
-  periodEnd.setMonth(periodEnd.getMonth() + 1);
+  periodEnd.setDate(periodEnd.getDate() + 14);
 
   const { error: subscriptionError } = await supabase.from("subscriptions").upsert(
     {
       business_id: business.id,
-      plan_code: "pro",
-      status: "active",
+      plan_code: "growth",
+      status: "trial",
+      trial_started_at: periodStart.toISOString(),
+      trial_ends_at: periodEnd.toISOString(),
       current_period_start: periodStart.toISOString(),
       current_period_end: periodEnd.toISOString(),
       updated_at: new Date().toISOString(),

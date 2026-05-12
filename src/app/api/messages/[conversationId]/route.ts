@@ -7,7 +7,7 @@ import {
   getConversationById,
   recordHumanMessageUsage,
 } from "@/lib/db";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withActiveDashboardBusinessContext, withDashboardBusinessContext } from "@/lib/route-auth";
 
 interface Ctx {
   params: Promise<{ conversationId: string }>;
@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
       const { conversationId } = await params;
       const id = conversationId?.trim();
 
