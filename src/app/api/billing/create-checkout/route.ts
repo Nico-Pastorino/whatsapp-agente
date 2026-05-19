@@ -17,6 +17,11 @@ function getAppUrl(): string {
   if (explicit) return explicit.replace(/\/$/, "");
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) return `https://${vercelUrl}`;
+  // En producción esto NO debería pasar — MP rechazará webhooks/back_url
+  // apuntando a localhost. Loggeamos fuerte para que sea visible.
+  console.warn(
+    "[mp/checkout] NEXT_PUBLIC_APP_URL no configurado — usando http://localhost:3000. Mercado Pago va a fallar el redirect/notification en prod."
+  );
   return "http://localhost:3000";
 }
 
@@ -114,22 +119,28 @@ export async function POST(req: NextRequest) {
           ? new Date(subscription.trial_ends_at)
           : null;
 
-      const result = await preApprovalClient.create({
-        body: {
-          reason: title,
-          payer_email: user.email,
-          external_reference: payment.id,
-          back_url: `${appUrl}/payment/success`,
-          status: "pending",
-          auto_recurring: {
-            frequency: 1,
-            frequency_type: "months",
-            transaction_amount: plan.price_monthly,
-            currency_id: plan.currency ?? "ARS",
-            ...(trialEnd ? { start_date: trialEnd.toISOString() } : {}),
-          },
+      // notification_url: MP también usa el configurado en el dashboard, pero
+      // explicitarlo acá garantiza que cada preapproval tenga el webhook correcto
+      // incluso si alguien cambió la config del dashboard. La SDK no lo expone
+      // en su tipo PreApprovalRequest, pero la API REST sí lo acepta.
+      const notificationUrl = `${appUrl}/api/webhooks/mercadopago`;
+      const preApprovalBody = {
+        reason: title,
+        payer_email: user.email,
+        external_reference: payment.id,
+        back_url: `${appUrl}/payment/success`,
+        notification_url: notificationUrl,
+        status: "pending",
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: "months",
+          transaction_amount: plan.price_monthly,
+          currency_id: plan.currency ?? "ARS",
+          ...(trialEnd ? { start_date: trialEnd.toISOString() } : {}),
         },
-      });
+      } as unknown as Parameters<typeof preApprovalClient.create>[0]["body"];
+
+      const result = await preApprovalClient.create({ body: preApprovalBody });
 
       if (!result.id || !result.init_point) {
         return NextResponse.json({ error: "Mercado Pago no devolvió un checkout válido." }, { status: 502 });

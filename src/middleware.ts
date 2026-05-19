@@ -81,47 +81,53 @@ function base64UrlDecode(value: string): string {
   );
 }
 
+// Helper: propaga el pathname al render server-side para que el layout
+// pueda decidir si bloquear por trial expirado sin tener que adivinar la URL.
+function withPathnameHeader(req: NextRequest, response: NextResponse): NextResponse {
+  response.headers.set("x-pathname", req.nextUrl.pathname);
+  return response;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get(APP_SESSION_COOKIE)?.value ?? "";
-  const hasCookie = Boolean(token);
-
-  console.log("[middleware] route:", pathname);
-  console.log("[middleware] cookie present:", hasCookie);
 
   if (isPublicAsset(pathname) || PUBLIC_PATHS.has(pathname) || PUBLIC_API_PATHS.has(pathname)) {
-    const valid = await verifySessionCookie(token);
-    console.log("[middleware] public route cookie valid:", valid);
-
-    if (pathname === "/login" && valid) {
-      return NextResponse.redirect(new URL("/app", req.url));
+    // /login con sesión válida → mandar al dashboard.
+    if (pathname === "/login") {
+      const valid = await verifySessionCookie(token);
+      if (valid) return NextResponse.redirect(new URL("/app", req.url));
     }
-
-    return NextResponse.next();
+    return withPathnameHeader(req, NextResponse.next());
   }
 
   const requiresAppSession = pathname.startsWith("/app") || pathname.startsWith("/api/");
   if (!requiresAppSession) {
-    return NextResponse.next();
+    return withPathnameHeader(req, NextResponse.next());
   }
 
   const valid = await verifySessionCookie(token);
-  console.log("[middleware] cookie valid:", valid);
 
   if (!valid) {
+    // Solo loggeamos cuando bloqueamos — útil para detectar intentos de acceso
+    // sin sesión sin spammar los logs en cada request normal.
+    console.log(`[middleware] unauth ${pathname}`);
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "No autorizado. Iniciá sesión para continuar." },
         { status: 401 }
       );
     }
-
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Importante: NO verificamos el estado de la suscripción acá (requeriría
+  // golpear Supabase desde Edge runtime con todos los timeouts/edge-cases).
+  // El gate por trial-expirado se aplica server-side en src/app/app/layout.tsx,
+  // que tiene acceso completo a Node runtime y a la base.
+  return withPathnameHeader(req, NextResponse.next());
 }
 
 export const config = {

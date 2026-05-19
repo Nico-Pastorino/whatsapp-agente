@@ -322,7 +322,7 @@ export default function ConnectionGate({ currentView }: Props) {
         Estás usando tu prueba gratuita de 14 días. Te quedan {trialPlan.days_left_trial ?? 0} días.
       </span>
       <Link href="/app/plan" className="atd-btn green sm">
-        Activar {trialPlan.plan_name}
+        Ver planes
       </Link>
     </div>
   ) : null;

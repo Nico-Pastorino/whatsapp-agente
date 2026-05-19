@@ -5,7 +5,10 @@ import { createAppSessionToken, getSessionCookieOptions } from "@/lib/app-sessio
 import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
 const VALID_PLANS = new Set(["starter", "growth", "pro"]);
-const TRIAL_PLAN_CODE = "growth";
+// El trial de 14 días usa SIEMPRE el plan Starter (decisión de producto: el trial
+// no debe desbloquear funcionalidades de planes superiores). El usuario podrá
+// elegir Growth o Pro al pagar.
+const TRIAL_PLAN_CODE = "starter";
 const TRIAL_DAYS = 14;
 
 function slugify(text: string): string {
@@ -104,8 +107,9 @@ export async function POST(req: NextRequest) {
       role: "owner",
     });
 
-    // New businesses always start on a 14-day Growth trial. Paid activation
-    // happens only through Mercado Pago subscription webhooks.
+    // New businesses always start on a 14-day Starter trial. Paid activation
+    // (incluyendo upgrades a Growth/Pro) ocurre únicamente vía webhooks de
+    // Mercado Pago al aprobarse la suscripción.
     await supabase.from("subscriptions").insert({
       business_id: businessId,
       plan_code: planCode,

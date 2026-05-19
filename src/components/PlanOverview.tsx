@@ -117,125 +117,159 @@ const PLAN_TAGLINE: Record<string, string> = {
   pro: "Para negocios con más volumen, equipo e integraciones.",
 };
 
-// ── Onboarding Guide ──────────────────────────────────────────────────────────
+// ── Pantalla de Trial Expirado / Pago Pendiente ──────────────────────────────
 
-const ONBOARDING_STEPS = [
-  {
-    n: "1",
-    title: "Completá el pago",
-    desc: "Hacé click en 'Pagar ahora' para activar tu plan. El acceso se habilita automáticamente al confirmar el pago.",
-    active: true,
-  },
-  {
-    n: "2",
-    title: "Conectá tu WhatsApp",
-    desc: "Escaneá el código QR desde tu celular para vincular el número del negocio.",
-    active: false,
-  },
-  {
-    n: "3",
-    title: "Configurá tu asistente",
-    desc: "Cargá el nombre del negocio, descripción, catálogo de productos y datos de contacto.",
-    active: false,
-  },
-  {
-    n: "4",
-    title: "Probá una conversación",
-    desc: "Enviá un mensaje desde otro celular a tu número conectado y verificá que la IA responde.",
-    active: false,
-  },
-  {
-    n: "5",
-    title: "¡Listo para operar!",
-    desc: "El asistente responde 24/7. Podés cambiar a Modo Humano cuando quieras tomar el control.",
-    active: false,
-  },
+// Lista de planes mostrada en la pantalla de trial expirado / pago pendiente.
+// Se renderizan en orden Starter → Growth → Pro. Growth se destaca como recomendado.
+const PLAN_PICKER_ORDER: { code: "starter" | "growth" | "pro"; recommended?: boolean }[] = [
+  { code: "starter" },
+  { code: "growth", recommended: true },
+  { code: "pro" },
 ];
+
+interface PlanPickerOption {
+  code: string;
+  name: string;
+  price_monthly: number;
+  currency: string;
+}
+
+function buildPlanPickerOptions(plan: PlanSummary): PlanPickerOption[] {
+  // Unimos plan actual + upgrade_options + downgrade_options para tener Starter/Growth/Pro.
+  const map = new Map<string, PlanPickerOption>();
+  if (plan.price_monthly != null) {
+    map.set(plan.plan_code, {
+      code: plan.plan_code,
+      name: plan.plan_name,
+      price_monthly: plan.price_monthly,
+      currency: plan.currency,
+    });
+  }
+  for (const opt of [...plan.upgrade_options, ...plan.downgrade_options]) {
+    if (!map.has(opt.code) && typeof opt.price_monthly === "number") {
+      map.set(opt.code, {
+        code: opt.code,
+        name: opt.name,
+        price_monthly: opt.price_monthly,
+        currency: opt.currency,
+      });
+    }
+  }
+  return PLAN_PICKER_ORDER
+    .map(({ code }) => map.get(code))
+    .filter((value): value is PlanPickerOption => Boolean(value));
+}
 
 function OnboardingGuide({
   plan,
   onPay,
   checkoutLoading,
   checkoutError,
+  upgradeLoading,
 }: {
   plan: PlanSummary;
-  onPay: () => void;
+  onPay: (planCode?: string, checkoutType?: string) => void;
   checkoutLoading: boolean;
   checkoutError: string | null;
+  upgradeLoading: string | null;
 }) {
   const trialExpired = plan.access_reason === "trial_expired";
   const pendingPayment = plan.status === "pending_payment";
   const title = trialExpired
-    ? "Tu prueba gratuita finalizó"
+    ? "Tu prueba terminó"
     : pendingPayment
       ? "Estamos esperando la confirmación del pago"
       : "Activá tu cuenta y seguí vendiendo";
   const description = trialExpired
-    ? "Para continuar usando el bot de WhatsApp, activá tu plan."
+    ? "Elegí un plan para seguir usando tu asistente de WhatsApp. Tus conversaciones, contactos y configuración se mantienen intactos."
     : pendingPayment
       ? "Cuando Mercado Pago apruebe la suscripción, tu cuenta se activará automáticamente."
-      : "Hacé click en 'Pagar ahora' para activar tu plan. El acceso se habilita automáticamente al confirmar el pago.";
+      : "Elegí el plan que mejor se adapte a tu negocio. El acceso se habilita automáticamente al confirmar el pago.";
+
+  const showPlanPicker = trialExpired || pendingPayment === false;
+  const planOptions = buildPlanPickerOptions(plan);
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
-      <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-3xl mx-auto px-5 py-8 sm:py-10 space-y-7">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
-            Primeros pasos
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
+            {trialExpired ? "Prueba finalizada" : pendingPayment ? "Pago en proceso" : "Primeros pasos"}
           </p>
-          <h2 className="mt-2 text-3xl font-semibold text-gray-900">
+          <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
             {title}
           </h2>
-          <p className="mt-2 text-sm text-gray-500">
-            Plan <strong>{plan.plan_name}</strong> ·{" "}
-            {formatMoney(plan.price_monthly, plan.currency)} / mes
-          </p>
-        </div>
-
-        <ol className="space-y-3">
-          {ONBOARDING_STEPS.map((step) => (
-            <li
-              key={step.n}
-              className={`flex gap-4 rounded-2xl border p-5 ${
-                step.active
-                  ? "border-emerald-300 bg-white shadow-sm"
-                  : "border-gray-200 bg-white opacity-50"
-              }`}
-            >
-              <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                  step.active
-                    ? "bg-emerald-500 text-white"
-                    : "bg-gray-100 text-gray-400"
-                }`}
-              >
-                {step.n}
-              </span>
-              <div>
-                <p className="font-semibold text-gray-900">{step.title}</p>
-                <p className="mt-1 text-sm leading-6 text-gray-500">{step.desc}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 space-y-4">
-          <p className="text-sm font-medium text-emerald-800">
+          <p className="mt-3 text-sm sm:text-base text-gray-600 leading-relaxed">
             {description}
           </p>
-          {checkoutError && (
-            <p className="text-sm text-red-600">{checkoutError}</p>
-          )}
-          <button
-            onClick={onPay}
-            disabled={checkoutLoading}
-            className="w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50"
-          >
-            {checkoutLoading
-              ? "Redirigiendo a pago..."
-              : `Pagar ahora — ${formatMoney(plan.price_monthly, plan.currency)}`}
-          </button>
         </div>
+
+        {checkoutError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {checkoutError}
+          </div>
+        )}
+
+        {showPlanPicker && planOptions.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {planOptions.map((opt) => {
+              const isRecommended = PLAN_PICKER_ORDER.find((p) => p.code === opt.code)?.recommended;
+              const included = PLAN_INCLUDED[opt.code] ?? [];
+              const loading = upgradeLoading === opt.code && checkoutLoading;
+              return (
+                <div
+                  key={opt.code}
+                  className={`flex flex-col rounded-2xl border bg-white p-5 ${
+                    isRecommended ? "border-emerald-400 shadow-md ring-1 ring-emerald-200" : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-base font-semibold text-gray-900">{opt.name}</p>
+                    {isRecommended && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
+                        Recomendado
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 min-h-[2.5em] leading-snug">
+                    {PLAN_TAGLINE[opt.code] ?? ""}
+                  </p>
+                  <p className="mt-3 text-2xl font-semibold text-gray-900">
+                    {formatMoney(opt.price_monthly, opt.currency)}
+                    <span className="text-sm font-normal text-gray-400"> / mes</span>
+                  </p>
+                  <ul className="space-y-1.5 my-4 flex-1">
+                    {included.slice(0, 4).map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-xs text-gray-600">
+                        <span className="mt-0.5 text-emerald-500 shrink-0">✓</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => onPay(opt.code, opt.code === plan.plan_code ? "initial" : "upgrade")}
+                    disabled={checkoutLoading}
+                    className={`w-full rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                      isRecommended
+                        ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                        : "bg-gray-900 text-white hover:bg-gray-800"
+                    }`}
+                  >
+                    {loading ? "Redirigiendo..." : `Elegir ${opt.name}`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {pendingPayment && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <p className="text-sm text-amber-800">
+              Mercado Pago está procesando tu pago. Esta página se actualiza sola; podés cerrarla y volver más tarde.
+            </p>
+          </div>
+        )}
 
         <p className="text-center text-xs text-gray-400">
           ¿Ya pagaste y no se activó?{" "}
@@ -526,9 +560,10 @@ export default function PlanOverview() {
     return (
       <OnboardingGuide
         plan={plan}
-        onPay={() => startCheckout()}
+        onPay={(code, type) => startCheckout(code, type)}
         checkoutLoading={checkoutLoading}
         checkoutError={checkoutError}
+        upgradeLoading={upgradeLoading}
       />
     );
   }
@@ -554,7 +589,7 @@ export default function PlanOverview() {
                 Estás usando tu prueba gratuita de 14 días.
               </div>
               <div style={{ fontSize: 13, color: "var(--green-soft)", marginTop: 2 }}>
-                Te quedan {plan.days_left_trial ?? 0} días para probar todas las funciones de Growth.
+                Te quedan {plan.days_left_trial ?? 0} días con el plan {plan.plan_name}. Activá un plan para no perder el acceso.
               </div>
             </div>
             <button
@@ -562,7 +597,7 @@ export default function PlanOverview() {
               disabled={checkoutLoading}
               className="atd-btn green sm"
             >
-              {checkoutLoading ? "Redirigiendo..." : "Activar Growth"}
+              {checkoutLoading ? "Redirigiendo..." : "Ver planes"}
             </button>
           </div>
         )}
