@@ -21,11 +21,18 @@
     "seed:plans": "tsx scripts/seed-plans.ts",
     "migrate:contacts": "tsx scripts/migrate-contacts-identities.ts",
     "repair:contacts": "tsx scripts/repair-contact-conversations.ts",
-    "start:all": "concurrently --kill-others --names WORKER,WEB --prefix-colors yellow,cyan \"npm run start:worker\" \"npm run start\""
+    "start:all": "concurrently --kill-others --names WORKER,WEB --prefix-colors yellow,cyan \"npm run start:worker\" \"npm run start\"",
+    "pm2:worker:start": "pm2 start ecosystem.worker.config.cjs",
+    "pm2:worker:restart": "pm2 restart whatsapp-agente-worker",
+    "pm2:worker:stop": "pm2 stop whatsapp-agente-worker",
+    "pm2:worker:delete": "pm2 delete whatsapp-agente-worker",
+    "pm2:worker:logs": "pm2 logs whatsapp-agente-worker --lines 200",
+    "pm2:worker:status": "pm2 status whatsapp-agente-worker",
+    "pm2:worker:save": "pm2 save"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.1",
-    "@whiskeysockets/baileys": "^7.0.0-rc12",
+    "@whiskeysockets/baileys": "^6.7.22",
     "concurrently": "^9.1.2",
     "mercadopago": "^2.12.0",
     "next": "^15.5.18",

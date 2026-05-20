@@ -172,6 +172,41 @@ pm2 start "npm run start:worker" --name agente-whatsapp-worker
 pm2 save
 ```
 
+#### Worker 24/7 con PM2 (recomendado)
+
+Este repo ya incluye `ecosystem.worker.config.cjs` para dejar el worker siempre activo.
+
+```bash
+# 1) Instalar PM2 global (una sola vez)
+npm i -g pm2
+
+# 2) Crear archivo de entorno del worker
+cp .env.worker.example .env.worker
+# Editar .env.worker con valores reales (incluyendo BUSINESS_ID)
+
+# 3) Iniciar worker administrado por PM2
+cd /home/claw/whatsapp-agente
+npm run pm2:worker:start
+
+# 4) Ver estado y logs
+npm run pm2:worker:status
+npm run pm2:worker:logs
+
+# 5) Guardar procesos para persistir reinicios del sistema
+npm run pm2:worker:save
+pm2 startup
+```
+
+`pm2 startup` te va a devolver un comando final con `sudo ...`. Ejecutalo tal cual para habilitar auto-arranque al reiniciar el servidor.
+
+Comandos útiles:
+
+```bash
+npm run pm2:worker:restart
+npm run pm2:worker:stop
+npm run pm2:worker:delete
+```
+
 ### Variables de entorno que necesita el worker
 
 ```bash
