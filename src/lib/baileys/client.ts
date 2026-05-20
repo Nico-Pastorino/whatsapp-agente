@@ -60,6 +60,8 @@ export async function start(): Promise<void> {
     console.warn("[bot] No se pudo obtener última versión:", err);
   }
 
+  // Baileys expone este helper con prefijo `use*`, pero no es un React Hook.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
   const sock = makeWASocket({

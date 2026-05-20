@@ -1192,7 +1192,7 @@ export async function resolveContactIdentity(
       .maybeSingle();
     if (error) throw error;
     if (data) {
-      let contact =
+      const contact =
         parsed.jidType === "pn_jid"
           ? await updateContactRow(data.id, {
               display_name: data.display_name ?? pushName,
