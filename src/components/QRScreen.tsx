@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 interface Props {
   onConnected: (phone: string) => void;
@@ -68,10 +69,13 @@ export default function QRScreen({ onConnected }: Props) {
         {/* QR card */}
         <div className="atd-card" style={{ padding: 20, display: "inline-block", marginBottom: 16 }}>
           {data.qrPng ? (
-            <img
+            <Image
               src={data.qrPng}
               alt="QR de WhatsApp"
-              style={{ width: 220, height: 220, borderRadius: 14, display: "block" }}
+              width={220}
+              height={220}
+              unoptimized
+              style={{ borderRadius: 14, display: "block" }}
             />
           ) : data.status === "connecting" ? (
             <div style={{ width: 220, height: 220, borderRadius: 14, background: "var(--surface-2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>

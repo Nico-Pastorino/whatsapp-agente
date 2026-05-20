@@ -4,7 +4,6 @@ import { getSupabaseAdminClient } from "./supabase";
 import {
   extractPhoneFromJid,
   extractPhoneNumberIfKnown,
-  getJidType,
   normalizeWhatsAppJid,
   parseWhatsAppIdentity,
   type IdentityType,
@@ -171,11 +170,6 @@ function setCachedValue<T>(
   ttlMs: number
 ): void {
   cache.set(key, { value, expiresAt: Date.now() + ttlMs });
-}
-
-function invalidateBusinessCaches(businessId: string): void {
-  subscriptionCache.delete(businessId);
-  businessProfileCache.delete(businessId);
 }
 
 export interface UpgradeOption {

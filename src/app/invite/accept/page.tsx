@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
@@ -50,7 +50,7 @@ function InviteAcceptPageContent() {
 
   const inviteEmail = invitation?.email ?? "";
 
-  async function loadInvitation() {
+  const loadInvitation = useCallback(async () => {
     if (!token) {
       throw new Error("Invitación inválida.");
     }
@@ -66,9 +66,9 @@ function InviteAcceptPageContent() {
     }
     setInvitation(payload.invitation);
     setLoginEmail(payload.invitation.email);
-  }
+  }, [token]);
 
-  async function loadSession() {
+  const loadSession = useCallback(async () => {
     const res = await fetch("/api/auth/session", { cache: "no-store" });
     if (!res.ok) {
       setSession(null);
@@ -77,7 +77,7 @@ function InviteAcceptPageContent() {
     const payload = (await res.json()) as SessionPayload;
     setSession(payload);
     return payload;
-  }
+  }, []);
 
   async function acceptInvitation() {
     const res = await fetch("/api/invite/accept", {
@@ -103,7 +103,7 @@ function InviteAcceptPageContent() {
         setError(err instanceof Error ? err.message : "No se pudo cargar la invitación.");
       })
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [loadInvitation, loadSession]);
 
   const sessionMatchesInvite = useMemo(() => {
     if (!session?.user.email || !inviteEmail) return false;
