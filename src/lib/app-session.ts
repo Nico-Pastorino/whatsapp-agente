@@ -12,6 +12,8 @@ export interface AppSessionPayload {
 }
 
 function getSessionSecret(): string {
+  const dedicatedSecret = process.env.APP_SESSION_SECRET?.trim();
+  if (dedicatedSecret) return dedicatedSecret;
   return getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
 }
 
