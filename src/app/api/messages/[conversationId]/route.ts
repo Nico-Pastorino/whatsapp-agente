@@ -61,12 +61,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       }
 
       const target = await getBestOutgoingJidForConversation(id, businessId);
-      console.log(`[send] contact_id=${conv.contact_id}`);
-      console.log(`[send] has pn_jid=${Boolean(target.targetJid)}`);
-      console.log(`[send] target_jid=${target.targetJid || ""}`);
-      console.log(
-        `[send] blocked_reason=${target.targetJid ? "" : target.reason ?? "missing_safe_phone_jid"}`
-      );
+      // Avoid logging identifiers from conversations/contacts in server logs.
+      console.log(`[send] target_jid_available=${Boolean(target.targetJid)}`);
+      console.log(`[send] blocked_reason=${target.targetJid ? "" : target.reason ?? "missing_safe_phone_jid"}`);
       if (!target.targetJid) {
         const message =
           target.reason === "self_target"

@@ -97,12 +97,10 @@ export async function POST(req: NextRequest) {
 
       const appUrl = getAppUrl();
 
-      console.log(`[mp/checkout] business_id=${businessId}`);
       console.log(`[mp/checkout] checkout_type=${checkoutType}`);
       console.log(`[mp/checkout] current_plan=${currentPlanCode}`);
       console.log(`[mp/checkout] target_plan=${targetPlanCode}`);
       console.log(`[mp/checkout] amount=${plan.price_monthly} ${plan.currency ?? "ARS"}`);
-      console.log(`[mp/checkout] payment_record_id=${payment.id}`);
 
       const client = getMpClient();
       const preApprovalClient = new PreApproval(client);
@@ -146,8 +144,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Mercado Pago no devolvió un checkout válido." }, { status: 502 });
       }
 
-      console.log(`[mp/checkout] preapproval created id=${result.id}`);
-      console.log(`[mp/checkout] checkout_url=${result.init_point}`);
+      console.log("[mp/checkout] preapproval created successfully");
 
       await supabase
         .from("payments")

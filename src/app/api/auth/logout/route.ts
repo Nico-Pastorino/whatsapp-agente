@@ -10,8 +10,6 @@ export async function POST(req: Request) {
       .find((part) => part.startsWith(`${APP_SESSION_COOKIE}=`))
       ?.slice(`${APP_SESSION_COOKIE}=`.length) ?? "";
 
-  console.log("[auth/logout] cookie present:", !!rawToken);
-
   const res = NextResponse.json({ ok: true });
   res.cookies.set(APP_SESSION_COOKIE, "", {
     httpOnly: true,
