@@ -31,7 +31,7 @@
     "pm2:worker:save": "pm2 save"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.1",
+    "@supabase/supabase-js": "^2.106.1",
     "@whiskeysockets/baileys": "^6.7.22",
     "concurrently": "^9.1.2",
     "mercadopago": "^2.12.0",
