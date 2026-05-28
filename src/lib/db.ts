@@ -93,4 +93,5 @@ export {
   listBusinessItems,
   toggleBusinessItemActive,
   updateBusinessItem,
+  getActiveBusinessIdsForWorker,
 } from "./data-access";

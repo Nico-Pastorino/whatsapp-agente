@@ -2490,9 +2490,11 @@ export async function insertMessage(
   return mapMessageRow(data);
 }
 
-export async function isExternalMessageDuplicate(externalMessageId: string): Promise<boolean> {
+export async function isExternalMessageDuplicate(
+  externalMessageId: string,
+  businessId = getBusinessId()
+): Promise<boolean> {
   const supabase = getSupabaseAdminClient();
-  const businessId = getBusinessId();
   const [msgResult, outboxResult] = await Promise.all([
     supabase
       .from("messages")
@@ -2514,25 +2516,27 @@ export async function isExternalMessageDuplicate(externalMessageId: string): Pro
 
 export async function setMessageExternalId(
   messageId: string,
-  externalMessageId: string
+  externalMessageId: string,
+  businessId = getBusinessId()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   await supabase
     .from("messages")
     .update({ external_message_id: externalMessageId })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", messageId);
 }
 
 export async function setOutboxExternalId(
   outboxId: string,
-  externalMessageId: string
+  externalMessageId: string,
+  businessId = getBusinessId()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   await supabase
     .from("outbox_messages")
     .update({ external_message_id: externalMessageId })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", outboxId);
 }
 
@@ -2571,16 +2575,30 @@ export async function getRecentHistory(
 }
 
 export async function getConnectionState(
-  businessId = getBusinessId()
+  businessId = getBusinessId(),
+  instanceName = getWorkerInstanceName()
 ): Promise<ConnectionState> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("whatsapp_sessions")
     .select("status, qr_string, phone, auth_path, last_seen_at, updated_at")
     .eq("business_id", businessId)
-    .eq("instance_name", getWorkerInstanceName())
+    .eq("instance_name", instanceName)
     .single();
-  if (error || !data) throw error ?? new Error("whatsapp_sessions missing");
+  // PGRST116 = no rows found — treat as disconnected instead of throwing 500
+  if (error && error.code !== "PGRST116") throw error;
+  if (!data) {
+    return {
+      id: 1,
+      status: "disconnected",
+      qr_string: null,
+      phone: null,
+      auth_path: null,
+      last_seen_at: null,
+      updated_at: 0,
+      worker_online: false,
+    };
+  }
 
   const lastSeenAt = toUnixSeconds(data.last_seen_at);
   return {
@@ -2591,17 +2609,21 @@ export async function getConnectionState(
     auth_path: data.auth_path,
     last_seen_at: lastSeenAt,
     updated_at: toUnixSeconds(data.updated_at) ?? 0,
-    worker_online: typeof lastSeenAt === "number" ? Math.floor(Date.now() / 1000) - lastSeenAt <= 15 : false,
+    worker_online: typeof lastSeenAt === "number" ? Math.floor(Date.now() / 1000) - lastSeenAt <= 30 : false,
   };
 }
 
-export async function setConnectionState(patch: {
-  status: "disconnected" | "qr" | "connecting" | "connected";
-  qr_string?: string | null;
-  phone?: string | null;
-  auth_path?: string | null;
-}, businessId = getBusinessId()): Promise<void> {
-  const current = await getConnectionState(businessId).catch(() => ({
+export async function setConnectionState(
+  patch: {
+    status: "disconnected" | "qr" | "connecting" | "connected";
+    qr_string?: string | null;
+    phone?: string | null;
+    auth_path?: string | null;
+  },
+  businessId = getBusinessId(),
+  instanceName = getWorkerInstanceName()
+): Promise<void> {
+  const current = await getConnectionState(businessId, instanceName).catch(() => ({
     qr_string: null,
     phone: null,
     auth_path: null,
@@ -2609,32 +2631,42 @@ export async function setConnectionState(patch: {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("whatsapp_sessions")
-    .update({
-      status: patch.status,
-      qr_string: patch.qr_string !== undefined ? patch.qr_string : current.qr_string,
-      phone: patch.phone !== undefined ? patch.phone : current.phone,
-      auth_path: patch.auth_path !== undefined ? patch.auth_path : current.auth_path,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("business_id", businessId)
-    .eq("instance_name", getWorkerInstanceName());
+    .upsert(
+      {
+        business_id: businessId,
+        instance_name: instanceName,
+        status: patch.status,
+        qr_string: patch.qr_string !== undefined ? patch.qr_string : current.qr_string,
+        phone: patch.phone !== undefined ? patch.phone : current.phone,
+        auth_path: patch.auth_path !== undefined ? patch.auth_path : current.auth_path,
+        desired_action: "none",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "business_id,instance_name" }
+    );
   if (error) throw error;
 }
 
 export async function updateWorkerHeartbeat(
   authPath?: string,
-  businessId = getBusinessId()
+  businessId = getBusinessId(),
+  instanceName = getWorkerInstanceName()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("whatsapp_sessions")
-    .update({
-      last_seen_at: new Date().toISOString(),
-      auth_path: authPath,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("business_id", businessId)
-    .eq("instance_name", getWorkerInstanceName());
+    .upsert(
+      {
+        business_id: businessId,
+        instance_name: instanceName,
+        last_seen_at: new Date().toISOString(),
+        auth_path: authPath,
+        status: "disconnected",
+        desired_action: "none",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "business_id,instance_name", ignoreDuplicates: false }
+    );
   if (error) throw error;
 }
 
@@ -2750,12 +2782,15 @@ export async function linkPhoneToContact(
   };
 }
 
-export async function getPendingOutbox(limit = 20): Promise<OutboxItem[]> {
+export async function getPendingOutbox(
+  limit = 20,
+  businessId = getBusinessId()
+): Promise<OutboxItem[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("outbox_messages")
     .select("id, conversation_id, contact_id, target_jid, content, sent, retry_count, created_at")
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("sent", false)
     .lt("retry_count", 3)
     .order("created_at", { ascending: true })
@@ -2773,7 +2808,10 @@ export async function getPendingOutbox(limit = 20): Promise<OutboxItem[]> {
   }));
 }
 
-export async function markOutboxSent(id: string): Promise<void> {
+export async function markOutboxSent(
+  id: string,
+  businessId = getBusinessId()
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("outbox_messages")
@@ -2782,7 +2820,7 @@ export async function markOutboxSent(id: string): Promise<void> {
       sent_at: new Date().toISOString(),
       error: null,
     })
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", id);
   if (error) throw error;
 }
@@ -2790,7 +2828,8 @@ export async function markOutboxSent(id: string): Promise<void> {
 export async function setOutboxError(
   id: string,
   errorMessage: string,
-  newRetryCount?: number
+  newRetryCount?: number,
+  businessId = getBusinessId()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const patch: Record<string, unknown> = { error: errorMessage, sent: false };
@@ -2800,13 +2839,14 @@ export async function setOutboxError(
   const { error } = await supabase
     .from("outbox_messages")
     .update(patch)
-    .eq("business_id", getBusinessId())
+    .eq("business_id", businessId)
     .eq("id", id);
   if (error) throw error;
 }
 
 export async function requestWhatsappDisconnect(
-  businessId = getBusinessId()
+  businessId = getBusinessId(),
+  instanceName = getWorkerInstanceName()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
@@ -2816,23 +2856,29 @@ export async function requestWhatsappDisconnect(
       updated_at: new Date().toISOString(),
     })
     .eq("business_id", businessId)
-    .eq("instance_name", getWorkerInstanceName());
+    .eq("instance_name", instanceName);
   if (error) throw error;
 }
 
-export async function getRequestedSessionAction(): Promise<string> {
+export async function getRequestedSessionAction(
+  businessId = getBusinessId(),
+  instanceName = getWorkerInstanceName()
+): Promise<string> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("whatsapp_sessions")
     .select("desired_action")
-    .eq("business_id", getBusinessId())
-    .eq("instance_name", getWorkerInstanceName())
+    .eq("business_id", businessId)
+    .eq("instance_name", instanceName)
     .single();
   if (error || !data) throw error ?? new Error("desired_action missing");
   return data.desired_action ?? "none";
 }
 
-export async function clearRequestedSessionAction(): Promise<void> {
+export async function clearRequestedSessionAction(
+  businessId = getBusinessId(),
+  instanceName = getWorkerInstanceName()
+): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
     .from("whatsapp_sessions")
@@ -2840,9 +2886,34 @@ export async function clearRequestedSessionAction(): Promise<void> {
       desired_action: "none",
       updated_at: new Date().toISOString(),
     })
-    .eq("business_id", getBusinessId())
-    .eq("instance_name", getWorkerInstanceName());
+    .eq("business_id", businessId)
+    .eq("instance_name", instanceName);
   if (error) throw error;
+}
+
+/**
+ * Devuelve los IDs de todos los negocios que deben tener una sesión de WhatsApp activa.
+ * Se incluyen los que tienen suscripción en trial o active y una fila en whatsapp_sessions.
+ */
+export async function getActiveBusinessIdsForWorker(): Promise<string[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("business_id")
+    .in("status", ["trial", "active"]);
+  if (error) throw error;
+  const businessIds = (data ?? []).map((r) => r.business_id as string).filter(Boolean);
+  if (businessIds.length === 0) return [];
+
+  // Verificar cuáles tienen una fila en whatsapp_sessions
+  const { data: sessions, error: sessionError } = await supabase
+    .from("whatsapp_sessions")
+    .select("business_id")
+    .in("business_id", businessIds);
+  if (sessionError) throw sessionError;
+
+  const sessionSet = new Set((sessions ?? []).map((r) => r.business_id as string));
+  return businessIds.filter((id) => sessionSet.has(id));
 }
 
 export function derivePhoneNumberFromMessage(

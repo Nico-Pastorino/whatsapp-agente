@@ -52,6 +52,12 @@ export default function QRScreen({ onConnected }: Props) {
     data.workerOnline === false ||
     (data.status === "disconnected" && !data.qrPng && elapsedSinceStart > 10);
 
+  // El QR de WhatsApp expira cada ~60s. Si updatedAt tiene más de 55s, avisamos.
+  const qrIsStale =
+    !!data.qrPng &&
+    !!data.updatedAt &&
+    (Date.now() / 1000 - data.updatedAt) > 55;
+
   return (
     <div style={{ flex: 1, overflow: "auto", background: "var(--bg)" }}>
       <div className="page-header">
@@ -87,12 +93,9 @@ export default function QRScreen({ onConnected }: Props) {
               <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
               {showBotOfflineHint ? (
                 <div style={{ padding: "0 16px" }}>
-                  <p style={{ fontSize: 12, color: "#c0392b", fontWeight: 500, marginBottom: 4 }}>Worker offline</p>
-                  <p style={{ fontSize: 11, color: "var(--muted)" }}>
-                    Ejecutá{" "}
-                    <code style={{ fontFamily: "var(--font-mono)", background: "var(--surface)", padding: "1px 5px", borderRadius: 4 }}>
-                      npm run start:worker
-                    </code>
+                  <p style={{ fontSize: 12, color: "#c0392b", fontWeight: 500, marginBottom: 4 }}>Asistente iniciando</p>
+                  <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", lineHeight: 1.5 }}>
+                    El asistente está arrancando, puede tardar 1–2 minutos. Si el código no aparece, contactá a soporte.
                   </p>
                 </div>
               ) : (
@@ -103,8 +106,8 @@ export default function QRScreen({ onConnected }: Props) {
         </div>
 
         {data.qrPng && (
-          <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginBottom: 20 }}>
-            escanear antes de que expire
+          <div className="mono" style={{ fontSize: 11, color: qrIsStale ? "#c0392b" : "var(--muted)", marginBottom: 20 }}>
+            {qrIsStale ? "⏳ actualizando código..." : "escanear antes de que expire"}
           </div>
         )}
 

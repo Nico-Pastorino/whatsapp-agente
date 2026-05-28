@@ -15,6 +15,7 @@ function slugify(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 40);
@@ -122,11 +123,11 @@ export async function POST(req: NextRequest) {
     console.log(`[signup] subscription trial created business_id=${businessId} plan=${planCode} trial_ends_at=${trialEndsAt}`);
 
     // WhatsApp session placeholder
-        // instance_name must match WORKER_INSTANCE_NAME so status/QR queries find the right row
-        const workerInstanceName = process.env.WORKER_INSTANCE_NAME ?? "primary";
+    // instance_name must match WORKER_INSTANCE_NAME so status/QR queries find the right row
+    const workerInstanceName = process.env.WORKER_INSTANCE_NAME ?? "main";
     await supabase.from("whatsapp_sessions").insert({
       business_id: businessId,
-            instance_name: workerInstanceName,
+      instance_name: workerInstanceName,
       status: "disconnected",
       desired_action: "none",
       updated_at: now,

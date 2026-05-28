@@ -1,41 +1,33 @@
-import { getConnectionState } from "@/lib/db";
-import {
-  beginManualDisconnect,
-  getHandle,
-  start as startBaileysClient,
-} from "@/lib/baileys/client";
+/**
+ * BaileysProvider — stub de compatibilidad.
+ *
+ * En la arquitectura multi-tenant, el worker llama directamente a
+ * `startSession(businessId)` en `lib/baileys/client.ts`.
+ * Esta clase ya no es el punto de entrada del worker pero se mantiene
+ * para no romper la interfaz WhatsAppProvider si se usa en el futuro.
+ */
+
 import type { WhatsAppProvider } from "../provider";
 
 export class BaileysProvider implements WhatsAppProvider {
   async start(): Promise<void> {
-    await startBaileysClient();
+    throw new Error(
+      "BaileysProvider.start() está deprecado. Usá startSession(businessId) desde lib/baileys/client."
+    );
   }
 
-  async sendText(to: string, text: string): Promise<string | null> {
-    const handle = getHandle();
-    if (!handle) {
-      throw new Error("WhatsApp no está conectado.");
-    }
-
-    const result = await handle.sock.sendMessage(to, { text });
-    return result?.key?.id ?? null;
+  async sendText(_to: string, _text: string): Promise<string | null> {
+    throw new Error("BaileysProvider.sendText() está deprecado en modo multi-tenant.");
   }
 
   async disconnect(): Promise<void> {
-    const handle = getHandle();
-    if (!handle) return;
-    beginManualDisconnect();
-    await handle.shutdown();
+    throw new Error("BaileysProvider.disconnect() está deprecado en modo multi-tenant.");
   }
 
   async getConnectionStatus(): Promise<{
     status: "disconnected" | "qr" | "connecting" | "connected";
     phone: string | null;
   }> {
-    const state = await getConnectionState();
-    return {
-      status: state.status,
-      phone: state.phone,
-    };
+    throw new Error("BaileysProvider.getConnectionStatus() está deprecado en modo multi-tenant.");
   }
 }

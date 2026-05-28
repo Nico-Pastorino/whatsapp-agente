@@ -1,6 +1,10 @@
-# Agente WhatsApp — Arquitectura híbrida comercial
+# Atendé — Arquitectura SaaS multi-tenant
 
-Landing pública + dashboard privado en **Next.js/Vercel**, base de datos y auth en **Supabase**, y worker Baileys persistente en **VPS/EasyPanel/Coolify**.
+Landing pública + dashboard privado en **Next.js/Vercel**, base de datos y auth en **Supabase**, y worker Baileys persistente en **Railway/VPS/EasyPanel**.
+
+## Arquitectura multi-tenant
+
+Un **único proceso worker** gestiona una sesión de WhatsApp por cada negocio activo. No se necesita configurar nada extra por cliente — el worker auto-descubre los negocios con suscripción activa o en trial desde Supabase.
 
 ```
 ┌──────────────┐     polling     ┌──────────────────┐
@@ -12,14 +16,22 @@ Landing pública + dashboard privado en **Next.js/Vercel**, base de datos y auth
                                  │    (Postgres)     │
                                  └────────▲─────────┘
                                           │ Supabase JS
-                                 ┌────────┴─────────┐
-                                 │  Worker (VPS)     │
-                                 │  Baileys 24/7     │
-                                 └──────────────────┘
+                          ┌───────────────┴──────────────────┐
+                          │     Worker multi-tenant (VPS)     │
+                          │   Sesión WA por negocio activo    │
+                          │   Negocio A · Negocio B · ...     │
+                          └──────────────────────────────────┘
 ```
 
 **Baileys NO corre en Vercel.** Vercel es serverless — no soporta procesos long-running.
-Baileys vive en un VPS o servicio de containers con proceso persistente.
+El worker vive en un VPS o servicio de containers con proceso persistente (Railway recomendado).
+
+### Cómo funciona la auto-detección de negocios
+
+1. Al arrancar, el worker consulta `subscriptions` WHERE `status IN ('trial', 'active')`.
+2. Para cada negocio con fila en `whatsapp_sessions`, inicia una conexión Baileys.
+3. Cada 60 segundos re-escanea: si un nuevo cliente se registró y pagó/entró en trial, el worker arranca su sesión automáticamente.
+4. Cada sesión tiene su propio directorio de auth: `BAILEYS_AUTH_BASE_PATH/<business_id>/primary/`.
 
 ---
 
@@ -47,8 +59,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-# OpenAI
-OPENAI_API_KEY=sk-proj-...
+# LLM (OpenAI o OpenRouter)
+OPENAI_API_KEY=sk-proj-...         # OpenAI
+# OPENROUTER_API_KEY=sk-or-v1-...  # OpenRouter (alternativa)
 OPENAI_MODEL=gpt-4o-mini
 
 # Landing / app web
@@ -59,13 +72,11 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 MERCADOPAGO_ACCESS_TOKEN=APP_USR-...
 MERCADOPAGO_WEBHOOK_SECRET=...
 
-# Worker
-BUSINESS_ID=uuid-del-negocio-para-el-worker
-WORKER_INSTANCE_NAME=main
-WHATSAPP_PROVIDER=baileys
+# Worker (multi-tenant — ya NO necesita BUSINESS_ID)
+WORKER_INSTANCE_NAME=primary
 BAILEYS_AUTH_BASE_PATH=./auth
 
-# Bootstrap comercial
+# Bootstrap comercial (solo para scripts de setup)
 OWNER_EMAIL=owner@tu-negocio.com
 OWNER_PASSWORD=una-contraseña-segura
 BUSINESS_NAME=Mi Negocio
@@ -210,15 +221,14 @@ npm run pm2:worker:delete
 ### Variables de entorno que necesita el worker
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
-OPENAI_API_KEY
-OPENAI_MODEL
-BUSINESS_ID
-WORKER_INSTANCE_NAME
-WHATSAPP_PROVIDER=baileys
-BAILEYS_AUTH_BASE_PATH=/data/baileys-auth
+NEXT_PUBLIC_SUPABASE_URL         # https://xxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY        # eyJ... (¡secret!)
+OPENAI_API_KEY                   # sk-... (o OPENROUTER_API_KEY)
+BAILEYS_AUTH_BASE_PATH           # /data/baileys-auth  ← DEBE ser volumen persistente
+WORKER_INSTANCE_NAME             # primary (default, no cambiar salvo casos especiales)
 ```
+
+**Ya NO se necesita** `BUSINESS_ID` — el worker auto-descubre todos los negocios activos desde Supabase.
 
 **No necesita** `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `OWNER_EMAIL`, `OWNER_PASSWORD`, `NEXT_PUBLIC_DEMO_WHATSAPP_URL` ni `NEXT_PUBLIC_APP_URL`.
 

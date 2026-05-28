@@ -1,4 +1,4 @@
-const DEFAULT_WORKER_INSTANCE_NAME = "primary";
+const DEFAULT_WORKER_INSTANCE_NAME = "main";
 const DEFAULT_BAILEYS_AUTH_BASE_PATH = "/data/baileys-auth";
 const DEFAULT_WHATSAPP_PROVIDER = "baileys";
 

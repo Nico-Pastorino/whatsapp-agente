@@ -1,3 +1,10 @@
+/**
+ * Gestor multi-sesión de Baileys.
+ *
+ * Cada negocio tiene su propia instancia de socket, reconexión y auth.
+ * El auth dir se construye como: BAILEYS_AUTH_BASE_PATH / businessId / instanceName
+ */
+
 import makeWASocket, {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
@@ -9,55 +16,78 @@ import pino from "pino";
 import qrcodeTerminal from "qrcode-terminal";
 import path from "node:path";
 import fs from "node:fs";
-import { getBaileysAuthBasePath, getBusinessId, getWorkerInstanceName } from "../env";
+import { getBaileysAuthBasePath, getWorkerInstanceName } from "../env";
 import { setConnectionState, getConnectionState, updateWorkerHeartbeat } from "../db";
 import { setupMessageHandler } from "./handler";
 
 const logger = pino({ level: "silent" });
-
-export function getAuthDir(): string {
-  return path.resolve(
-    getBaileysAuthBasePath(),
-    getBusinessId(),
-    getWorkerInstanceName()
-  );
-}
 
 export interface BotHandle {
   sock: WASocket;
   shutdown: () => Promise<void>;
 }
 
-let handle: BotHandle | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let manualDisconnectInProgress = false;
-
-function clearReconnectTimer(): void {
-  if (!reconnectTimer) return;
-  clearTimeout(reconnectTimer);
-  reconnectTimer = null;
+interface SessionState {
+  handle: BotHandle | null;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
+  manualDisconnectInProgress: boolean;
 }
 
-export function beginManualDisconnect(): void {
-  manualDisconnectInProgress = true;
-  clearReconnectTimer();
+// Map de businessId → estado de sesión
+const sessions = new Map<string, SessionState>();
+
+export function getAuthDir(businessId: string): string {
+  return path.resolve(
+    getBaileysAuthBasePath(),
+    businessId,
+    getWorkerInstanceName()
+  );
 }
 
-export async function start(): Promise<void> {
-  manualDisconnectInProgress = false;
-  const authDir = getAuthDir();
+function getOrCreateSession(businessId: string): SessionState {
+  if (!sessions.has(businessId)) {
+    sessions.set(businessId, {
+      handle: null,
+      reconnectTimer: null,
+      manualDisconnectInProgress: false,
+    });
+  }
+  return sessions.get(businessId)!;
+}
+
+function clearReconnectTimer(businessId: string): void {
+  const session = sessions.get(businessId);
+  if (!session?.reconnectTimer) return;
+  clearTimeout(session.reconnectTimer);
+  session.reconnectTimer = null;
+}
+
+export function beginManualDisconnect(businessId: string): void {
+  const session = getOrCreateSession(businessId);
+  session.manualDisconnectInProgress = true;
+  clearReconnectTimer(businessId);
+}
+
+export async function startSession(businessId: string): Promise<void> {
+  const session = getOrCreateSession(businessId);
+  session.manualDisconnectInProgress = false;
+
+  const authDir = getAuthDir(businessId);
+  const instanceName = getWorkerInstanceName();
 
   if (!fs.existsSync(authDir)) {
     fs.mkdirSync(authDir, { recursive: true });
   }
 
+  console.log(`[worker/${businessId}] Iniciando sesión — authDir=${authDir}`);
+
   let version: [number, number, number] | undefined;
   try {
     const fetched = await fetchLatestBaileysVersion();
     version = fetched.version;
-    console.log("[bot] Versión de WhatsApp Web:", version.join("."));
+    console.log(`[worker/${businessId}] WhatsApp Web versión: ${version.join(".")}`);
   } catch (err) {
-    console.warn("[bot] No se pudo obtener última versión:", err);
+    console.warn(`[worker/${businessId}] No se pudo obtener última versión:`, err);
   }
 
   // Baileys expone este helper con prefijo `use*`, pero no es un React Hook.
@@ -73,16 +103,16 @@ export async function start(): Promise<void> {
     syncFullHistory: false,
   });
 
-  handle = {
+  const handle: BotHandle = {
     sock,
     shutdown: async () => {
-      beginManualDisconnect();
+      beginManualDisconnect(businessId);
       try {
-        console.log("[worker] Ejecutando logout de WhatsApp...");
+        console.log(`[worker/${businessId}] Ejecutando logout de WhatsApp...`);
         await sock.logout();
-        console.log("[worker] Logout de WhatsApp completado");
+        console.log(`[worker/${businessId}] Logout completado`);
       } catch (error) {
-        console.error("[worker] Logout de WhatsApp falló:", error);
+        console.error(`[worker/${businessId}] Logout falló:`, error);
       }
       try {
         sock.end(undefined);
@@ -90,100 +120,128 @@ export async function start(): Promise<void> {
     },
   };
 
+  session.handle = handle;
+
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
-    await updateWorkerHeartbeat(authDir).catch((err) => {
-      console.error("[worker] Error actualizando heartbeat:", err);
+    await updateWorkerHeartbeat(authDir, businessId).catch((err) => {
+      console.error(`[worker/${businessId}] Error actualizando heartbeat:`, err);
     });
 
     if (qr) {
-      console.log("[worker] QR generado — escanea desde el dashboard");
+      console.log(`[worker/${businessId}] QR generado — escanea desde el dashboard`);
       qrcodeTerminal.generate(qr, { small: true });
-      await setConnectionState({
-        status: "qr",
-        qr_string: qr,
-        phone: null,
-        auth_path: authDir,
-      });
+      await setConnectionState(
+        { status: "qr", qr_string: qr, phone: null, auth_path: authDir },
+        businessId,
+        instanceName
+      );
     }
 
     if (connection === "connecting") {
-      const current = await getConnectionState();
+      const current = await getConnectionState(businessId, instanceName).catch(() => ({ status: "disconnected" }));
       if (current.status === "disconnected") {
-        await setConnectionState({
-          status: "connecting",
-          auth_path: authDir,
-        });
+        await setConnectionState(
+          { status: "connecting", auth_path: authDir },
+          businessId,
+          instanceName
+        );
       }
     }
 
     if (connection === "open") {
       const rawId = sock.user?.id ?? "";
       const phone = rawId.split(":")[0];
-      console.log(`[worker] Conectado como ${phone}`);
-      await setConnectionState({
-        status: "connected",
-        qr_string: null,
-        phone,
-        auth_path: authDir,
-      });
+      console.log(`[worker/${businessId}] Conectado como ${phone}`);
+      await setConnectionState(
+        { status: "connected", qr_string: null, phone, auth_path: authDir },
+        businessId,
+        instanceName
+      );
     }
 
     if (connection === "close") {
       const code = (lastDisconnect?.error as { output?: { statusCode?: number } })
         ?.output?.statusCode;
-      console.log(`[worker] Conexión cerrada, código: ${code}`);
+      console.log(`[worker/${businessId}] Conexión cerrada, código: ${code}`);
 
-      if (manualDisconnectInProgress) {
-        console.log("[worker] Cierre manual en progreso — no se reconecta automáticamente");
-        await setConnectionState({
-          status: "disconnected",
-          qr_string: null,
-          phone: null,
-          auth_path: authDir,
-        });
+      const currentSession = sessions.get(businessId);
+      if (currentSession?.manualDisconnectInProgress) {
+        console.log(`[worker/${businessId}] Cierre manual en progreso — no se reconecta`);
+        await setConnectionState(
+          { status: "disconnected", qr_string: null, phone: null, auth_path: authDir },
+          businessId,
+          instanceName
+        );
         return;
       }
 
       if (code === DisconnectReason.loggedOut) {
-        console.log("[worker] Sesión cerrada (loggedOut). No se reconecta.");
-        await setConnectionState({
-          status: "disconnected",
-          qr_string: null,
-          phone: null,
-          auth_path: authDir,
-        });
+        console.log(`[worker/${businessId}] Sesión cerrada (loggedOut). No se reconecta.`);
+        await setConnectionState(
+          { status: "disconnected", qr_string: null, phone: null, auth_path: authDir },
+          businessId,
+          instanceName
+        );
         return;
       }
 
-      scheduleReconnect(code);
+      scheduleReconnect(businessId, code);
     }
   });
 
-  setupMessageHandler(sock);
-  await updateWorkerHeartbeat(authDir);
+  setupMessageHandler(sock, businessId);
+  await updateWorkerHeartbeat(authDir, businessId);
 }
 
-function scheduleReconnect(code: number | undefined): void {
-  if (manualDisconnectInProgress) return;
-  if (reconnectTimer) return;
+function scheduleReconnect(businessId: string, code: number | undefined): void {
+  const session = sessions.get(businessId);
+  if (!session) return;
+  if (session.manualDisconnectInProgress) return;
+  if (session.reconnectTimer) return;
+
   // Code 440 = connectionReplaced — esperar más para evitar loop
-  const delay = code === 440 ? 15000 : 5000;
-  console.log(`[bot] Reconectando en ${delay / 1000}s...`);
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    if (handle) {
+  const delay = code === 440 ? 15_000 : 5_000;
+  console.log(`[worker/${businessId}] Reconectando en ${delay / 1000}s...`);
+
+  session.reconnectTimer = setTimeout(() => {
+    session.reconnectTimer = null;
+    if (session.handle) {
       try {
-        handle.sock.end(undefined);
+        session.handle.sock.end(undefined);
       } catch {}
-      handle = null;
+      session.handle = null;
     }
-    start().catch((err) => console.error("[bot] Error al reconectar:", err));
+    startSession(businessId).catch((err) =>
+      console.error(`[worker/${businessId}] Error al reconectar:`, err)
+    );
   }, delay);
 }
 
-export function getHandle(): BotHandle | null {
-  return handle;
+export async function stopSession(businessId: string): Promise<void> {
+  const session = sessions.get(businessId);
+  if (!session) return;
+
+  clearReconnectTimer(businessId);
+  session.manualDisconnectInProgress = true;
+
+  if (session.handle) {
+    try {
+      await session.handle.shutdown();
+    } catch {}
+    session.handle = null;
+  }
+
+  sessions.delete(businessId);
+  console.log(`[worker/${businessId}] Sesión detenida`);
+}
+
+export function getHandle(businessId: string): BotHandle | null {
+  return sessions.get(businessId)?.handle ?? null;
+}
+
+export function getAllSessionBusinessIds(): string[] {
+  return Array.from(sessions.keys());
 }

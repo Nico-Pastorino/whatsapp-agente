@@ -1,22 +1,23 @@
 /**
- * Worker persistente de Baileys.
+ * Worker multi-tenant de Baileys.
  *
- * Corre como proceso separado en VPS / EasyPanel / Coolify.
- * NO correr en Vercel — Baileys necesita un proceso long-running.
+ * Gestiona UNA sesión de WhatsApp por cada negocio con suscripción activa o en trial.
+ * NO requiere BUSINESS_ID — auto-descubre negocios desde Supabase.
  *
- * Requiere en .env.local (o variables de entorno del servidor):
+ * Variables de entorno requeridas:
  *   NEXT_PUBLIC_SUPABASE_URL
  *   SUPABASE_SERVICE_ROLE_KEY
- *   BUSINESS_ID
- *   WORKER_INSTANCE_NAME   (default: main)
- *   BAILEYS_AUTH_BASE_PATH (default: ./auth)
- *   OPENROUTER_API_KEY
- *   OPENROUTER_MODEL       (default: openai/gpt-4o-mini)
+ *   OPENAI_API_KEY  (o OPENROUTER_API_KEY)
+ *   BAILEYS_AUTH_BASE_PATH  (default: /data/baileys-auth — debe ser volumen persistente)
+ *   WORKER_INSTANCE_NAME    (default: primary)
+ *
+ * Variables opcionales (ya NO necesarias):
+ *   BUSINESS_ID  ← eliminada, el worker la auto-descubre
  *
  * Uso local:
  *   npm run dev:worker
  *
- * En producción (VPS):
+ * En producción:
  *   npm run start:worker
  */
 
@@ -34,135 +35,213 @@ import {
   setOutboxExternalId,
   setConnectionState,
   updateWorkerHeartbeat,
+  getActiveBusinessIdsForWorker,
 } from "../src/lib/db";
-import { getWhatsAppProvider } from "../src/lib/whatsapp";
-import { getAuthDir, getHandle } from "../src/lib/baileys/client";
+import {
+  startSession,
+  stopSession,
+  getHandle,
+  getAuthDir,
+  getAllSessionBusinessIds,
+} from "../src/lib/baileys/client";
+import { getWorkerInstanceName, getBaileysAuthBasePath } from "../src/lib/env";
 
-const INSTANCE = process.env.WORKER_INSTANCE_NAME ?? "main";
-const AUTH_DIR = getAuthDir();
-const provider = getWhatsAppProvider();
+const INSTANCE = getWorkerInstanceName();
+const AUTH_BASE = getBaileysAuthBasePath();
+const SCAN_INTERVAL_MS    = 60_000;  // re-escanear negocios nuevos cada 60s
+const OUTBOX_INTERVAL_MS  = 2_000;   // procesar outbox cada 2s
+const HEARTBEAT_INTERVAL_MS = 10_000; // heartbeat independiente cada 10s
+const DISCONNECT_CHECK_MS = 2_000;   // polling de desconexión remota cada 2s
 
-console.log(`[worker] Iniciando — instance=${INSTANCE}`);
-console.log(`[worker] Auth dir: ${AUTH_DIR}`);
+console.log(`[worker] Iniciando worker multi-tenant`);
+console.log(`[worker] instance_name=${INSTANCE}`);
+console.log(`[worker] auth_base=${AUTH_BASE}`);
 
-// Marca disconnected al inicio para limpiar estado previo
-setConnectionState({
-  status: "disconnected",
-  qr_string: null,
-  phone: null,
-  auth_path: AUTH_DIR,
-}).catch((err) => console.error("[worker] Error limpiando estado inicial:", err));
+if (!process.env.BAILEYS_AUTH_BASE_PATH) {
+  console.warn(
+    "[worker] BAILEYS_AUTH_BASE_PATH no está configurada — usando /data/baileys-auth por defecto. " +
+    "En prod, montá un volumen persistente y apuntá esta variable ahí, " +
+    "si no el QR se perderá con cada reinicio del container."
+  );
+}
 
-// Inicia Baileys
-provider.start().catch((err) => {
-  console.error("[worker] Error fatal al iniciar:", err);
-  process.exit(1);
-});
+// ──────────────────────────────────────────────
+// Gestión de sesiones activas
+// ──────────────────────────────────────────────
 
-// ---- Outbox processor (cada 2s) ----
-setInterval(async () => {
-  const handle = getHandle();
-  if (!handle) return;
+const managedBusinessIds = new Set<string>();
 
-  // Heartbeat
-  await updateWorkerHeartbeat(AUTH_DIR).catch(() => undefined);
-
-  const state = await getConnectionState().catch(() => null);
-  if (!state || state.status !== "connected") return;
-
-  const access = await checkAccountAccess().catch((err) => {
-    console.error("[worker] Error validando acceso de cuenta:", err);
-    return null;
-  });
-  if (!access?.canUseApp) {
-    console.log(`[worker] Outbox bloqueado (${access?.reason ?? "access_check_failed"})`);
+async function ensureSessions(): Promise<void> {
+  let businessIds: string[];
+  try {
+    businessIds = await getActiveBusinessIdsForWorker();
+  } catch (err) {
+    console.error("[worker] Error al obtener negocios activos:", err);
     return;
   }
 
-  const pending = await getPendingOutbox(20).catch(() => []);
-  for (const item of pending) {
-    try {
-      console.log(`[outbox] id=${item.id}`);
-      console.log(`[outbox] original targetJid=${item.target_jid}`);
-      const preferred = await getBestOutgoingJidForConversation(item.conversation_id);
-      const targetJid = preferred.targetJid || item.target_jid;
+  console.log(`[worker] Negocios activos encontrados: ${businessIds.length}`);
 
-      console.log(`[outbox] resolved targetJid=${targetJid}`);
-      if (!preferred.targetJid) {
-        // needs_phone_mapping is a permanent error (no phone linked to contact).
-        // Set retry_count to max (3) so the worker stops retrying this item.
-        await setOutboxError(item.id, "needs_phone_mapping", 3);
-        console.error(`[outbox] send error=${item.id} — contact needs phone mapping, will not retry`);
-        continue;
-      }
+  for (const businessId of businessIds) {
+    if (managedBusinessIds.has(businessId)) continue; // ya tiene sesión
 
-      if (targetJid.endsWith("@lid")) {
-        console.warn("[outbox] warning: intentando enviar a @lid porque no hay pn_jid disponible");
-      }
+    console.log(`[worker] Iniciando sesión para negocio ${businessId}`);
+    managedBusinessIds.add(businessId);
 
-      const sentId = await provider.sendText(targetJid, item.content);
-      if (sentId) {
-        await setOutboxExternalId(item.id, sentId).catch(() => undefined);
+    // Marcar disconnected al inicio para limpiar estado previo
+    setConnectionState(
+      { status: "disconnected", qr_string: null, phone: null },
+      businessId,
+      INSTANCE
+    ).catch((err) =>
+      console.error(`[worker/${businessId}] Error limpiando estado inicial:`, err)
+    );
+
+    startSession(businessId).catch((err) => {
+      console.error(`[worker/${businessId}] Error fatal al iniciar:`, err);
+      managedBusinessIds.delete(businessId); // permitir reintento en próximo scan
+    });
+  }
+}
+
+// Arrancar sesiones al inicio
+ensureSessions();
+
+// Re-escanear periódicamente para detectar negocios que se registraron después
+setInterval(ensureSessions, SCAN_INTERVAL_MS);
+
+// ──────────────────────────────────────────────
+// Outbox processor (cada 2s, por negocio)
+// ──────────────────────────────────────────────
+
+setInterval(async () => {
+  for (const businessId of managedBusinessIds) {
+    const handle = getHandle(businessId);
+    if (!handle) continue;
+
+    // Heartbeat
+    await updateWorkerHeartbeat(getAuthDir(businessId), businessId, INSTANCE)
+      .catch(() => undefined);
+
+    const state = await getConnectionState(businessId, INSTANCE).catch(() => null);
+    if (!state || state.status !== "connected") continue;
+
+    const access = await checkAccountAccess(businessId).catch((err) => {
+      console.error(`[worker/${businessId}] Error validando acceso:`, err);
+      return null;
+    });
+    if (!access?.canUseApp) {
+      if (access) {
+        console.log(`[worker/${businessId}] Outbox bloqueado (${access.reason})`);
       }
-      await markOutboxSent(item.id);
-      console.log(`[outbox] sent ok=${item.id} externalId=${sentId ?? ""}`);
-    } catch (err) {
-      const nextRetry = item.retry_count + 1;
-      const errMsg = err instanceof Error ? err.message : "Error enviando outbox";
-      await setOutboxError(item.id, errMsg, nextRetry).catch(() => undefined);
-      if (nextRetry >= 3) {
-        console.error(`[outbox] sent error=${item.id} (reintento ${nextRetry}/3, ABANDONADO):`, errMsg);
-      } else {
-        console.warn(`[outbox] sent error=${item.id} (reintento ${nextRetry}/3):`, errMsg);
+      continue;
+    }
+
+    const pending = await getPendingOutbox(20, businessId).catch(() => []);
+    for (const item of pending) {
+      try {
+        console.log(`[outbox/${businessId}] id=${item.id}`);
+        const preferred = await getBestOutgoingJidForConversation(item.conversation_id, businessId);
+        const targetJid = preferred.targetJid || item.target_jid;
+
+        if (!preferred.targetJid) {
+          await setOutboxError(item.id, "needs_phone_mapping", 3, businessId);
+          console.error(`[outbox/${businessId}] send error=${item.id} — contact needs phone mapping`);
+          continue;
+        }
+
+        if (targetJid.endsWith("@lid")) {
+          console.warn(`[outbox/${businessId}] warning: intentando enviar a @lid`);
+        }
+
+        const { sock } = handle;
+        const sentResult = await sock.sendMessage(targetJid, { text: item.content });
+        const sentId = sentResult?.key?.id;
+        if (sentId) {
+          await setOutboxExternalId(item.id, sentId, businessId).catch(() => undefined);
+        }
+        await markOutboxSent(item.id, businessId);
+        console.log(`[outbox/${businessId}] sent ok=${item.id} externalId=${sentId ?? ""}`);
+      } catch (err) {
+        const nextRetry = item.retry_count + 1;
+        const errMsg = err instanceof Error ? err.message : "Error enviando outbox";
+        await setOutboxError(item.id, errMsg, nextRetry, businessId).catch(() => undefined);
+        if (nextRetry >= 3) {
+          console.error(`[outbox/${businessId}] sent error=${item.id} (reintento ${nextRetry}/3, ABANDONADO):`, errMsg);
+        } else {
+          console.warn(`[outbox/${businessId}] sent error=${item.id} (reintento ${nextRetry}/3):`, errMsg);
+        }
       }
     }
   }
-}, 2000);
+}, OUTBOX_INTERVAL_MS);
 
-// ---- Heartbeat independiente (cada 10s) ----
+// ──────────────────────────────────────────────
+// Heartbeat independiente (cada 10s)
+// ──────────────────────────────────────────────
+
 setInterval(async () => {
-  await updateWorkerHeartbeat(AUTH_DIR).catch(() => undefined);
-}, 10_000);
-
-// ---- Watcher de disconnect remoto (cada 2s) ----
-setInterval(async () => {
-  const action = await getRequestedSessionAction().catch(() => "none");
-  if (action !== "disconnect") return;
-
-  console.log("[worker] Solicitud de desconexión desde el dashboard");
-
-  const handle = getHandle();
-  if (handle) {
-    try {
-      await provider.disconnect();
-    } catch {}
+  for (const businessId of managedBusinessIds) {
+    await updateWorkerHeartbeat(getAuthDir(businessId), businessId, INSTANCE)
+      .catch(() => undefined);
   }
+}, HEARTBEAT_INTERVAL_MS);
 
-  try {
-    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-  } catch {}
+// ──────────────────────────────────────────────
+// Watcher de disconnect remoto (cada 2s, por negocio)
+// ──────────────────────────────────────────────
 
-  await setConnectionState({
-    status: "disconnected",
-    qr_string: null,
-    phone: null,
-    auth_path: AUTH_DIR,
-  }).catch(() => undefined);
+setInterval(async () => {
+  for (const businessId of managedBusinessIds) {
+    const action = await getRequestedSessionAction(businessId, INSTANCE).catch(() => "none");
+    if (action !== "disconnect") continue;
 
-  await clearRequestedSessionAction().catch(() => undefined);
+    console.log(`[worker/${businessId}] Solicitud de desconexión desde el dashboard`);
 
-  console.log("[worker] Reiniciando en 2s para generar nuevo QR...");
-  setTimeout(() => {
-    provider.start().catch((err) => console.error("[worker] Error al reiniciar:", err));
-  }, 2000);
-}, 2000);
+    const handle = getHandle(businessId);
+    if (handle) {
+      try {
+        await handle.sock.logout();
+      } catch {}
+    }
 
-process.on("SIGINT", () => {
-  console.log("[worker] Deteniendo (SIGINT)...");
+    const authDir = getAuthDir(businessId);
+    try {
+      fs.rmSync(authDir, { recursive: true, force: true });
+    } catch {}
+
+    await setConnectionState(
+      { status: "disconnected", qr_string: null, phone: null, auth_path: authDir },
+      businessId,
+      INSTANCE
+    ).catch(() => undefined);
+
+    await clearRequestedSessionAction(businessId, INSTANCE).catch(() => undefined);
+
+    // Remover de managed para que el próximo ciclo de ensureSessions lo re-inicie
+    managedBusinessIds.delete(businessId);
+
+    console.log(`[worker/${businessId}] Sesión desconectada. Reiniciando en 3s...`);
+    setTimeout(() => {
+      managedBusinessIds.add(businessId);
+      startSession(businessId).catch((err) =>
+        console.error(`[worker/${businessId}] Error al reiniciar:`, err)
+      );
+    }, 3_000);
+  }
+}, DISCONNECT_CHECK_MS);
+
+// ──────────────────────────────────────────────
+// Señales del proceso
+// ──────────────────────────────────────────────
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  console.log(`[worker] Deteniendo (${signal})...`);
+  for (const businessId of managedBusinessIds) {
+    await stopSession(businessId).catch(() => undefined);
+  }
   process.exit(0);
-});
+}
 
-process.on("SIGTERM", () => {
-  console.log("[worker] Deteniendo (SIGTERM)...");
-  process.exit(0);
-});
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));

@@ -78,10 +78,10 @@ function sanitizeForPrompt(input: string, maxLength = 2000): string {
   return out;
 }
 
-async function buildSystemPrompt(): Promise<string> {
+async function buildSystemPrompt(businessId: string): Promise<string> {
   const [profile, items] = await Promise.all([
-    getBusinessProfile().catch(() => null),
-    listActiveItemsForPrompt().catch(() => []),
+    getBusinessProfile(businessId).catch(() => null),
+    listActiveItemsForPrompt(businessId).catch(() => []),
   ]);
 
   if (!profile) return SYSTEM_PROMPT;
@@ -146,14 +146,14 @@ async function buildSystemPrompt(): Promise<string> {
   return lines.join("\n");
 }
 
-export async function generateReply(history: Message[]): Promise<string> {
+export async function generateReply(history: Message[], businessId: string): Promise<string> {
   if (!API_KEY) {
     throw new Error(
       "Falta la API key para el LLM. Configurá OPENAI_API_KEY (OpenAI) o OPENROUTER_API_KEY (OpenRouter) en el entorno del worker."
     );
   }
 
-  const systemPrompt = await buildSystemPrompt();
+  const systemPrompt = await buildSystemPrompt(businessId);
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
