@@ -2653,20 +2653,16 @@ export async function updateWorkerHeartbeat(
   instanceName = getWorkerInstanceName()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
+  // IMPORTANT: solo actualiza last_seen_at y auth_path — NO toca status ni qr_string.
+  // Usar .update() (no upsert) para nunca pisar el estado de conexión/QR.
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { last_seen_at: now, updated_at: now };
+  if (authPath !== undefined) patch.auth_path = authPath;
   const { error } = await supabase
     .from("whatsapp_sessions")
-    .upsert(
-      {
-        business_id: businessId,
-        instance_name: instanceName,
-        last_seen_at: new Date().toISOString(),
-        auth_path: authPath,
-        status: "disconnected",
-        desired_action: "none",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "business_id,instance_name", ignoreDuplicates: false }
-    );
+    .update(patch)
+    .eq("business_id", businessId)
+    .eq("instance_name", instanceName);
   if (error) throw error;
 }
 
