@@ -67,7 +67,9 @@ export default function ConversationPanel({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState(
+    () => conversation.phone_number?.replace(/[^\d]/g, "") ?? ""
+  );
   const [linkingPhone, setLinkingPhone] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkSuccess, setLinkSuccess] = useState<string | null>(null);
@@ -76,6 +78,9 @@ export default function ConversationPanel({
 
   useEffect(() => {
     setMode(conversation.mode);
+    setPhoneNumber(conversation.phone_number?.replace(/[^\d]/g, "") ?? "");
+    setLinkError(null);
+    setLinkSuccess(null);
     loadMessages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
@@ -233,7 +238,7 @@ export default function ConversationPanel({
           <div style={{ display: "flex", gap: 6 }}>
             <input
               type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="5492355472157" disabled={linkingPhone}
+              placeholder={conversation.phone_number ?? "Ej: 5492355472157"} disabled={linkingPhone}
               className="atd-input" style={{ flex: 1, height: 36, padding: "0 12px", fontSize: 13 }}
             />
             <button onClick={handleLinkPhone} disabled={linkingPhone || !phoneNumber.trim()}
