@@ -101,8 +101,18 @@ export default function ConversationPanel({
   }
 
   async function handleModeChange(next: "AI" | "HUMAN") {
+    if (next === mode) return;
     setMode(next);
     onModeChange(next);
+    try {
+      await fetch(`/api/mode/${conversation.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: next }),
+      });
+    } catch {
+      // best-effort; local state already updated
+    }
   }
 
   async function sendMessage() {
