@@ -14,8 +14,7 @@ const TRIAL_DAYS = 14;
 function slugify(text: string): string {
   return text
     .toLowerCase()
-    .normalize("NFD"
-    .replace(/[̀-ͯ]/g, "")
+    .normalize("NFD")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 40);
