@@ -10,7 +10,7 @@ interface Ctx {
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId, user }) => {
       const { conversationId } = await params;
       const id = conversationId?.trim();
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         return NextResponse.json({ error: "Modo inválido" }, { status: 400 });
       }
 
-      await setMode(id, mode, businessId);
+      await setMode(id, mode, businessId, mode === "HUMAN" ? { assignedTo: user.sub } : {});
       return NextResponse.json({ ok: true, mode });
     });
   } catch (error) {

@@ -11,6 +11,8 @@ import {
   recordAiReplyUsage,
   recordInboundMessageUsage,
   checkAccountAccess,
+  setMode,
+  HUMAN_INACTIVITY_MINUTES,
 } from "../db";
 import { extractPhoneFromJid } from "../whatsapp-jid";
 import { getConnectionState } from "../db";
@@ -146,9 +148,29 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   await insertMessage(convo.id, "user", text, externalId, businessId);
   await recordInboundMessageUsage(businessId);
 
-  const fresh = await getConversationById(convo.id, businessId);
-  if (!fresh || fresh.mode !== "AI") {
-    console.log(`[bot/${businessId}] Modo ${fresh?.mode ?? "?"} — no respondo automáticamente`);
+  let fresh = await getConversationById(convo.id, businessId);
+  if (!fresh) {
+    console.log(`[bot/${businessId}] Conversación no encontrada — no respondo`);
+    return;
+  }
+
+  if (fresh.mode === "HUMAN") {
+    // Auto-return to AI if the human has been inactive for too long.
+    const inactivityMs = HUMAN_INACTIVITY_MINUTES * 60 * 1000;
+    const lastActivity = fresh.human_last_activity ? fresh.human_last_activity * 1000 : null;
+    const isStale = !lastActivity || Date.now() - lastActivity > inactivityMs;
+    if (isStale) {
+      console.log(`[bot/${businessId}] Modo HUMAN inactivo (>${HUMAN_INACTIVITY_MINUTES}min) — volviendo a AI`);
+      await setMode(convo.id, "AI", businessId);
+      fresh = { ...fresh, mode: "AI" };
+    } else {
+      console.log(`[bot/${businessId}] Modo HUMAN activo — no respondo automáticamente`);
+      return;
+    }
+  }
+
+  if (fresh.mode !== "AI") {
+    console.log(`[bot/${businessId}] Modo ${fresh.mode} — no respondo automáticamente`);
     return;
   }
 

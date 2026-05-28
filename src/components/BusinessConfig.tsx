@@ -39,6 +39,7 @@ export default function BusinessConfig() {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const reloadProfile = useCallback(() => {
@@ -67,14 +68,25 @@ export default function BusinessConfig() {
 
   async function handleSave() {
     setSaving(true);
-    await fetch("/api/business", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra }),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/business", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        const data = await res.json().catch(() => null) as { error?: string } | null;
+        setSaveError(data?.error ?? "No se pudo guardar. Intentá de nuevo.");
+      }
+    } catch {
+      setSaveError("Error de conexión. Intentá de nuevo.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -186,6 +198,11 @@ export default function BusinessConfig() {
           {saved && (
             <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 500 }}>
               Guardado correctamente
+            </span>
+          )}
+          {saveError && (
+            <span style={{ fontSize: 13, color: "#c0392b", fontWeight: 500 }}>
+              {saveError}
             </span>
           )}
           <button

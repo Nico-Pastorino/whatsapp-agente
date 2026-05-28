@@ -6,6 +6,8 @@ import {
   getBestOutgoingJidForConversation,
   getConversationById,
   recordHumanMessageUsage,
+  setMode,
+  updateHumanActivity,
 } from "@/lib/db";
 import { toDashboardAuthResponse, withActiveDashboardBusinessContext, withDashboardBusinessContext } from "@/lib/route-auth";
 
@@ -40,7 +42,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveDashboardBusinessContext(async ({ businessId, user }) => {
       const { conversationId } = await params;
       const id = conversationId?.trim();
 
@@ -78,6 +80,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           },
           { status: 409 }
         );
+      }
+
+      // Auto-switch to HUMAN mode on first send; refresh activity on subsequent sends.
+      if (conv.mode === "AI") {
+        await setMode(id, "HUMAN", businessId, { assignedTo: user.sub });
+      } else {
+        await updateHumanActivity(id, businessId);
       }
 
       const message = await insertMessage(id, "human", content, null, businessId);

@@ -36,6 +36,7 @@ import {
   setConnectionState,
   updateWorkerHeartbeat,
   getActiveBusinessIdsForWorker,
+  returnInactiveConversationsToAI,
 } from "../src/lib/db";
 import {
   startSession,
@@ -48,10 +49,11 @@ import { getWorkerInstanceName, getBaileysAuthBasePath } from "../src/lib/env";
 
 const INSTANCE = getWorkerInstanceName();
 const AUTH_BASE = getBaileysAuthBasePath();
-const SCAN_INTERVAL_MS    = 60_000;  // re-escanear negocios nuevos cada 60s
-const OUTBOX_INTERVAL_MS  = 2_000;   // procesar outbox cada 2s
-const HEARTBEAT_INTERVAL_MS = 10_000; // heartbeat independiente cada 10s
-const DISCONNECT_CHECK_MS = 2_000;   // polling de desconexión remota cada 2s
+const SCAN_INTERVAL_MS        = 60_000;      // re-escanear negocios nuevos cada 60s
+const OUTBOX_INTERVAL_MS      = 2_000;       // procesar outbox cada 2s
+const HEARTBEAT_INTERVAL_MS   = 10_000;      // heartbeat independiente cada 10s
+const DISCONNECT_CHECK_MS     = 2_000;       // polling de desconexión remota cada 2s
+const AUTO_RETURN_INTERVAL_MS = 5 * 60_000;  // auto-retorno a IA cada 5min
 
 console.log(`[worker] Iniciando worker multi-tenant`);
 console.log(`[worker] instance_name=${INSTANCE}`);
@@ -186,6 +188,23 @@ setInterval(async () => {
       .catch(() => undefined);
   }
 }, HEARTBEAT_INTERVAL_MS);
+
+// ──────────────────────────────────────────────
+// Auto-retorno a IA por inactividad (cada 5min)
+// ──────────────────────────────────────────────
+
+setInterval(async () => {
+  for (const businessId of managedBusinessIds) {
+    try {
+      const count = await returnInactiveConversationsToAI(businessId);
+      if (count > 0) {
+        console.log(`[worker/${businessId}] Auto-returned ${count} conversation(s) to AI (inactividad)`);
+      }
+    } catch (err) {
+      console.error(`[worker/${businessId}] Error en auto-return a IA:`, err);
+    }
+  }
+}, AUTO_RETURN_INTERVAL_MS);
 
 // ──────────────────────────────────────────────
 // Watcher de disconnect remoto (cada 2s, por negocio)

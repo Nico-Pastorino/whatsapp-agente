@@ -39,6 +39,8 @@ export interface Conversation {
   needs_phone_mapping: boolean;
   last_message_at: number | null;
   created_at: number;
+  assigned_to: string | null;
+  human_last_activity: number | null;
 }
 
 export interface ConversationWithPreview extends Conversation {
@@ -112,6 +114,8 @@ interface ConversationRow {
   mode: "AI" | "HUMAN";
   last_message_at: string | null;
   created_at: string;
+  assigned_to: string | null;
+  human_last_activity: string | null;
   contact?: ContactRow | ContactRow[] | null;
 }
 
@@ -565,6 +569,8 @@ function mapConversationRow(row: ConversationRow): Conversation {
     needs_phone_mapping: false,
     last_message_at: toUnixSeconds(row.last_message_at),
     created_at: toUnixSeconds(row.created_at) ?? 0,
+    assigned_to: row.assigned_to ?? null,
+    human_last_activity: toUnixSeconds(row.human_last_activity),
   };
 }
 
@@ -899,7 +905,7 @@ async function getConversationRowById(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .eq("id", conversationId)
@@ -2357,7 +2363,7 @@ export async function getOrCreateConversation(input: {
       updated_at: new Date().toISOString(),
     })
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .single();
   if (createError || !created) throw createError ?? new Error("conversation insert failed");
@@ -2376,14 +2382,63 @@ export async function getConversationById(
 export async function setMode(
   conversationId: string,
   mode: "AI" | "HUMAN",
+  businessId = getBusinessId(),
+  options?: { assignedTo?: string | null }
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { mode, updated_at: now };
+  if (mode === "HUMAN" && options?.assignedTo !== undefined) {
+    patch.assigned_to = options.assignedTo;
+    patch.human_last_activity = now;
+  } else if (mode === "AI") {
+    patch.assigned_to = null;
+    patch.human_last_activity = null;
+  }
+  const { error } = await supabase.from("conversations").update(patch)
+    .eq("business_id", businessId).eq("id", conversationId);
+  if (error) throw error;
+}
+
+// Refresh the last human activity timestamp (call on every human message sent from dashboard).
+export async function updateHumanActivity(
+  conversationId: string,
   businessId = getBusinessId()
 ): Promise<void> {
   const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
   const { error } = await supabase.from("conversations").update({
-    mode,
-    updated_at: new Date().toISOString(),
+    human_last_activity: now,
+    updated_at: now,
   }).eq("business_id", businessId).eq("id", conversationId);
   if (error) throw error;
+}
+
+// How long (minutes) without human activity before a HUMAN-mode conversation auto-returns to AI.
+export const HUMAN_INACTIVITY_MINUTES = 30;
+
+// Auto-return conversations that have been in HUMAN mode without activity for too long.
+// Returns the number of conversations switched back to AI.
+export async function returnInactiveConversationsToAI(
+  businessId: string
+): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const threshold = new Date(Date.now() - HUMAN_INACTIVITY_MINUTES * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("conversations")
+    .update({
+      mode: "AI",
+      assigned_to: null,
+      human_last_activity: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("business_id", businessId)
+    .eq("mode", "HUMAN")
+    .lt("human_last_activity", threshold)
+    .not("human_last_activity", "is", null)
+    .select("id");
+  if (error) throw error;
+  return (data ?? []).length;
 }
 
 export async function listConversations(
@@ -2393,7 +2448,7 @@ export async function listConversations(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .order("last_message_at", { ascending: false, nullsFirst: false })
