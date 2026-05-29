@@ -1,5 +1,9 @@
 import Link from "next/link";
 import BrandWordmark from "@/components/public/BrandWordmark";
+import Reveal from "@/components/public/Reveal";
+import HeroPhone from "@/components/public/HeroPhone";
+import TryDemo from "@/components/public/TryDemo";
+import Objections from "@/components/public/Objections";
 import { PUBLIC_PLAN_LIST } from "@/lib/plan-display";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -21,13 +25,21 @@ const STEPS = [
 ];
 
 const SMALL_FEATURES = [
-  { num: "02", title: "Modo humano", desc: "Tomá el control cuando quieras. La IA se detiene." },
-  { num: "03", title: "Plantillas por rubro", desc: "Configurá tu asistente en minutos según tu negocio." },
-  { num: "04", title: "Catálogo", desc: "Cargá productos, precios y servicios para respuestas más precisas." },
-  { num: "05", title: "Equipo", desc: "Invitá personas y definí roles según tu plan." },
-  { num: "06", title: "Métricas", desc: "Entendé qué preguntan y cómo responde tu asistente." },
-  { num: "07", title: "Valoración", desc: "Detectá si la IA está ayudando o necesita ajustes." },
-];
+  { icon: "hand", title: "Modo humano", desc: "Tomá el control cuando quieras. La IA se detiene." },
+  { icon: "template", title: "Plantillas por rubro", desc: "Configurá tu asistente en minutos según tu negocio." },
+  { icon: "catalog", title: "Catálogo", desc: "Cargá productos, precios y servicios para respuestas más precisas." },
+  { icon: "team", title: "Equipo", desc: "Invitá personas y definí roles según tu plan." },
+  { icon: "chart", title: "Métricas", desc: "Entendé qué preguntan y cómo responde tu asistente." },
+  { icon: "star", title: "Valoración", desc: "Detectá si la IA está ayudando o necesita ajustes." },
+] as const;
+
+const SOCIAL_PROOF = [
+  { icon: "bolt", title: "Responde en segundos", desc: "Sin que el cliente espere." },
+  { icon: "clock", title: "Disponible 24/7", desc: "De día, de noche y feriados." },
+  { icon: "layers", title: "Muchas a la vez", desc: "Atiende varias consultas juntas." },
+  { icon: "bell", title: "Nunca se olvida", desc: "Ningún mensaje queda sin responder." },
+  { icon: "whatsapp", title: "Tu mismo WhatsApp", desc: "Tu número de siempre." },
+] as const;
 
 const TEMPLATES = [
   { emoji: "📱", name: "Tienda de celulares", desc: "Productos, financiación, modelos y gigas.", count: "8 de 32 plantillas" },
@@ -38,85 +50,47 @@ const TEMPLATES = [
   { emoji: "🔧", name: "Servicios", desc: "Cotizaciones, horarios y soluciones.", count: "4 de 11 plantillas" },
 ];
 
-// ── Phone Mockup ──────────────────────────────────────────────────────────────
+// ── Iconos (line-style, premium) ───────────────────────────────────────────────
 
-function PhoneMockup() {
-  return (
-    <div style={{ position: "relative", width: 260, flexShrink: 0 }}>
-      {/* Notification badge */}
-      <div style={{
-        position: "absolute", top: -14, right: -14, zIndex: 2,
-        background: "var(--ink)", color: "#fff", borderRadius: 12,
-        padding: "7px 13px", fontSize: 12, fontWeight: 600,
-        border: "2px solid var(--bg)", whiteSpace: "nowrap",
-      }}>
-        +47 nuevos contactos
-      </div>
-
-      {/* Phone frame */}
-      <div style={{
-        background: "#1c1c1e", borderRadius: 46, padding: "14px 10px",
-        boxShadow: "0 40px 100px -20px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.06)",
-      }}>
-        {/* Screen */}
-        <div style={{ background: "#e5ddd5", borderRadius: 36, overflow: "hidden" }}>
-          {/* WhatsApp header */}
-          <div style={{ background: "#075e54", padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#25d366", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", flexShrink: 0 }}>M</div>
-            <div>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>Marina - cliente</p>
-              <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.65)" }}>respondido con IA</p>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div style={{ padding: "12px 10px", display: "flex", flexDirection: "column", gap: 8, minHeight: 340 }}>
-            <Bubble from="them">¿Tenían iPhone 14 en negro?</Bubble>
-            <Bubble from="me">Hola Marina! Sí, en negro y azul. $1.299.000 o 12 cuotas. ¿Lo querés con envío?</Bubble>
-            <Bubble from="them">Sí, a Caballito.</Bubble>
-            <Bubble from="me">Llega mañana sin cargo. Te paso el link de pago 🔗</Bubble>
-          </div>
-
-          {/* Input bar */}
-          <div style={{ background: "#f0f0f0", padding: "8px 10px", display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ flex: 1, background: "#fff", borderRadius: 22, padding: "8px 12px", fontSize: 12, color: "#aaa" }}>Mensaje...</div>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#25d366", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l14-6-6 14-2-6-6-2z"/></svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Connected badge */}
-      <div style={{
-        position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)",
-        background: "#fff", border: "1px solid rgba(0,0,0,0.1)",
-        borderRadius: 99, padding: "7px 16px",
-        display: "flex", alignItems: "center", gap: 7,
-        fontSize: 12, fontWeight: 500, whiteSpace: "nowrap",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-      }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#25d366", flexShrink: 0 }} />
-        WhatsApp conectado
-      </div>
-    </div>
-  );
-}
-
-function Bubble({ from, children }: { from: "me" | "them"; children: React.ReactNode }) {
-  const isMe = from === "me";
-  return (
-    <div style={{
-      alignSelf: isMe ? "flex-end" : "flex-start",
-      maxWidth: "78%",
-      background: isMe ? "#dcf8c6" : "#fff",
-      borderRadius: isMe ? "14px 14px 0 14px" : "14px 14px 14px 0",
-      padding: "8px 12px",
-      boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-    }}>
-      <p style={{ margin: 0, fontSize: 12.5, color: "#111", lineHeight: 1.45 }}>{children}</p>
-    </div>
-  );
+function Icon({ name, size = 20 }: { name: string; size?: number }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  switch (name) {
+    case "hand":
+      return <svg {...common}><path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2a8 8 0 0 1-7.5-5.2L2.8 15a2 2 0 0 1 3.5-2" /></svg>;
+    case "template":
+      return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
+    case "catalog":
+      return <svg {...common}><path d="M3 7l9-4 9 4-9 4-9-4z" /><path d="M3 7v10l9 4 9-4V7" /><path d="M12 11v10" /></svg>;
+    case "team":
+      return <svg {...common}><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M16 5.5a3 3 0 0 1 0 5.8M21 20a6 6 0 0 0-4-5.6" /></svg>;
+    case "chart":
+      return <svg {...common}><path d="M3 3v18h18" /><path d="M7 14l3-4 3 3 5-7" /></svg>;
+    case "star":
+      return <svg {...common}><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.2l5.9-.9L12 3z" /></svg>;
+    case "bolt":
+      return <svg {...common}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>;
+    case "clock":
+      return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>;
+    case "layers":
+      return <svg {...common}><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 13l9 5 9-5M3 18l9 5 9-5" /></svg>;
+    case "bell":
+      return <svg {...common}><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>;
+    case "whatsapp":
+      return <svg {...common}><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.2-5.1A8.5 8.5 0 1 1 21 11.5z" /><path d="M8.5 9c0 3.6 2.9 6.5 6.5 6.5" /></svg>;
+    case "spark":
+      return <svg {...common}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" /></svg>;
+    default:
+      return <svg {...common}><circle cx="12" cy="12" r="9" /></svg>;
+  }
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -125,111 +99,132 @@ export default function HomePage() {
   return (
     <main style={{ background: "var(--bg)", color: "var(--ink)", minHeight: "100vh", overflowX: "hidden" }}>
 
-      {/* ── Navbar ─────────────────────────────────────────────────── */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 100,
-        background: "color-mix(in oklab, var(--bg) 92%, transparent)",
-        backdropFilter: "blur(14px)",
-        borderBottom: "1px solid var(--hairline)",
-      }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 62, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      {/* ── Navbar flotante ────────────────────────────────────────── */}
+      <nav style={{ position: "sticky", top: 0, zIndex: 100, padding: "12px 12px 0" }}>
+        <div className="lp-nav" style={{
+          maxWidth: 1000, margin: "0 auto",
+          padding: "0 10px 0 18px", height: 56,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          background: "color-mix(in oklab, var(--bg-elev) 78%, transparent)",
+          backdropFilter: "blur(16px) saturate(1.4)",
+          WebkitBackdropFilter: "blur(16px) saturate(1.4)",
+          border: "1px solid var(--hairline)",
+          borderRadius: 999,
+          boxShadow: "var(--shadow-2)",
+        }}>
           <BrandWordmark size={20} />
 
-          <div className="hidden md:flex" style={{ gap: 32, fontSize: 14, color: "var(--ink-2)" }}>
-            <a href="#como-funciona" style={{ color: "inherit", textDecoration: "none" }}>Cómo funciona</a>
-            <a href="#funciones" style={{ color: "inherit", textDecoration: "none" }}>Funciones</a>
-            <a href="#planes" style={{ color: "inherit", textDecoration: "none" }}>Planes</a>
-            <a href="#plantillas" style={{ color: "inherit", textDecoration: "none" }}>Casos</a>
+          <div className="hidden md:flex" style={{ gap: 28, fontSize: 14, color: "var(--ink-2)" }}>
+            <a href="#demo" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Demo</a>
+            <a href="#como-funciona" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Cómo funciona</a>
+            <a href="#funciones" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Funciones</a>
+            <a href="#planes" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Planes</a>
+            <a href="#preguntas" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Preguntas</a>
           </div>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Link href="/login" style={{ padding: "8px 14px", fontSize: 14, fontWeight: 500, color: "var(--ink-2)", textDecoration: "none", borderRadius: 8 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <Link href="/login" className="lp-btn hidden min-[420px]:inline-flex" style={{ padding: "8px 14px", fontSize: 14, fontWeight: 500, color: "var(--ink-2)", textDecoration: "none", borderRadius: 999 }}>
               Ingresar
             </Link>
-            <Link href="/signup" style={{ padding: "9px 20px", fontSize: 14, fontWeight: 600, background: "var(--ink)", color: "#fff", borderRadius: 10, textDecoration: "none" }}>
-              Empezar
+            <Link href="/signup" className="lp-btn" style={{ padding: "9px 18px", fontSize: 14, fontWeight: 600, background: "var(--ink)", color: "#fff", borderRadius: 999, textDecoration: "none" }}>
+              Probar gratis
             </Link>
           </div>
         </div>
       </nav>
 
       {/* ── Hero ───────────────────────────────────────────────────── */}
-      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px 100px" }}>
-        <div className="grid md:grid-cols-2" style={{ gap: 64, alignItems: "center" }}>
-          <div>
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "clamp(36px, 6vw, 72px) 24px clamp(48px, 7vw, 84px)" }}>
+        <div className="grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]" style={{ gap: "clamp(36px, 5vw, 64px)", alignItems: "center" }}>
+          <div className="lp-hero-copy">
             {/* Badge */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 13px", borderRadius: 99, background: "var(--surface)", border: "1px solid var(--hairline)", marginBottom: 28 }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-2)" }}>Asistente comercial para WhatsApp</span>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 13px", borderRadius: 99, background: "var(--surface)", border: "1px solid var(--hairline)", marginBottom: 24, boxShadow: "var(--shadow-1)" }}>
+              <span className="atd-dot live" style={{ width: 7, height: 7, background: "var(--accent)", boxShadow: "0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent)" }} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-2)" }}>Asistente de ventas con IA · WhatsApp</span>
             </div>
 
             {/* Heading */}
-            <h1 style={{ fontSize: "clamp(42px, 6vw, 72px)", fontWeight: 700, lineHeight: 1.03, letterSpacing: "-0.03em", margin: "0 0 20px", maxWidth: 520 }}>
-              Tu vendedor automático{" "}
-              <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 500 }}>
-                por WhatsApp.
+            <h1 style={{ fontSize: "clamp(40px, 6.4vw, 70px)", fontWeight: 700, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 18px", maxWidth: 540 }}>
+              Respondé a tus clientes{" "}
+              <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 500, color: "var(--accent)" }}>
+                hasta cuando dormís.
               </span>
             </h1>
 
             {/* Body */}
-            <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--ink-2)", margin: "0 0 32px", maxWidth: 420 }}>
-              Respondé consultas, captá clientes y vendé más sin estar todo el día pendiente del celular. La IA responde con la información real de tu negocio. Vos decidís cuándo entrar.
+            <p style={{ fontSize: "clamp(15px, 2.4vw, 17px)", lineHeight: 1.6, color: "var(--ink-2)", margin: "0 0 28px", maxWidth: 440 }}>
+              Tu asistente con IA atiende tu WhatsApp las 24 horas: responde consultas, recomienda y agenda turnos solo. Vos decidís cuándo intervenir.
             </p>
 
             {/* CTAs */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
-              <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "13px 24px", fontSize: 15, fontWeight: 600, background: "var(--ink)", color: "#fff", borderRadius: 12, textDecoration: "none" }}>
-                Empezar ahora <span>→</span>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+              <Link href="/signup" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 26px", fontSize: 15.5, fontWeight: 600, background: "var(--ink)", color: "#fff", borderRadius: 12, textDecoration: "none", boxShadow: "var(--shadow-2)" }}>
+                Probar gratis 14 días <span className="arrow">→</span>
               </Link>
-              <a href="#como-funciona" style={{ display: "inline-flex", alignItems: "center", padding: "13px 22px", fontSize: 15, fontWeight: 500, background: "var(--surface)", color: "var(--ink-2)", borderRadius: 12, textDecoration: "none", border: "1px solid var(--hairline)" }}>
-                Ver cómo funciona
+              <a href="#demo" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 24px", fontSize: 15.5, fontWeight: 500, background: "var(--surface)", color: "var(--ink)", borderRadius: 12, textDecoration: "none", border: "1px solid var(--hairline-2)" }}>
+                Ver demo
               </a>
             </div>
 
             {/* Trust */}
-            <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>
-              · Planes claros &nbsp;·&nbsp; onboarding simple &nbsp;·&nbsp; plantillas por rubro
+            <p style={{ fontSize: 12.5, color: "var(--muted)", margin: 0, display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+              <span>✓ Sin tarjeta</span>
+              <span>✓ Cancelá cuando quieras</span>
+              <span>✓ Sin saber de tecnología</span>
             </p>
           </div>
 
-          {/* Phone mockup */}
-          <div className="hidden md:flex" style={{ justifyContent: "center", alignItems: "center" }}>
-            <PhoneMockup />
+          {/* Teléfono vivo */}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            <div className="lp-float" style={{ width: "100%", maxWidth: 320 }}>
+              <HeroPhone />
+            </div>
           </div>
         </div>
       </section>
 
+      {/* ── Prueba social ──────────────────────────────────────────── */}
+      <section style={{ borderTop: "1px solid var(--hairline)", borderBottom: "1px solid var(--hairline)", background: "var(--bg-elev)" }}>
+        <Reveal className="grid grid-cols-2 md:grid-cols-5" style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px", gap: 8 }}>
+          {SOCIAL_PROOF.map((s) => (
+            <div key={s.title} style={{ display: "flex", flexDirection: "column", gap: 9, padding: "8px 10px" }}>
+              <span style={{ width: 34, height: 34, borderRadius: 10, background: "var(--green-tint)", color: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name={s.icon} size={18} />
+              </span>
+              <div>
+                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.3 }}>{s.title}</p>
+                <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--ink-3)", lineHeight: 1.4 }}>{s.desc}</p>
+              </div>
+            </div>
+          ))}
+        </Reveal>
+      </section>
+
       {/* ── El Problema ────────────────────────────────────────────── */}
       <section id="problema" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-        <div style={{ marginBottom: 44 }}>
-          <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 14, fontFamily: "var(--font-mono)" }}>
-            02 · el problema
-          </p>
+        <Reveal style={{ marginBottom: 44 }}>
           <h2 style={{ fontSize: "clamp(34px, 4.5vw, 58px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: 0, maxWidth: 700 }}>
             Vender por WhatsApp{" "}
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--accent)" }}>
               te consume el día.
             </span>
           </h2>
-        </div>
+        </Reveal>
 
-        <div className="grid grid-cols-2 md:grid-cols-5" style={{ gap: 12 }}>
+        <Reveal className="grid grid-cols-2 md:grid-cols-5" style={{ gap: 12 }}>
           {PROBLEMS.map((p) => (
-            <div key={p.num} style={{ padding: "20px", borderRadius: 16, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
-              <p style={{ fontSize: 11, fontWeight: 500, color: "var(--muted)", marginBottom: 10, fontFamily: "var(--font-mono)" }}>{p.num}</p>
+            <div key={p.num} className="lp-card" style={{ padding: "20px", borderRadius: 16, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+              <span style={{ display: "block", width: 8, height: 8, borderRadius: "50%", background: "var(--accent)", marginBottom: 14 }} />
               <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 6px", lineHeight: 1.3 }}>{p.title}</h3>
               <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>{p.desc}</p>
             </div>
           ))}
-        </div>
+        </Reveal>
       </section>
 
       {/* ── En cinco pasos ─────────────────────────────────────────── */}
       <section id="como-funciona" style={{ background: "var(--green)", padding: "80px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 14, fontFamily: "var(--font-mono)" }}>
-            04 · cómo funciona
-          </p>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 52 }}>
             <h2 style={{ fontSize: "clamp(34px, 4.5vw, 58px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", color: "#fff", margin: 0 }}>
               En{" "}
@@ -238,7 +233,7 @@ export default function HomePage() {
             <span style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>Tiempo total: ~5 minutos.</span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5" style={{ gap: 20 }}>
+          <Reveal className="grid grid-cols-2 md:grid-cols-5" style={{ gap: 20 }}>
             {STEPS.map((s) => (
               <div key={s.num}>
                 <div style={{ fontSize: "clamp(40px, 4.5vw, 60px)", fontWeight: 700, color: "rgba(255,255,255,0.12)", lineHeight: 1, marginBottom: 14, fontFamily: "var(--font-serif)" }}>
@@ -248,13 +243,43 @@ export default function HomePage() {
                 <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.5)", margin: 0, lineHeight: 1.55 }}>{s.desc}</p>
               </div>
             ))}
-          </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── Demo interactiva ───────────────────────────────────────── */}
+      <section id="demo" style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px" }}>
+        <div className="grid md:grid-cols-2" style={{ gap: 56, alignItems: "center" }}>
+          <Reveal>
+            <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 14, fontFamily: "var(--font-mono)" }}>
+              ✦ probalo ahora
+            </p>
+            <h2 style={{ fontSize: "clamp(32px, 4.2vw, 52px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 18px", maxWidth: 460 }}>
+              Probalo{" "}
+              <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--accent)" }}>
+                ahora mismo.
+              </span>
+            </h2>
+            <p style={{ fontSize: 15.5, lineHeight: 1.7, color: "var(--ink-2)", margin: "0 0 22px", maxWidth: 410 }}>
+              Escribí una consulta como lo haría un cliente y mirá cómo respondería. Sin registrarte y sin conectar WhatsApp.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {["Sin registro", "Sin conectar WhatsApp", "Es solo una demo"].map((t) => (
+                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 13px", borderRadius: 999, background: "var(--surface)", border: "1px solid var(--hairline)", fontSize: 12.5, color: "var(--ink-2)" }}>
+                  <span style={{ color: "var(--green-soft)", fontWeight: 700 }}>✓</span> {t}
+                </span>
+              ))}
+            </div>
+          </Reveal>
+          <Reveal delay={120}>
+            <TryDemo />
+          </Reveal>
         </div>
       </section>
 
       {/* ── Funciones ──────────────────────────────────────────────── */}
       <section id="funciones" style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px" }}>
-        <div style={{ marginBottom: 40 }}>
+        <Reveal style={{ marginBottom: 40 }}>
           <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: 0 }}>
             Todo lo que{" "}
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>tu WhatsApp</span>{" "}
@@ -263,25 +288,29 @@ export default function HomePage() {
           <p style={{ maxWidth: 540, margin: "14px 0 0", fontSize: 15, lineHeight: 1.7, color: "var(--ink-3)" }}>
             Una estructura simple para atender, vender y controlar la calidad sin que la experiencia se rompa en mobile.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-stretch">
-          <div style={{
-            background: "var(--green)", borderRadius: 20, padding: "28px 28px 32px",
+        <Reveal className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-stretch">
+          <div className="lp-card on-dark" style={{
+            background: "linear-gradient(165deg, var(--green-2) 0%, var(--green) 70%)", borderRadius: 20, padding: "28px 28px 32px",
             display: "flex", flexDirection: "column", justifyContent: "flex-end",
-            minHeight: 260,
+            minHeight: 260, border: "1px solid transparent", position: "relative", overflow: "hidden",
           }}>
-            <p style={{ fontSize: 11, fontWeight: 500, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 12, fontFamily: "var(--font-mono)" }}>01</p>
+            <span style={{ position: "absolute", top: 26, left: 28, width: 48, height: 48, borderRadius: 14, background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+              <Icon name="spark" size={24} />
+            </span>
             <h3 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: "0 0 10px", lineHeight: 1.2 }}>IA para responder</h3>
-            <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.55)", margin: 0, lineHeight: 1.55 }}>
-              Responde consultas con la información real de tu negocio.
+            <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", margin: 0, lineHeight: 1.55 }}>
+              Responde consultas con la información real de tu negocio, como lo haría tu mejor vendedor.
             </p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 xl:grid-cols-3">
             {SMALL_FEATURES.map((f) => (
-              <div key={f.num} style={{ background: "var(--surface)", borderRadius: 18, padding: "20px 20px 18px", border: "1px solid var(--hairline)", display: "flex", flexDirection: "column", gap: 14, minHeight: 168 }}>
-                <p style={{ fontSize: 10, fontWeight: 500, color: "var(--muted)", margin: 0, fontFamily: "var(--font-mono)" }}>{f.num}</p>
+              <div key={f.title} className="lp-card" style={{ background: "var(--surface)", borderRadius: 18, padding: "20px 20px 18px", border: "1px solid var(--hairline)", display: "flex", flexDirection: "column", gap: 14, minHeight: 168 }}>
+                <span style={{ width: 40, height: 40, borderRadius: 11, background: "var(--surface-2)", border: "1px solid var(--hairline)", color: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name={f.icon} size={20} />
+                </span>
                 <div>
                   <h4 style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)", margin: "0 0 8px", lineHeight: 1.3 }}>{f.title}</h4>
                   <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, lineHeight: 1.55 }}>{f.desc}</p>
@@ -289,21 +318,24 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* ── Plantillas ─────────────────────────────────────────────── */}
       <section id="plantillas" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-        <div style={{ marginBottom: 36 }}>
+        <Reveal style={{ marginBottom: 36 }}>
           <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: 0 }}>
             Plantillas listas{" "}
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>para tu rubro.</span>
           </h2>
-        </div>
+          <p style={{ maxWidth: 540, margin: "14px 0 0", fontSize: 15, lineHeight: 1.7, color: "var(--ink-3)" }}>
+            Ideal para negocios que reciben consultas todos los días. Elegís tu rubro y tu asistente arranca configurado.
+          </p>
+        </Reveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 12 }}>
+        <Reveal className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 12 }}>
           {TEMPLATES.map((t) => (
-            <div key={t.name} style={{ background: "var(--surface)", borderRadius: 18, padding: 22, border: "1px solid var(--hairline)", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div key={t.name} className="lp-card" style={{ background: "var(--surface)", borderRadius: 18, padding: 22, border: "1px solid var(--hairline)", display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 28, lineHeight: 1 }}>{t.emoji}</span>
                 <span style={{ fontSize: 16, color: "var(--muted)" }}>→</span>
@@ -315,27 +347,32 @@ export default function HomePage() {
               </div>
             </div>
           ))}
-        </div>
+        </Reveal>
       </section>
 
       {/* ── Planes ─────────────────────────────────────────────────── */}
       <section id="planes" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 36 }}>
+        <Reveal style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
           <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: 0 }}>
             Elegí el plan que mejor acompaña a tu negocio.
           </h2>
           <span style={{ fontSize: 13, color: "var(--muted)" }}>Precios mensuales en ARS.</span>
-        </div>
+        </Reveal>
+        <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 36px", display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+          <span>✓ Probalo gratis 14 días</span>
+          <span>✓ Sin tarjeta para empezar</span>
+          <span>✓ Cancelá cuando quieras</span>
+        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 12, alignItems: "stretch" }}>
+        <Reveal className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 12, alignItems: "stretch" }}>
           {PUBLIC_PLAN_LIST.map((plan) => {
             const featured = plan.code === "pro";
 
             return (
-            <div key={plan.code} style={{
+            <div key={plan.code} className={`lp-card ${featured ? "on-dark" : ""}`} style={{
               borderRadius: 22, padding: "28px 28px 24px",
               background: featured ? "var(--ink)" : "var(--surface)",
-              border: featured ? "none" : "1px solid var(--hairline)",
+              border: featured ? "1px solid transparent" : "1px solid var(--hairline)",
               display: "flex", flexDirection: "column", position: "relative",
             }}>
               {plan.badge && (
@@ -360,6 +397,7 @@ export default function HomePage() {
               </ul>
               <Link
                 href={`/signup?plan=${plan.code}`}
+                className="lp-btn"
                 style={{
                   display: "block", textAlign: "center",
                   padding: "13px 20px", borderRadius: 12,
@@ -373,16 +411,13 @@ export default function HomePage() {
             </div>
           );
           })}
-        </div>
+        </Reveal>
       </section>
 
       {/* ── Control ────────────────────────────────────────────────── */}
       <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
         <div className="grid md:grid-cols-2" style={{ gap: 64, alignItems: "start" }}>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 14, fontFamily: "var(--font-mono)" }}>
-              05 · control
-            </p>
+          <Reveal>
             <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: "0 0 20px" }}>
               Tu negocio{" "}
               <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>siempre</span>{" "}
@@ -391,48 +426,61 @@ export default function HomePage() {
             <p style={{ fontSize: 15, lineHeight: 1.7, color: "var(--ink-2)", margin: 0 }}>
               La IA es una herramienta, no un piloto automático. Vos seguís siendo el dueño de tus conversaciones y podés tomar el control cuando querés.
             </p>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          </Reveal>
+          <Reveal delay={100} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {[
               { title: "Ves todo cuando querés, cuando hace falta.", desc: "El inbox muestra el historial completo en tiempo real." },
               { title: "Tu información, tus respuestas.", desc: "Nada se va a donde no te importa." },
               { title: "Conversaciones a destino.", desc: "Derivación segura y controlada." },
               { title: "Estás donde querés.", desc: "Decidís cuándo entrar a la conversación." },
             ].map((f) => (
-              <div key={f.title} style={{ padding: 18, borderRadius: 16, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+              <div key={f.title} className="lp-card" style={{ padding: 18, borderRadius: 16, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: "0 0 6px", lineHeight: 1.4 }}>{f.title}</h4>
                 <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>{f.desc}</p>
               </div>
             ))}
-          </div>
+          </Reveal>
         </div>
+      </section>
+
+      {/* ── Preguntas frecuentes / objeciones ──────────────────────── */}
+      <section id="preguntas" style={{ maxWidth: 760, margin: "0 auto", padding: "0 24px 90px" }}>
+        <Reveal style={{ marginBottom: 32, textAlign: "center" }}>
+          <h2 style={{ fontSize: "clamp(30px, 4vw, 48px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: 0 }}>
+            Sin letra chica,{" "}
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--accent)" }}>sin compromiso.</span>
+          </h2>
+        </Reveal>
+        <Reveal delay={80}>
+          <Objections />
+        </Reveal>
       </section>
 
       {/* ── Final CTA ──────────────────────────────────────────────── */}
       <section style={{ background: "var(--green)", padding: "80px 24px 72px" }}>
-        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
-          <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 24, fontFamily: "var(--font-mono)" }}>
-            09 · crear
-          </p>
+        <Reveal style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
           <h2 style={{ fontSize: "clamp(36px, 5vw, 60px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", color: "#fff", margin: "0 0 16px" }}>
             Tu próximo cliente{" "}
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--accent)" }}>
               ya te está escribiendo.
             </span>
           </h2>
-          <p style={{ fontSize: 15, lineHeight: 1.7, color: "rgba(255,255,255,0.5)", margin: "0 auto 36px", maxWidth: 380 }}>
-            Dale a tu WhatsApp el músculo que le falta: un perfil que habla, sin la persona encima.
+          <p style={{ fontSize: 15, lineHeight: 1.7, color: "rgba(255,255,255,0.5)", margin: "0 auto 36px", maxWidth: 400 }}>
+            Conectás WhatsApp y tu asistente empieza a responder. No necesitás saber de tecnología.
           </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 56 }}>
-            <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 26px", fontSize: 15, fontWeight: 600, background: "var(--accent)", color: "#fff", borderRadius: 12, textDecoration: "none" }}>
-              Crear mi asistente <span>→</span>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 18 }}>
+            <Link href="/signup" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 26px", fontSize: 15, fontWeight: 600, background: "var(--accent)", color: "#fff", borderRadius: 12, textDecoration: "none" }}>
+              Probar gratis 14 días <span className="arrow">→</span>
             </Link>
-            <a href="#" style={{ display: "inline-flex", alignItems: "center", padding: "14px 26px", fontSize: 15, fontWeight: 500, background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", borderRadius: 12, textDecoration: "none", border: "1px solid rgba(255,255,255,0.15)" }}>
-              Hablar con ventas
+            <a href="#demo" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", padding: "14px 26px", fontSize: 15, fontWeight: 500, background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.85)", borderRadius: 12, textDecoration: "none", border: "1px solid rgba(255,255,255,0.15)" }}>
+              Ver cómo responde
             </a>
           </div>
+          <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.4)", margin: "0 0 56px" }}>
+            Sin tarjeta · cancelá cuando quieras · sin compromiso
+          </p>
           <BrandWordmark size={20} color="rgba(255,255,255,0.5)" />
-        </div>
+        </Reveal>
       </section>
 
     </main>

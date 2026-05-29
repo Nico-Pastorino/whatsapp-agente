@@ -215,3 +215,118 @@ body {
 }
 .atd-tab.active .tab-ic { background: var(--ink); color: var(--bg); }
 .atd-tab.center .tab-ic { background: var(--accent); color: var(--on-accent); }
+
+/* ── Landing: animaciones y microinteracciones ─────────────── */
+
+/* Reveal on scroll */
+.reveal {
+  opacity: 1;
+  transform: none;
+  transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1);
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .reveal:not(.in-view) {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+}
+
+/* Hover en cards */
+.lp-card {
+  transition: transform .28s cubic-bezier(.16,1,.3,1), box-shadow .28s ease, border-color .28s ease;
+  will-change: transform;
+}
+@media (hover: hover) {
+  .lp-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-3);
+    border-color: var(--hairline-2);
+  }
+  .lp-card.on-dark:hover {
+    box-shadow: 0 24px 48px -16px rgba(0,0,0,0.45);
+    border-color: rgba(255,255,255,0.16);
+  }
+}
+
+/* Botones / CTA */
+.lp-btn {
+  transition: transform .15s ease, box-shadow .22s ease, opacity .15s ease, background-color .2s ease;
+}
+@media (hover: hover) {
+  .lp-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+}
+.lp-btn:active { transform: translateY(0); }
+.lp-btn .arrow { display: inline-block; transition: transform .2s ease; }
+@media (hover: hover) {
+  .lp-btn:hover .arrow { transform: translateX(4px); }
+}
+
+/* Link de nav con subrayado animado */
+.lp-navlink { position: relative; }
+.lp-navlink::after {
+  content: ""; position: absolute; left: 0; bottom: -4px;
+  width: 100%; height: 1.5px; background: var(--accent);
+  transform: scaleX(0); transform-origin: left; transition: transform .25s ease;
+}
+@media (hover: hover) { .lp-navlink:hover::after { transform: scaleX(1); } }
+
+/* Flotación suave del mockup */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-float { animation: lp-float 6s ease-in-out infinite; }
+}
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Badge que respira */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-breathe { animation: lp-breathe 3.5s ease-in-out infinite; }
+}
+@keyframes lp-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.02); }
+}
+
+/* Indicador de "escribiendo…" */
+.lp-typing { display: inline-flex; gap: 4px; align-items: center; }
+.lp-typing i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: .35; display: inline-block;
+  animation: lp-typing 1.2s ease-in-out infinite;
+}
+.lp-typing i:nth-child(2) { animation-delay: .2s; }
+.lp-typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes lp-typing {
+  0%, 60%, 100% { opacity: .3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Entrada de burbuja de chat */
+.lp-bub-enter {
+  animation: lp-bub-enter .35s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes lp-bub-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Chips de sugerencia */
+.lp-chip {
+  transition: background-color .18s ease, border-color .18s ease, transform .12s ease, color .18s ease;
+}
+.lp-chip:active { transform: scale(.96); }
+@media (hover: hover) {
+  .lp-chip:hover { border-color: var(--green-soft); color: var(--green-ink); background: var(--green-tint); }
+}
+
+/* Acordeón de objeciones */
+.lp-acc-body {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .3s ease;
+}
+.lp-acc-body.open { grid-template-rows: 1fr; }
+.lp-acc-body > div { overflow: hidden; }
+.lp-acc-ic { transition: transform .3s ease; }
+.lp-acc-ic.open { transform: rotate(45deg); }
