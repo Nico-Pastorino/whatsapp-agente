@@ -23,6 +23,11 @@ export type {
   StockStatus,
   TeamCapacitySummary,
   UpgradeOption,
+  Appointment,
+  AppointmentInput,
+  AppointmentStatus,
+  PendingInternalNotification,
+  InternalNotificationEvent,
 } from "./data-access";
 
 export {
@@ -98,4 +103,16 @@ export {
   toggleBusinessItemActive,
   updateBusinessItem,
   getActiveBusinessIdsForWorker,
+  listAppointments,
+  getAppointmentById,
+  getAppointmentMonthlyCount,
+  createAppointment,
+  updateAppointment,
+  AppointmentLimitError,
+  planAllowsInternalNotifications,
+  enqueueInternalNotification,
+  getPendingInternalNotifications,
+  markInternalNotificationSent,
+  setInternalNotificationError,
+  INTERNAL_NOTIFICATION_EVENTS,
 } from "./data-access";

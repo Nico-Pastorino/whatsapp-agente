@@ -58,8 +58,29 @@ export async function POST(req: NextRequest) {
           ? body.booking_config.trim().slice(0, 4000)
           : undefined;
 
+      // Avisos internos al encargado
+      const notify_enabled =
+        typeof body.notify_enabled === "boolean" ? body.notify_enabled : undefined;
+      const notify_phone =
+        typeof body.notify_phone === "string" ? body.notify_phone.trim().slice(0, 30) : undefined;
+      const ALLOWED_EVENTS = [
+        "new_appointment",
+        "appointment_cancelled",
+        "human_handoff",
+        "hot_lead",
+        "unanswered",
+        "daily_summary",
+      ];
+      const notify_events = Array.isArray(body.notify_events)
+        ? (body.notify_events as unknown[])
+            .filter((e): e is string => typeof e === "string" && ALLOWED_EVENTS.includes(e))
+        : undefined;
+
       await setBusinessProfile(
-        { name, description, products, extra, quick_replies, knowledge_base, booking_enabled, booking_config },
+        {
+          name, description, products, extra, quick_replies, knowledge_base, booking_enabled, booking_config,
+          notify_enabled, notify_phone, notify_events,
+        },
         businessId
       );
 

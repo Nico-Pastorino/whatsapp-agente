@@ -8,6 +8,7 @@ import ConversationList from "./ConversationList";
 import ConversationPanel from "./ConversationPanel";
 import BusinessConfig from "./BusinessConfig";
 import ItemCatalog from "./ItemCatalog";
+import AgendaScreen from "./AgendaScreen";
 import PlanOverview from "./PlanOverview";
 import StatsScreen from "./StatsScreen";
 import TeamManagement from "./TeamManagement";
@@ -49,6 +50,7 @@ type DashboardView =
   | "conversations"
   | "business"
   | "catalog"
+  | "agenda"
   | "home"
   | "more"
   | "plan"
@@ -234,6 +236,9 @@ export default function ConnectionGate({ currentView }: Props) {
     mobileContent = content;
   } else if (currentView === "catalog") {
     content = <ItemCatalog />;
+    mobileContent = content;
+  } else if (currentView === "agenda") {
+    content = <AgendaScreen />;
     mobileContent = content;
   } else if (currentView === "team") {
     content = <TeamManagement />;

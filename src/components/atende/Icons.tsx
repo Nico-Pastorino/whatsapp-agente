@@ -32,6 +32,12 @@ export const Chat = make(
 export const Bolt = make(
   <path d="M11 2.5L4.5 11h4.5L9 17.5 15.5 9H11l1-6.5z" />
 );
+export const Calendar = make(
+  <>
+    <rect x="3.5" y="4.5" width="13" height="12" rx="2" />
+    <path d="M3.5 8h13M7 3v3M13 3v3" />
+  </>
+);
 export const Shop = make(
   <>
     <path d="M3.5 7.5h13L15 16H5L3.5 7.5z" />

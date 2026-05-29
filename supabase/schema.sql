@@ -1,6 +1,7 @@
 create extension if not exists "pgcrypto";
 
 drop table if exists worker_commands cascade;
+drop table if exists internal_notifications cascade;
 drop table if exists appointments cascade;
 drop table if exists outbox_messages cascade;
 drop table if exists payments cascade;
@@ -61,6 +62,9 @@ create table business_settings (
   knowledge_base text not null default '',
   booking_enabled boolean not null default false,
   booking_config text not null default '',
+  notify_enabled boolean not null default false,
+  notify_phone text not null default '',
+  notify_events jsonb not null default '[]'::jsonb,
   updated_at timestamptz not null default now()
 );
 
@@ -247,6 +251,7 @@ create table appointments (
   conversation_id uuid references conversations(id) on delete set null,
   contact_id uuid references contacts(id) on delete set null,
   customer_name text,
+  customer_phone text,
   service text,
   starts_at timestamptz,
   notes text,
@@ -254,6 +259,20 @@ create table appointments (
   source text not null default 'ai' check (source in ('ai','human')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+create table internal_notifications (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  event_type text not null,
+  content text not null,
+  target_jid text not null,
+  dedup_key text,
+  status text not null default 'pending' check (status in ('pending','sent','failed','skipped')),
+  error text,
+  retry_count integer not null default 0,
+  created_at timestamptz not null default now(),
+  sent_at timestamptz
 );
 
 create index idx_contacts_business_phone
@@ -304,6 +323,14 @@ create index idx_worker_commands_pending
 
 create index idx_appointments_business_starts
   on appointments (business_id, starts_at);
+
+create unique index uq_internal_notifications_dedup
+  on internal_notifications (business_id, dedup_key)
+  where dedup_key is not null;
+
+create index idx_internal_notifications_pending
+  on internal_notifications (business_id, status, created_at)
+  where status = 'pending';
 
 insert into plans (
   code,

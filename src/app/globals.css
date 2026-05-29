@@ -108,6 +108,18 @@ body {
 .atd-btn.lg      { height: 52px; padding: 0 22px; font-size: 16px; }
 .atd-btn.sm      { height: 34px; padding: 0 12px; font-size: 13px; }
 
+/* Chip de acción (turnos, etc.) */
+.atd-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px; font-weight: 600; font-family: var(--font-sans);
+  background: var(--surface-2); color: var(--ink-2);
+  border: 1px solid var(--hairline); cursor: pointer;
+  transition: background .15s, border-color .15s, transform .12s;
+}
+.atd-chip:hover { background: var(--green-tint); border-color: var(--green-soft); transform: translateY(-1px); }
+
 .atd-seg {
   display: inline-flex; padding: 3px;
   background: var(--surface-2);

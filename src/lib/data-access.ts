@@ -29,6 +29,12 @@ export interface BusinessProfile {
   booking_enabled: boolean;
   /** Reglas de agenda: horarios, duración, servicios, cómo confirmar. */
   booking_config: string;
+  /** Avisos internos al encargado activados. */
+  notify_enabled: boolean;
+  /** Número del encargado (solo dígitos, formato internacional). */
+  notify_phone: string;
+  /** Eventos a avisar: new_appointment, human_handoff, etc. */
+  notify_events: string[];
   updated_at: number;
 }
 
@@ -2168,7 +2174,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
       .single(),
     supabase
       .from("business_settings")
-      .select("description, extra, quick_replies, knowledge_base, booking_enabled, booking_config, updated_at")
+      .select("description, extra, quick_replies, knowledge_base, booking_enabled, booking_config, notify_enabled, notify_phone, notify_events, updated_at")
       .eq("business_id", businessId)
       .single(),
     supabase
@@ -2191,6 +2197,9 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
     knowledge_base: settings?.knowledge_base ?? "",
     booking_enabled: settings?.booking_enabled ?? false,
     booking_config: settings?.booking_config ?? "",
+    notify_enabled: settings?.notify_enabled ?? false,
+    notify_phone: settings?.notify_phone ?? "",
+    notify_events: Array.isArray(settings?.notify_events) ? (settings.notify_events as string[]) : [],
     products: (products ?? []).map((product) => ({
       id: product.id,
       name: product.name,
@@ -2216,6 +2225,9 @@ export async function setBusinessProfile(patch: {
   knowledge_base?: string; // optional — if omitted, not touched
   booking_enabled?: boolean; // optional — if omitted, not touched
   booking_config?: string; // optional — if omitted, not touched
+  notify_enabled?: boolean; // optional — if omitted, not touched
+  notify_phone?: string; // optional — if omitted, not touched
+  notify_events?: string[]; // optional — if omitted, not touched
 }, businessId = getBusinessId()): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
@@ -2241,6 +2253,15 @@ export async function setBusinessProfile(patch: {
   }
   if (patch.booking_config !== undefined) {
     settingsPatch.booking_config = patch.booking_config;
+  }
+  if (patch.notify_enabled !== undefined) {
+    settingsPatch.notify_enabled = patch.notify_enabled;
+  }
+  if (patch.notify_phone !== undefined) {
+    settingsPatch.notify_phone = patch.notify_phone;
+  }
+  if (patch.notify_events !== undefined) {
+    settingsPatch.notify_events = patch.notify_events;
   }
   await supabase.from("business_settings").update(settingsPatch).eq("business_id", businessId);
   console.log(`[business/update] settings updated business_id=${businessId}`);
@@ -3276,4 +3297,318 @@ export async function listActiveItemsForPrompt(
     .limit(30);
   if (error) throw error;
   return (data ?? []).map((row) => mapRowToCatalogItem(row as Record<string, unknown>));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// AGENDA / TURNOS
+// ════════════════════════════════════════════════════════════════════════════
+
+export type AppointmentStatus = "pending" | "confirmed" | "cancelled" | "done";
+
+export interface Appointment {
+  id: string;
+  business_id: string;
+  conversation_id: string | null;
+  contact_id: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  service: string | null;
+  starts_at: string | null; // ISO timestamp
+  notes: string | null;
+  status: AppointmentStatus;
+  source: "ai" | "human";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppointmentInput {
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  service?: string | null;
+  starts_at?: string | null;
+  notes?: string | null;
+  status?: AppointmentStatus;
+  conversation_id?: string | null;
+  contact_id?: string | null;
+  source?: "ai" | "human";
+}
+
+const APPOINTMENT_STATUSES: AppointmentStatus[] = ["pending", "confirmed", "cancelled", "done"];
+
+// Límite mensual de turnos por plan. null = sin límite.
+const APPOINTMENT_MONTHLY_LIMIT: Record<string, number | null> = {
+  starter: 30,
+  growth: null,
+  pro: null,
+};
+
+export class AppointmentLimitError extends Error {
+  code = "APPOINTMENT_LIMIT_EXCEEDED" as const;
+  status = 403;
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+function monthStartISO(): string {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+}
+
+/** Cantidad de turnos creados este mes (para el límite de Starter). */
+export async function getAppointmentMonthlyCount(businessId = getBusinessId()): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const { count, error } = await supabase
+    .from("appointments")
+    .select("id", { count: "exact", head: true })
+    .eq("business_id", businessId)
+    .gte("created_at", monthStartISO());
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Lista turnos del negocio. Por defecto ordenados por fecha del turno. */
+export async function listAppointments(
+  businessId = getBusinessId(),
+  opts: { includeCancelled?: boolean; limit?: number } = {}
+): Promise<Appointment[]> {
+  const supabase = getSupabaseAdminClient();
+  let query = supabase
+    .from("appointments")
+    .select("*")
+    .eq("business_id", businessId);
+  if (!opts.includeCancelled) {
+    query = query.neq("status", "cancelled");
+  }
+  query = query
+    .order("starts_at", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(opts.limit ?? 200);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as Appointment[];
+}
+
+export async function getAppointmentById(
+  id: string,
+  businessId = getBusinessId()
+): Promise<Appointment | null> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("*")
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as Appointment) ?? null;
+}
+
+export async function createAppointment(
+  input: AppointmentInput,
+  businessId = getBusinessId()
+): Promise<Appointment> {
+  // Límite mensual por plan (Starter).
+  const planCode = (await getCachedSubscription(businessId))?.plan_code ?? "starter";
+  const limit = APPOINTMENT_MONTHLY_LIMIT[planCode] ?? null;
+  if (limit !== null) {
+    const used = await getAppointmentMonthlyCount(businessId);
+    if (used >= limit) {
+      throw new AppointmentLimitError(
+        `Alcanzaste el límite de ${limit} turnos este mes en tu plan. Mejorá tu plan para turnos ilimitados.`
+      );
+    }
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const status: AppointmentStatus = APPOINTMENT_STATUSES.includes(input.status as AppointmentStatus)
+    ? (input.status as AppointmentStatus)
+    : "pending";
+  const { data, error } = await supabase
+    .from("appointments")
+    .insert({
+      business_id: businessId,
+      conversation_id: input.conversation_id ?? null,
+      contact_id: input.contact_id ?? null,
+      customer_name: input.customer_name ?? null,
+      customer_phone: input.customer_phone ? normalizePhoneNumber(input.customer_phone) : null,
+      service: input.service ?? null,
+      starts_at: input.starts_at ?? null,
+      notes: input.notes ?? null,
+      status,
+      source: input.source === "ai" ? "ai" : "human",
+      updated_at: now,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  const appointment = data as Appointment;
+
+  // Aviso interno (si el negocio lo configuró y el plan lo permite).
+  await enqueueInternalNotification(
+    {
+      event_type: "new_appointment",
+      dedup_key: `appt:${appointment.id}`,
+      content: buildNewAppointmentMessage(appointment),
+    },
+    businessId
+  ).catch((err) => console.error(`[notify/${businessId}] enqueue new_appointment falló:`, err));
+
+  return appointment;
+}
+
+export async function updateAppointment(
+  id: string,
+  patch: AppointmentInput,
+  businessId = getBusinessId()
+): Promise<Appointment> {
+  const supabase = getSupabaseAdminClient();
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.customer_name !== undefined) update.customer_name = patch.customer_name;
+  if (patch.customer_phone !== undefined)
+    update.customer_phone = patch.customer_phone ? normalizePhoneNumber(patch.customer_phone) : null;
+  if (patch.service !== undefined) update.service = patch.service;
+  if (patch.starts_at !== undefined) update.starts_at = patch.starts_at;
+  if (patch.notes !== undefined) update.notes = patch.notes;
+  if (patch.status !== undefined && APPOINTMENT_STATUSES.includes(patch.status)) {
+    update.status = patch.status;
+  }
+
+  const { data, error } = await supabase
+    .from("appointments")
+    .update(update)
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as Appointment;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// AVISOS INTERNOS AL ENCARGADO
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Eventos de aviso interno soportados. */
+export const INTERNAL_NOTIFICATION_EVENTS = [
+  "new_appointment",
+  "appointment_cancelled",
+  "human_handoff",
+  "hot_lead",
+  "unanswered",
+  "daily_summary",
+] as const;
+export type InternalNotificationEvent = (typeof INTERNAL_NOTIFICATION_EVENTS)[number];
+
+/** ¿El plan del negocio permite avisos internos? (Growth y Pro). */
+export async function planAllowsInternalNotifications(
+  businessId = getBusinessId()
+): Promise<boolean> {
+  const features = await getPlanFeatures(businessId);
+  return features.appointments === true || features.knowledge_base === true;
+}
+
+function buildNewAppointmentMessage(a: Appointment): string {
+  const lines = ["🗓️ *Nuevo turno*"];
+  if (a.customer_name) lines.push(`Cliente: ${a.customer_name}`);
+  if (a.customer_phone) lines.push(`Tel: ${a.customer_phone}`);
+  if (a.service) lines.push(`Servicio: ${a.service}`);
+  if (a.starts_at) {
+    const d = new Date(a.starts_at);
+    if (!Number.isNaN(d.getTime())) {
+      lines.push(`Cuándo: ${d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}`);
+    }
+  }
+  if (a.notes) lines.push(`Nota: ${a.notes}`);
+  return lines.join("\n");
+}
+
+/**
+ * Encola un aviso interno para que el WORKER lo envíe por WhatsApp al encargado.
+ * Respeta: interruptor general, evento habilitado, plan, y deduplicación.
+ * No envía nada por sí mismo (Baileys vive en el worker, fuera de Vercel).
+ */
+export async function enqueueInternalNotification(
+  params: { event_type: string; content: string; dedup_key?: string },
+  businessId = getBusinessId()
+): Promise<{ enqueued: boolean; reason?: string }> {
+  const profile = await getBusinessProfile(businessId).catch(() => null);
+  if (!profile || !profile.notify_enabled) return { enqueued: false, reason: "disabled" };
+  if (!profile.notify_events.includes(params.event_type)) {
+    return { enqueued: false, reason: "event_off" };
+  }
+  const phone = normalizePhoneNumber(profile.notify_phone);
+  if (!phone) return { enqueued: false, reason: "no_phone" };
+
+  if (!(await planAllowsInternalNotifications(businessId))) {
+    return { enqueued: false, reason: "plan" };
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("internal_notifications")
+    .insert({
+      business_id: businessId,
+      event_type: params.event_type,
+      content: params.content,
+      target_jid: `${phone}@s.whatsapp.net`,
+      dedup_key: params.dedup_key ?? null,
+    });
+  if (error) {
+    // 23505 = unique_violation → ya estaba encolado, lo ignoramos (dedup).
+    if ((error as { code?: string }).code === "23505") return { enqueued: false, reason: "duplicate" };
+    throw error;
+  }
+  return { enqueued: true };
+}
+
+export interface PendingInternalNotification {
+  id: string;
+  business_id: string;
+  event_type: string;
+  content: string;
+  target_jid: string;
+  retry_count: number;
+}
+
+/** El worker lee los avisos pendientes de un negocio. */
+export async function getPendingInternalNotifications(
+  limit: number,
+  businessId: string
+): Promise<PendingInternalNotification[]> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("internal_notifications")
+    .select("id, business_id, event_type, content, target_jid, retry_count")
+    .eq("business_id", businessId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as PendingInternalNotification[];
+}
+
+export async function markInternalNotificationSent(id: string, businessId: string): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  await supabase
+    .from("internal_notifications")
+    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("business_id", businessId);
+}
+
+export async function setInternalNotificationError(
+  id: string,
+  errorMsg: string,
+  retryCount: number,
+  businessId: string
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const status = retryCount >= 3 ? "failed" : "pending";
+  await supabase
+    .from("internal_notifications")
+    .update({ status, error: errorMsg.slice(0, 500), retry_count: retryCount })
+    .eq("id", id)
+    .eq("business_id", businessId);
 }

@@ -37,6 +37,9 @@ import {
   updateWorkerHeartbeat,
   getActiveBusinessIdsForWorker,
   returnInactiveConversationsToAI,
+  getPendingInternalNotifications,
+  markInternalNotificationSent,
+  setInternalNotificationError,
 } from "../src/lib/db";
 import {
   startSession,
@@ -51,6 +54,7 @@ const INSTANCE = getWorkerInstanceName();
 const AUTH_BASE = getBaileysAuthBasePath();
 const SCAN_INTERVAL_MS        = 60_000;      // re-escanear negocios nuevos cada 60s
 const OUTBOX_INTERVAL_MS      = 2_000;       // procesar outbox cada 2s
+const INTERNAL_NOTIF_INTERVAL_MS = 4_000;    // enviar avisos internos cada 4s
 const HEARTBEAT_INTERVAL_MS   = 10_000;      // heartbeat independiente cada 10s
 const DISCONNECT_CHECK_MS     = 2_000;       // polling de desconexión remota cada 2s
 const AUTO_RETURN_INTERVAL_MS = 5 * 60_000;  // auto-retorno a IA cada 5min
@@ -177,6 +181,40 @@ setInterval(async () => {
     }
   }
 }, OUTBOX_INTERVAL_MS);
+
+// ──────────────────────────────────────────────
+// Avisos internos al encargado (cada 4s)
+// Envía al número configurado del dueño/encargado. Independiente del outbox
+// de conversaciones: no usa last_inbound_jid ni la lógica de JID de clientes.
+// ──────────────────────────────────────────────
+
+setInterval(async () => {
+  for (const businessId of managedBusinessIds) {
+    const handle = getHandle(businessId);
+    if (!handle) continue;
+
+    const state = await getConnectionState(businessId, INSTANCE).catch(() => null);
+    if (!state || state.status !== "connected") continue;
+
+    const access = await checkAccountAccess(businessId).catch(() => null);
+    if (!access?.canUseApp) continue;
+
+    const pending = await getPendingInternalNotifications(10, businessId).catch(() => []);
+    for (const notif of pending) {
+      try {
+        const { sock } = handle;
+        await sock.sendMessage(notif.target_jid, { text: notif.content });
+        await markInternalNotificationSent(notif.id, businessId);
+        console.log(`[notify/${businessId}] sent ok=${notif.id} event=${notif.event_type}`);
+      } catch (err) {
+        const nextRetry = notif.retry_count + 1;
+        const errMsg = err instanceof Error ? err.message : "Error enviando aviso interno";
+        await setInternalNotificationError(notif.id, errMsg, nextRetry, businessId).catch(() => undefined);
+        console.warn(`[notify/${businessId}] send error=${notif.id} (reintento ${nextRetry}/3):`, errMsg);
+      }
+    }
+  }
+}, INTERNAL_NOTIF_INTERVAL_MS);
 
 // ──────────────────────────────────────────────
 // Heartbeat independiente (cada 10s)

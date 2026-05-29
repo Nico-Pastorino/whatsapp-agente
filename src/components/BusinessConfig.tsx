@@ -13,7 +13,19 @@ interface Profile {
   knowledge_base: string;
   booking_enabled: boolean;
   booking_config: string;
+  notify_enabled: boolean;
+  notify_phone: string;
+  notify_events: string[];
 }
+
+const NOTIFY_EVENT_OPTIONS: { key: string; label: string }[] = [
+  { key: "new_appointment", label: "Nuevo turno" },
+  { key: "appointment_cancelled", label: "Turno cancelado" },
+  { key: "human_handoff", label: "Cliente pidió hablar con una persona" },
+  { key: "hot_lead", label: "Cliente interesado en comprar" },
+  { key: "unanswered", label: "Consulta sin responder" },
+  { key: "daily_summary", label: "Resumen diario de pendientes" },
+];
 
 const inputClass = "atd-input";
 
@@ -44,6 +56,9 @@ export default function BusinessConfig() {
     knowledge_base: "",
     booking_enabled: false,
     booking_config: "",
+    notify_enabled: false,
+    notify_phone: "",
+    notify_events: [],
   });
   const [newReply, setNewReply] = useState("");
   const [saving, setSaving] = useState(false);
@@ -63,6 +78,9 @@ export default function BusinessConfig() {
           knowledge_base: data.knowledge_base ?? "",
           booking_enabled: Boolean(data.booking_enabled),
           booking_config: data.booking_config ?? "",
+          notify_enabled: Boolean(data.notify_enabled),
+          notify_phone: data.notify_phone ?? "",
+          notify_events: Array.isArray(data.notify_events) ? data.notify_events : [],
         });
         setLoading(false);
       });
@@ -86,7 +104,7 @@ export default function BusinessConfig() {
       const res = await fetch("/api/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies, knowledge_base: profile.knowledge_base, booking_enabled: profile.booking_enabled, booking_config: profile.booking_config }),
+        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies, knowledge_base: profile.knowledge_base, booking_enabled: profile.booking_enabled, booking_config: profile.booking_config, notify_enabled: profile.notify_enabled, notify_phone: profile.notify_phone, notify_events: profile.notify_events }),
       });
       if (res.ok) {
         setSaved(true);
@@ -263,6 +281,107 @@ export default function BusinessConfig() {
               placeholder={`Ej:\nServicios: corte ($8.000, 45 min), color ($20.000, 2 hs)\nDías y horarios: Mar a Sáb de 10 a 19 hs (último turno 18 hs)\nNo atendemos domingos ni lunes.\nSeña: pedimos transferencia del 50% para confirmar.`}
               className={`${inputClass} resize-none`}
             />
+          )}
+        </section>
+
+        {/* Sección: Avisos internos */}
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <SectionHeader
+              label="Avisos"
+              title="Avisar al encargado"
+              description="Recibí un WhatsApp a tu número cuando pase algo importante: un turno nuevo, un cliente que pide hablar con una persona, y más."
+            />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={profile.notify_enabled}
+              onClick={() => {
+                setProfile((p) => ({ ...p, notify_enabled: !p.notify_enabled }));
+                setSaved(false);
+              }}
+              style={{
+                flexShrink: 0,
+                width: 46,
+                height: 26,
+                borderRadius: 999,
+                border: "none",
+                cursor: "pointer",
+                padding: 3,
+                background: profile.notify_enabled ? "var(--green)" : "var(--hairline)",
+                transition: "background .18s ease",
+                display: "flex",
+                justifyContent: profile.notify_enabled ? "flex-end" : "flex-start",
+              }}
+            >
+              <span style={{ width: 20, height: 20, borderRadius: 999, background: "#fff", display: "block", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+            </button>
+          </div>
+          {profile.notify_enabled && (
+            <>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Número del encargado</label>
+              <input
+                value={profile.notify_phone}
+                onChange={(e) => updateField("notify_phone", e.target.value)}
+                placeholder="Ej: 54 9 11 5555 5555 (con código de país)"
+                className={inputClass}
+                inputMode="tel"
+              />
+              <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "6px 0 14px" }}>
+                Incluí el código de país. Los avisos salen del mismo WhatsApp conectado del negocio.
+              </p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">¿Qué querés que te avise?</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {NOTIFY_EVENT_OPTIONS.map((opt) => {
+                  const checked = profile.notify_events.includes(opt.key);
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => {
+                        setProfile((p) => ({
+                          ...p,
+                          notify_events: checked
+                            ? p.notify_events.filter((e) => e !== opt.key)
+                            : [...p.notify_events, opt.key],
+                        }));
+                        setSaved(false);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        border: `1px solid ${checked ? "var(--green-soft)" : "var(--hairline)"}`,
+                        background: checked ? "var(--green-tint)" : "transparent",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 5,
+                          flexShrink: 0,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: checked ? "var(--green)" : "transparent",
+                          border: checked ? "none" : "1.5px solid var(--hairline-2)",
+                          color: "#fff",
+                          fontSize: 12,
+                        }}
+                      >
+                        {checked ? "✓" : ""}
+                      </span>
+                      <span style={{ fontSize: 13.5, color: "var(--ink-2)" }}>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
 

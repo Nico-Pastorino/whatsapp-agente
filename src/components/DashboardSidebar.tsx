@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart } from "./atende/Icons";
+import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart, Calendar } from "./atende/Icons";
 
 type DashboardView =
   | "conversations"
   | "business"
   | "catalog"
+  | "agenda"
   | "home"
   | "more"
   | "plan"
@@ -41,6 +42,7 @@ const NAV_ITEMS: Array<{ key: DashboardView; label: string; Icon: React.Componen
   { key: "conversations", label: "Conversaciones",  Icon: Chat,   href: "/app/conversations" },
   { key: "business",      label: "Mi negocio",       Icon: Shop,   href: "/app/business" },
   { key: "catalog",       label: "Catálogo",         Icon: Bolt,   href: "/app/catalog" },
+  { key: "agenda",        label: "Turnos",           Icon: Calendar, href: "/app/agenda" },
   { key: "plan",          label: "Mi plan",          Icon: Layers, href: "/app/plan" },
   { key: "team",          label: "Equipo",           Icon: Users,  href: "/app/team" },
   { key: "stats",         label: "Métricas",         Icon: BarChart, href: "/app/stats" },

@@ -13,6 +13,7 @@ import {
   checkAccountAccess,
   setMode,
   setNeedsAttention,
+  enqueueInternalNotification,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
 
@@ -238,6 +239,18 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
     console.log(`[bot/${businessId}] Handoff detectado — cambiando a HUMAN + needs_attention`);
     await setMode(convo.id, "HUMAN", businessId).catch(() => undefined);
     await setNeedsAttention(convo.id, true, businessId).catch(() => undefined);
+
+    // Aviso interno al encargado (dedup por conversación + día para no spamear).
+    const day = new Date().toISOString().slice(0, 10);
+    const who = fresh.name || extractPhoneFromJid(remoteJid) || "Un cliente";
+    await enqueueInternalNotification(
+      {
+        event_type: "human_handoff",
+        dedup_key: `handoff:${convo.id}:${day}`,
+        content: `🙋 *Te necesitan en una conversación*\n${who} pidió hablar con una persona. Entrá al panel para responder.`,
+      },
+      businessId
+    ).catch((err) => console.error(`[notify/${businessId}] handoff enqueue falló:`, err));
   }
 
   const sentResult = await sock.sendMessage(replyJid, { text: reply });

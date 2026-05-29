@@ -1,0 +1,329 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Appointment, AppointmentStatus } from "@/lib/db";
+import DashboardContentShell from "./DashboardContentShell";
+
+const STATUS_META: Record<AppointmentStatus, { label: string; bg: string; color: string }> = {
+  pending: { label: "Pendiente", bg: "var(--accent-soft)", color: "var(--accent-ink)" },
+  confirmed: { label: "Confirmado", bg: "var(--green-tint)", color: "var(--green-ink)" },
+  cancelled: { label: "Cancelado", bg: "#f1d9d6", color: "#7a271a" },
+  done: { label: "Completado", bg: "var(--surface-2)", color: "var(--ink-2)" },
+};
+
+const STATUS_ORDER: AppointmentStatus[] = ["pending", "confirmed", "done", "cancelled"];
+
+interface FormState {
+  customer_name: string;
+  customer_phone: string;
+  datetime: string; // datetime-local value
+  service: string;
+  notes: string;
+  status: AppointmentStatus;
+}
+
+const EMPTY_FORM: FormState = {
+  customer_name: "",
+  customer_phone: "",
+  datetime: "",
+  service: "",
+  notes: "",
+  status: "pending",
+};
+
+function toLocalInputValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  // YYYY-MM-DDTHH:mm en hora local
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatWhen(iso: string | null): string {
+  if (!iso) return "Sin fecha";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Sin fecha";
+  return d.toLocaleString("es-AR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+export default function AgendaScreen() {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Appointment | null>(null);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/appointments?all=1", { cache: "no-store" });
+      if (!res.ok) {
+        setLoading(false);
+        return;
+      }
+      const data = (await res.json()) as { appointments: Appointment[] };
+      setAppointments(data.appointments ?? []);
+    } catch {
+      /* noop */
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function openNew() {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setError(null);
+    setShowForm(true);
+  }
+
+  function openEdit(a: Appointment) {
+    setEditing(a);
+    setForm({
+      customer_name: a.customer_name ?? "",
+      customer_phone: a.customer_phone ?? "",
+      datetime: toLocalInputValue(a.starts_at),
+      service: a.service ?? "",
+      notes: a.notes ?? "",
+      status: a.status,
+    });
+    setError(null);
+    setShowForm(true);
+  }
+
+  async function save() {
+    if (!form.customer_name.trim()) {
+      setError("Poné el nombre del cliente.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const payload = {
+      customer_name: form.customer_name.trim(),
+      customer_phone: form.customer_phone.trim() || null,
+      service: form.service.trim() || null,
+      notes: form.notes.trim() || null,
+      starts_at: form.datetime ? new Date(form.datetime).toISOString() : null,
+      status: form.status,
+    };
+    try {
+      const res = editing
+        ? await fetch(`/api/appointments/${editing.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/appointments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "No se pudo guardar el turno.");
+        return;
+      }
+      setShowForm(false);
+      await load();
+    } catch {
+      setError("Error de conexión. Probá de nuevo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changeStatus(a: Appointment, status: AppointmentStatus) {
+    setAppointments((prev) => prev.map((x) => (x.id === a.id ? { ...x, status } : x)));
+    try {
+      await fetch(`/api/appointments/${a.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+    } finally {
+      load();
+    }
+  }
+
+  const sorted = useMemo(() => {
+    return [...appointments].sort((a, b) => {
+      const ta = a.starts_at ? new Date(a.starts_at).getTime() : Infinity;
+      const tb = b.starts_at ? new Date(b.starts_at).getTime() : Infinity;
+      return ta - tb;
+    });
+  }, [appointments]);
+
+  const upcoming = sorted.filter((a) => a.status !== "cancelled" && a.status !== "done");
+  const past = sorted.filter((a) => a.status === "cancelled" || a.status === "done");
+
+  return (
+    <DashboardContentShell maxWidth={760}>
+      <div style={{ padding: "20px 16px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Tus turnos</h1>
+          <button onClick={openNew} className="atd-btn green" style={{ whiteSpace: "nowrap" }}>
+            + Nuevo turno
+          </button>
+        </div>
+        <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 18px" }}>
+          Gestioná las reservas de tus clientes. Cambiá el estado con un toque.
+        </p>
+
+        {loading ? (
+          <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Cargando…</div>
+        ) : appointments.length === 0 ? (
+          <div className="atd-card" style={{ padding: 28, textAlign: "center" }}>
+            <div style={{ fontSize: 34, marginBottom: 8 }}>🗓️</div>
+            <h3 style={{ fontSize: 17, fontWeight: 600, margin: "0 0 6px" }}>Todavía no hay turnos</h3>
+            <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 16px" }}>
+              Creá tu primer turno o dejá que tu asistente los tome por vos.
+            </p>
+            <button onClick={openNew} className="atd-btn green">+ Nuevo turno</button>
+          </div>
+        ) : (
+          <>
+            {upcoming.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
+                {upcoming.map((a) => (
+                  <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} />
+                ))}
+              </div>
+            )}
+            {past.length > 0 && (
+              <>
+                <p style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", margin: "0 0 10px" }}>
+                  Finalizados / cancelados
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: 0.72 }}>
+                  {past.map((a) => (
+                    <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      {showForm && (
+        <div
+          onClick={() => !saving && setShowForm(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="atd-card"
+            style={{ width: "100%", maxWidth: 520, borderRadius: "20px 20px 0 0", padding: 20, maxHeight: "92vh", overflowY: "auto" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{editing ? "Editar turno" : "Nuevo turno"}</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "var(--muted)" }}>×</button>
+            </div>
+
+            <Field label="Cliente">
+              <input className="atd-input" value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} placeholder="Nombre del cliente" />
+            </Field>
+            <Field label="Teléfono (opcional)">
+              <input className="atd-input" value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} placeholder="Ej: 11 5555 5555" inputMode="tel" />
+            </Field>
+            <Field label="Día y horario">
+              <input className="atd-input" type="datetime-local" value={form.datetime} onChange={(e) => setForm({ ...form, datetime: e.target.value })} />
+            </Field>
+            <Field label="Servicio (opcional)">
+              <input className="atd-input" value={form.service} onChange={(e) => setForm({ ...form, service: e.target.value })} placeholder="Ej: Corte, color, consulta…" />
+            </Field>
+            <Field label="Notas internas (opcional)">
+              <textarea className="atd-input resize-none" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Algo que tengas que recordar" />
+            </Field>
+            <Field label="Estado">
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {STATUS_ORDER.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setForm({ ...form, status: s })}
+                    style={{
+                      padding: "7px 13px",
+                      borderRadius: 999,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      border: form.status === s ? "1px solid transparent" : "1px solid var(--hairline)",
+                      background: form.status === s ? STATUS_META[s].bg : "transparent",
+                      color: form.status === s ? STATUS_META[s].color : "var(--ink-3)",
+                    }}
+                  >
+                    {STATUS_META[s].label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {error && <p style={{ color: "#b42318", fontSize: 13, margin: "4px 0 0" }}>{error}</p>}
+
+            <button onClick={save} disabled={saving} className="atd-btn green" style={{ width: "100%", marginTop: 14, opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Guardando…" : editing ? "Guardar cambios" : "Crear turno"}
+            </button>
+          </div>
+        </div>
+      )}
+    </DashboardContentShell>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "var(--ink-2)", marginBottom: 5 }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function AppointmentCard({
+  a,
+  onEdit,
+  onStatus,
+}: {
+  a: Appointment;
+  onEdit: (a: Appointment) => void;
+  onStatus: (a: Appointment, status: AppointmentStatus) => void;
+}) {
+  const meta = STATUS_META[a.status];
+  return (
+    <div className="atd-card" style={{ padding: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 2px", color: "var(--ink)" }}>{a.customer_name || "Sin nombre"}</p>
+          <p style={{ fontSize: 13, color: "var(--ink-2)", margin: 0 }}>{formatWhen(a.starts_at)}</p>
+          {a.service && <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "2px 0 0" }}>{a.service}</p>}
+          {a.customer_phone && <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "2px 0 0" }}>{a.customer_phone}</p>}
+          {a.notes && <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "4px 0 0", fontStyle: "italic" }}>{a.notes}</p>}
+          {a.source === "ai" && (
+            <span style={{ display: "inline-block", marginTop: 6, fontSize: 11, color: "var(--green-soft)", fontWeight: 600 }}>✨ Tomado por la IA</span>
+          )}
+        </div>
+        <span style={{ flexShrink: 0, padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: meta.bg, color: meta.color }}>
+          {meta.label}
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+        {a.status !== "confirmed" && a.status !== "cancelled" && (
+          <button onClick={() => onStatus(a, "confirmed")} className="atd-chip">Confirmar</button>
+        )}
+        {a.status !== "done" && a.status !== "cancelled" && (
+          <button onClick={() => onStatus(a, "done")} className="atd-chip">Completar</button>
+        )}
+        <button onClick={() => onEdit(a)} className="atd-chip">Editar</button>
+        {a.status !== "cancelled" && (
+          <button onClick={() => onStatus(a, "cancelled")} className="atd-chip" style={{ color: "#b42318" }}>Cancelar</button>
+        )}
+      </div>
+    </div>
+  );
+}

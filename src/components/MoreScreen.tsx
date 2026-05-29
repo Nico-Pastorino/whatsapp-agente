@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Users, QR, Cog, ArrowLeft } from "./atende/Icons";
+import { Users, QR, Cog, ArrowLeft, Calendar, BarChart } from "./atende/Icons";
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -14,7 +14,9 @@ export default function MoreScreen() {
   const router = useRouter();
 
   const items: MenuItem[] = [
+    { icon: <Calendar size={18} />, label: "Turnos",        sub: "Agenda y reservas de tus clientes",       href: "/app/agenda" },
     { icon: <Users size={18} />, label: "Equipo",            sub: "Miembros, roles e invitaciones",        href: "/app/team" },
+    { icon: <BarChart size={18} />, label: "Métricas",      sub: "Cómo viene respondiendo tu asistente",    href: "/app/stats" },
     { icon: <QR size={18} />,   label: "Conectar WhatsApp", sub: "Vincular o reconectar el número",        href: "/app/connect" },
     { icon: <Cog size={18} />,  label: "Mi Negocio",        sub: "Datos, descripción e instrucciones",     href: "/app/business" },
   ];

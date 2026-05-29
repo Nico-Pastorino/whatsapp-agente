@@ -65,47 +65,64 @@ function formatMoney(value: number | null | undefined, currency: string): string
 
 const PLAN_INCLUDED: Record<string, string[]> = {
   starter: [
-    "IA básica para responder consultas",
+    "IA para responder consultas",
     "Modo humano (tomás el control)",
     "1 número de WhatsApp",
     "Hasta 3 usuarios del equipo",
-    "Hasta 15 productos/servicios",
+    "Hasta 20 productos/servicios",
     "Plantilla básica de rubro",
-    "Configuración del negocio",
+    "Turnos manuales (agenda básica)",
+  ],
+  growth: [
+    "Todo lo del Starter",
+    "Plantillas comerciales por rubro",
+    "Hasta 150 productos/servicios",
+    "Hasta 10 usuarios del equipo",
+    "Agenda de turnos completa + IA",
+    "Avisos internos al encargado",
+    "Base de conocimiento para la IA",
+    "Métricas de conversaciones",
   ],
   pro: [
-    "Todo lo del Starter",
-    "Plantillas comerciales (5 rubros activos)",
-    "Hasta 500 productos/servicios",
-    "Hasta 15 usuarios del equipo",
-    "Métricas de conversaciones",
-    "Gestión de equipo completa",
+    "Todo lo del Growth",
+    "Plantillas premium (todos los rubros)",
+    "Hasta 1.000 productos/servicios",
+    "Hasta 25 usuarios del equipo",
+    "Hasta 3 números de WhatsApp",
+    "Más avisos internos y volumen de turnos",
     "Soporte prioritario",
   ],
 };
 
 const PLAN_LOCKED: Record<string, string[]> = {
   starter: [
+    "Agenda de turnos con IA",
+    "Avisos internos al encargado",
     "Plantillas comerciales",
-    "Más de 15 productos/servicios",
-    "Más de 3 usuarios del equipo",
+    "Base de conocimiento",
     "Métricas de conversaciones",
+  ],
+  growth: [
+    "Más de 10 usuarios del equipo",
+    "Hasta 3 números de WhatsApp",
   ],
   pro: [],
 };
 
 const PLAN_TAGLINE: Record<string, string> = {
   starter: "Para empezar a responder consultas con IA.",
-  pro: "Para negocios que quieren vender más por WhatsApp.",
+  growth: "Para negocios que ya venden y quieren escalar.",
+  pro: "Para equipos que viven de WhatsApp.",
 };
 
 // ── Pantalla de Trial Expirado / Pago Pendiente ──────────────────────────────
 
 // Lista de planes mostrada en la pantalla de trial expirado / pago pendiente.
-// Se renderizan en orden Starter → Pro. Pro se destaca como recomendado.
-const PLAN_PICKER_ORDER: { code: "starter" | "pro"; recommended?: boolean }[] = [
+// Se renderizan en orden Starter → Growth → Pro. Growth se destaca como recomendado.
+const PLAN_PICKER_ORDER: { code: "starter" | "growth" | "pro"; recommended?: boolean }[] = [
   { code: "starter" },
-  { code: "pro", recommended: true },
+  { code: "growth", recommended: true },
+  { code: "pro" },
 ];
 
 interface PlanPickerOption {
