@@ -14,7 +14,7 @@ export interface BusinessTemplate {
   recommendedFields: string[];
   suggestedEmojis: string[];
   tier: "basic" | "commercial" | "premium";
-  requiredPlan: "starter" | "growth" | "pro";
+  requiredPlan: "starter" | "pro";
   comingSoon?: boolean;
 }
 
@@ -73,7 +73,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     ],
     suggestedEmojis: ["📱", "✅", "🚚", "💳", "🔋"],
     tier: "commercial",
-    requiredPlan: "growth",
+    requiredPlan: "pro",
   },
   {
     id: "clothing",
@@ -128,7 +128,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     ],
     suggestedEmojis: ["👕", "📦", "✨", "✅"],
     tier: "commercial",
-    requiredPlan: "growth",
+    requiredPlan: "pro",
   },
   {
     id: "hair_salon",
@@ -182,7 +182,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     ],
     suggestedEmojis: ["✨", "📅", "✅"],
     tier: "commercial",
-    requiredPlan: "growth",
+    requiredPlan: "pro",
   },
   {
     id: "restaurant",
@@ -238,7 +238,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     ],
     suggestedEmojis: ["🍽️", "🛵", "📍", "✅"],
     tier: "commercial",
-    requiredPlan: "growth",
+    requiredPlan: "pro",
   },
   {
     id: "events",
@@ -293,7 +293,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     ],
     suggestedEmojis: ["🎟️", "🎉", "📍", "✅", "🕺"],
     tier: "commercial",
-    requiredPlan: "growth",
+    requiredPlan: "pro",
   },
   // Coming soon
   {
@@ -407,7 +407,7 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     recommendedFields: [],
     suggestedEmojis: [],
     tier: "commercial",
-    requiredPlan: "growth",
+    requiredPlan: "pro",
     comingSoon: true,
   },
   {
@@ -415,19 +415,44 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
     name: "Emprendimiento general",
     emoji: "🚀",
     description: "Para cualquier emprendimiento que no encaje en los rubros anteriores.",
-    botGoal: "",
-    tone: "",
-    welcomeMessage: "",
-    fallbackMessage: "",
-    handoffMessage: "",
-    faqs: [],
-    suggestedCategories: [],
-    commercialIntents: [],
-    recommendedFields: [],
-    suggestedEmojis: [],
+    botGoal: "Responder preguntas frecuentes, informar precios y disponibilidad, y derivar al equipo cuando el cliente necesita atención personalizada.",
+    tone: "Cordial, profesional y directo. Usá el tuteo. Sé claro y breve en cada respuesta.",
+    welcomeMessage: "¡Hola! 👋 Soy el asistente de {business_name}. Puedo ayudarte con información sobre nuestros productos y servicios, precios y cómo hacer un pedido. ¿En qué te puedo ayudar hoy?",
+    fallbackMessage: "Esa pregunta escapa a lo que puedo responder en este momento. Te conecto con nuestro equipo para que te ayuden mejor.",
+    handoffMessage: "Entiendo. Te paso con una persona de nuestro equipo para que pueda ayudarte. En breve te contactamos. ¡Gracias por tu paciencia!",
+    faqs: [
+      "¿Cuáles son los precios?",
+      "¿Cómo hago un pedido?",
+      "¿Hacen envíos?",
+      "¿Cuál es el tiempo de entrega?",
+      "¿Aceptan transferencia / Mercado Pago?",
+      "¿Tienen garantía?",
+      "¿Cuál es el horario de atención?",
+    ],
+    suggestedCategories: [
+      "Productos",
+      "Servicios",
+      "Combos",
+      "Novedades",
+    ],
+    commercialIntents: [
+      "quiero comprar",
+      "cuánto sale",
+      "tienen disponible",
+      "cómo pago",
+      "hacen envíos",
+      "me interesa",
+      "quiero un presupuesto",
+    ],
+    recommendedFields: [
+      { key: "ubicacion", label: "Ubicación o zona de cobertura" },
+      { key: "horarios", label: "Horario de atención" },
+      { key: "formas_de_pago", label: "Formas de pago aceptadas" },
+      { key: "politica_envios", label: "Política de envíos y costos" },
+    ],
+    suggestedEmojis: ["🚀", "✨", "💼", "📦", "🛒", "💡"],
     tier: "basic",
     requiredPlan: "starter",
-    comingSoon: true,
   },
 ];
 

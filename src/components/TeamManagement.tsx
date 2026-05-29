@@ -509,8 +509,8 @@ export default function TeamManagement() {
                           <button
                             type="button"
                             onClick={() => handleRemove(member.id, member.email)}
-                            disabled={rowBusy || (data.current_role === "admin" && member.role === "owner")}
-                            style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 13, fontWeight: 500, color: "#c0392b", cursor: "pointer", opacity: (rowBusy || (data.current_role === "admin" && member.role === "owner")) ? 0.5 : 1 }}
+                            disabled={rowBusy || member.role === "owner"}
+                            style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 13, fontWeight: 500, color: "#c0392b", cursor: "pointer", opacity: (rowBusy || member.role === "owner") ? 0.5 : 1 }}
                           >
                             Quitar
                           </button>

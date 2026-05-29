@@ -14,7 +14,7 @@ const PROBLEMS = [
 
 const STEPS = [
   { num: "1", title: "Registrá tu negocio", desc: "Cargá el nombre, 30 segundos, lista la IA." },
-  { num: "2", title: "Elegí tu plan", desc: "Starter para arrancar. Growth para vender." },
+  { num: "2", title: "Elegí tu plan", desc: "Starter para arrancar. Pro para vender más." },
   { num: "3", title: "Conectá WhatsApp", desc: "Escaneá un QR. Listo." },
   { num: "4", title: "Aplicá tu plantilla", desc: "Por rubro. Directo, ya probado." },
   { num: "5", title: "Tu asistente responde", desc: "Vos lo ves. Escalá. IA + vos." },
@@ -329,7 +329,7 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 12, alignItems: "stretch" }}>
           {PUBLIC_PLAN_LIST.map((plan) => {
-            const featured = plan.code === "growth";
+            const featured = plan.code === "pro";
 
             return (
             <div key={plan.code} style={{

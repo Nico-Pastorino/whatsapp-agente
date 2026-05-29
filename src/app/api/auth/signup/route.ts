@@ -4,7 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase";
 import { createAppSessionToken, getSessionCookieOptions } from "@/lib/app-session";
 import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
-const VALID_PLANS = new Set(["starter", "growth", "pro"]);
+const VALID_PLANS = new Set(["starter", "growth", "pro"]); // growth kept for legacy
 // El trial de 14 días usa SIEMPRE el plan Starter (decisión de producto: el trial
 // no debe desbloquear funcionalidades de planes superiores). El usuario podrá
 // elegir Growth o Pro al pagar.

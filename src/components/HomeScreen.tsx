@@ -44,7 +44,7 @@ export default function HomeScreen() {
     todayConversations: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [completedSteps] = useState<string[]>(["connect", "template", "products"]);
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -60,11 +60,22 @@ export default function HomeScreen() {
       const todayTs = todayStart.getTime() / 1000;
       const todayConvs = conversations.filter(c => (c.last_message_at ?? 0) >= todayTs).length;
 
+      const isConnected = conn?.status === "connected";
+      const hasTemplate = Boolean(biz?.description);
+      const hasProducts = (items?.count ?? 0) > 0;
+      const hasConversations = conversations.length > 0;
+      const steps: string[] = [];
+      if (isConnected) steps.push("connect");
+      if (hasTemplate) steps.push("template");
+      if (hasProducts) steps.push("products");
+      if (hasConversations) steps.push("test");
+      setCompletedSteps(steps);
+
       setData({
         plan: plan ?? null,
         businessName: biz?.name ?? "Tu negocio",
         userName: "Vos",
-        waConnected: conn?.status === "connected",
+        waConnected: isConnected,
         waPhone: conn?.phone ?? null,
         productCount: items?.count ?? 0,
         pendingConversations: 0,

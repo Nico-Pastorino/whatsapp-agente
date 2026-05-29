@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog } from "./atende/Icons";
+import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart } from "./atende/Icons";
 
 type DashboardView =
   | "conversations"
@@ -12,7 +12,8 @@ type DashboardView =
   | "more"
   | "plan"
   | "team"
-  | "connect";
+  | "connect"
+  | "stats";
 
 interface Props {
   activeView: DashboardView;
@@ -42,6 +43,7 @@ const NAV_ITEMS: Array<{ key: DashboardView; label: string; Icon: React.Componen
   { key: "catalog",       label: "Catálogo",         Icon: Bolt,   href: "/app/catalog" },
   { key: "plan",          label: "Mi plan",          Icon: Layers, href: "/app/plan" },
   { key: "team",          label: "Equipo",           Icon: Users,  href: "/app/team" },
+  { key: "stats",         label: "Métricas",         Icon: BarChart, href: "/app/stats" },
   { key: "connect",       label: "Conectar",         Icon: QR,     href: "/app/connect" },
 ];
 

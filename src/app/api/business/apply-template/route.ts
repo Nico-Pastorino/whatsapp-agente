@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       // Validate plan access
       const access = await canUseTemplate(businessId, template.tier);
       if (!access.allowed) {
-        const planName = access.requiredPlan === "pro" ? "Pro" : "Growth";
+        const planName = "Pro";
         return NextResponse.json(
           { error: `Esta plantilla está disponible en el plan ${planName}.` },
           { status: 403 }

@@ -18,7 +18,7 @@ function getFriendlyError(message: string): string {
 }
 
 function SignupForm() {
-  const trialPlan = getPublicPlan("growth");
+  const trialPlan = getPublicPlan("pro");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -73,7 +73,7 @@ function SignupForm() {
     <AuthShell
       eyebrow="Crear cuenta"
       title="Creá tu cuenta"
-      subtitle="Creá tu cuenta y probá Growth durante 14 días. Después activás la suscripción para que el bot siga respondiendo."
+      subtitle="Creá tu cuenta y probá Pro durante 14 días sin cargo. Después elegís el plan que mejor se adapte a tu negocio."
       planBanner={planBanner}
       footer={
         <>

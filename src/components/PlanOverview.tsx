@@ -38,6 +38,7 @@ interface PlanSummary {
   downgrade_options: UpgradeOption[];
   cancel_at_period_end: boolean;
   cancelled_at: number | null;
+  product_count: number;
 }
 
 // ── Formatting ────────────────────────────────────────────────────────────────
@@ -67,28 +68,18 @@ const PLAN_INCLUDED: Record<string, string[]> = {
     "IA básica para responder consultas",
     "Modo humano (tomás el control)",
     "1 número de WhatsApp",
-    "1 usuario del equipo",
-    "Hasta 10 productos/servicios",
-    "1 plantilla básica de rubro",
+    "Hasta 3 usuarios del equipo",
+    "Hasta 15 productos/servicios",
+    "Plantilla básica de rubro",
     "Configuración del negocio",
   ],
-  growth: [
-    "Todo lo de Starter",
-    "Plantillas comerciales (5 rubros activos)",
-    "Hasta 100 productos/servicios",
-    "Hasta 10 usuarios del equipo",
-    "Leads automáticos",
-    "Métricas comerciales",
-    "Entrenamiento simple de IA",
-  ],
   pro: [
-    "Todo lo de Growth",
-    "Plantillas premium (clínicas, inmobiliarias, etc.)",
+    "Todo lo del Starter",
+    "Plantillas comerciales (5 rubros activos)",
     "Hasta 500 productos/servicios",
-    "Hasta 25 usuarios del equipo",
-    "3 números de WhatsApp",
-    "Analytics avanzado",
-    "Plantillas personalizadas",
+    "Hasta 15 usuarios del equipo",
+    "Métricas de conversaciones",
+    "Gestión de equipo completa",
     "Soporte prioritario",
   ],
 };
@@ -96,35 +87,25 @@ const PLAN_INCLUDED: Record<string, string[]> = {
 const PLAN_LOCKED: Record<string, string[]> = {
   starter: [
     "Plantillas comerciales",
-    "Leads automáticos",
-    "Métricas comerciales",
-    "Entrenamiento IA",
-    "Plantillas premium",
-    "Analytics avanzado",
-  ],
-  growth: [
-    "Plantillas premium",
-    "Múltiples números de WhatsApp",
-    "Analytics avanzado",
-    "Plantillas personalizadas",
+    "Más de 15 productos/servicios",
+    "Más de 3 usuarios del equipo",
+    "Métricas de conversaciones",
   ],
   pro: [],
 };
 
 const PLAN_TAGLINE: Record<string, string> = {
   starter: "Para empezar a responder consultas con IA.",
-  growth: "Para negocios que quieren vender más por WhatsApp.",
-  pro: "Para negocios con más volumen, equipo e integraciones.",
+  pro: "Para negocios que quieren vender más por WhatsApp.",
 };
 
 // ── Pantalla de Trial Expirado / Pago Pendiente ──────────────────────────────
 
 // Lista de planes mostrada en la pantalla de trial expirado / pago pendiente.
-// Se renderizan en orden Starter → Growth → Pro. Growth se destaca como recomendado.
-const PLAN_PICKER_ORDER: { code: "starter" | "growth" | "pro"; recommended?: boolean }[] = [
+// Se renderizan en orden Starter → Pro. Pro se destaca como recomendado.
+const PLAN_PICKER_ORDER: { code: "starter" | "pro"; recommended?: boolean }[] = [
   { code: "starter" },
-  { code: "growth", recommended: true },
-  { code: "pro" },
+  { code: "pro", recommended: true },
 ];
 
 interface PlanPickerOption {
@@ -135,7 +116,7 @@ interface PlanPickerOption {
 }
 
 function buildPlanPickerOptions(plan: PlanSummary): PlanPickerOption[] {
-  // Unimos plan actual + upgrade_options + downgrade_options para tener Starter/Growth/Pro.
+  // Unimos plan actual + upgrade_options + downgrade_options para tener Starter/Pro.
   const map = new Map<string, PlanPickerOption>();
   if (plan.price_monthly != null) {
     map.set(plan.plan_code, {
@@ -547,8 +528,8 @@ export default function PlanOverview() {
           <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>uso del plan</div>
             {[
-              { label: "Usuarios", used: plan.users_limit ? 1 : 0, limit: plan.users_limit },
-              { label: "Productos", used: plan.inbound_messages_count, limit: plan.conversation_limit },
+              { label: "Usuarios", used: 1, limit: plan.users_limit },
+              { label: "Productos", used: plan.product_count, limit: plan.product_limit },
               { label: "Mensajes IA", used: plan.ai_replies_count, limit: plan.monthly_ai_reply_limit },
             ].map(({ label, used, limit }, i) => {
               const pct = limit ? Math.min(100, (used / limit) * 100) : 0;

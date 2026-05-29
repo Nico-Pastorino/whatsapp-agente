@@ -9,6 +9,7 @@ import ConversationPanel from "./ConversationPanel";
 import BusinessConfig from "./BusinessConfig";
 import ItemCatalog from "./ItemCatalog";
 import PlanOverview from "./PlanOverview";
+import StatsScreen from "./StatsScreen";
 import TeamManagement from "./TeamManagement";
 import HomeScreen from "./HomeScreen";
 import MoreScreen from "./MoreScreen";
@@ -50,7 +51,8 @@ type DashboardView =
   | "more"
   | "plan"
   | "team"
-  | "connect";
+  | "connect"
+  | "stats";
 
 type ConnectionStatus = "disconnected" | "qr" | "connecting" | "connected";
 
@@ -236,6 +238,9 @@ export default function ConnectionGate({ currentView }: Props) {
     mobileContent = content;
   } else if (currentView === "plan") {
     content = <PlanOverview />;
+    mobileContent = content;
+  } else if (currentView === "stats") {
+    content = <StatsScreen />;
     mobileContent = content;
   } else if (currentView === "connect") {
     content = phone ? (

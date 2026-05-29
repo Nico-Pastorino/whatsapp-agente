@@ -172,3 +172,11 @@ export function Avatar({ initials, size = 36, bg, fg }: AvatarProps) {
     </div>
   );
 }
+
+export const BarChart = make(
+  <>
+    <rect x="3" y="10" width="3.5" height="7" rx="1" />
+    <rect x="8.25" y="6" width="3.5" height="11" rx="1" />
+    <rect x="13.5" y="3" width="3.5" height="14" rx="1" />
+  </>
+);

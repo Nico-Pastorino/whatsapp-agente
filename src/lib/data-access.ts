@@ -217,6 +217,7 @@ export interface PlanSummary {
   downgrade_options: UpgradeOption[];
   cancel_at_period_end: boolean;
   cancelled_at: number | null;
+  product_count: number;
 }
 
 export type AccountAccessStatus = "trial" | "active" | "pending_payment" | "past_due" | "canceled" | "blocked" | "none";
@@ -297,12 +298,12 @@ export class TeamManagementError extends Error {
 // ── Plan hierarchy ───────────────────────────────────────────────────────────
 export const PLAN_HIERARCHY: Record<string, number> = {
   starter: 1,
-  growth: 2,
-  pro: 3,
-  premium: 3, // legacy — same rank as pro
+  growth: 2, // legacy — kept for existing subscriptions, not exposed in UI
+  pro: 2,
+  premium: 2, // legacy — same rank as pro
 };
 
-export const ACTIVE_PLAN_CODES = ["starter", "growth", "pro"] as const;
+export const ACTIVE_PLAN_CODES = ["starter", "pro"] as const;
 
 export function canUpgradeTo(
   currentPlan: string,
@@ -372,7 +373,7 @@ export async function canUseTemplate(
     : [];
   if (allowedTiers.includes(templateTier)) return { allowed: true };
   if (templateTier === "premium") return { allowed: false, requiredPlan: "pro" };
-  return { allowed: false, requiredPlan: "growth" };
+  return { allowed: false, requiredPlan: "pro" };
 }
 
 export interface ResolveContactIdentityParams {
@@ -1357,9 +1358,10 @@ export async function getPlanSummary(
   businessId = getBusinessId()
 ): Promise<PlanSummary> {
   const supabase = getSupabaseAdminClient();
-  const [subscription, usage] = await Promise.all([
+  const [subscription, usage, productCount] = await Promise.all([
     getCachedSubscription(businessId),
     getCurrentUsage(businessId),
+    countBusinessItems(businessId),
   ]);
 
   if (!subscription) {
@@ -1391,7 +1393,7 @@ export async function getPlanSummary(
   const { data: allPlans } = await supabase
     .from("plans")
     .select("code, name, price_monthly, currency")
-    .in("code", ["starter", "growth", "pro"]);
+    .in("code", ["starter", "pro"]);
 
   const upgradeOptions: UpgradeOption[] = (allPlans ?? [])
     .filter(
@@ -1455,6 +1457,7 @@ export async function getPlanSummary(
     downgrade_options: downgradeOptions,
     cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
     cancelled_at: toUnixSeconds(subscription.cancelled_at),
+    product_count: productCount,
   };
 }
 

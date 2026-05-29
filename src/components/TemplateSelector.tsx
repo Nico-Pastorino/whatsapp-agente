@@ -8,23 +8,22 @@ import {
 
 const TIER_ACCESS: Record<string, string[]> = {
   starter: ["basic"],
-  growth: ["basic", "commercial"],
   pro: ["basic", "commercial", "premium"],
   premium: ["basic", "commercial", "premium"],
+  // legacy aliases
+  growth: ["basic", "commercial", "premium"],
 };
 
 function isTemplateLocked(tier: string, planCode: string): boolean {
   return !(TIER_ACCESS[planCode] ?? ["basic"]).includes(tier);
 }
 
-function requiredPlanLabel(tier: string): string {
-  if (tier === "premium") return "Pro";
-  return "Growth";
+function requiredPlanLabel(_tier: string): string {
+  return "Pro";
 }
 
-function requiredPlanCode(tier: string): string {
-  if (tier === "premium") return "pro";
-  return "growth";
+function requiredPlanCode(_tier: string): string {
+  return "pro";
 }
 
 interface Props {
@@ -401,9 +400,7 @@ function UpgradeModal({
           Esta plantilla está disponible en {planLabel}.
         </p>
         <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
-          {planLabel === "Growth"
-            ? "Con Growth podés usar todas las plantillas comerciales, cargar hasta 100 productos y acceder a herramientas para vender más por WhatsApp."
-            : "Pro está pensado para negocios con más volumen, equipo e integraciones avanzadas. Incluye plantillas premium y analytics avanzado."}
+          {"Con Pro podés usar todas las plantillas comerciales, cargar hasta 500 productos, gestionar tu equipo completo y ver métricas de conversaciones."}
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
