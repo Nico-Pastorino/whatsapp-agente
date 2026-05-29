@@ -149,11 +149,13 @@ function OnboardingGuide({
   upgradeLoading,
 }: {
   plan: PlanSummary;
-  onPay: (planCode?: string, checkoutType?: string) => void;
+  onPay: (planCode?: string, checkoutType?: string, billingCycle?: "monthly" | "annual") => void;
   checkoutLoading: boolean;
   checkoutError: string | null;
   upgradeLoading: string | null;
 }) {
+  const [annual, setAnnual] = useState(false);
+  const ANNUAL_DISCOUNT = 0.2;
   const trialExpired = plan.access_reason === "trial_expired";
   const pendingPayment = plan.status === "pending_payment";
   const title = trialExpired
@@ -192,11 +194,34 @@ function OnboardingGuide({
         )}
 
         {showPlanPicker && planOptions.length > 0 && (
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => setAnnual(false)}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${!annual ? "bg-gray-900 text-white" : "text-gray-500"}`}
+              >
+                Mensual
+              </button>
+              <button
+                onClick={() => setAnnual(true)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition ${annual ? "bg-gray-900 text-white" : "text-gray-500"}`}
+              >
+                Anual
+                <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">−20%</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showPlanPicker && planOptions.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-3">
             {planOptions.map((opt) => {
               const isRecommended = PLAN_PICKER_ORDER.find((p) => p.code === opt.code)?.recommended;
               const included = PLAN_INCLUDED[opt.code] ?? [];
               const loading = upgradeLoading === opt.code && checkoutLoading;
+              const monthlyShown = annual && opt.price_monthly != null
+                ? Math.round((opt.price_monthly * (1 - ANNUAL_DISCOUNT)) / 100) * 100
+                : opt.price_monthly;
               return (
                 <div
                   key={opt.code}
@@ -216,8 +241,11 @@ function OnboardingGuide({
                     {PLAN_TAGLINE[opt.code] ?? ""}
                   </p>
                   <p className="mt-3 text-2xl font-semibold text-gray-900">
-                    {formatMoney(opt.price_monthly, opt.currency)}
+                    {formatMoney(monthlyShown, opt.currency)}
                     <span className="text-sm font-normal text-gray-400"> / mes</span>
+                  </p>
+                  <p className="text-[11px] text-emerald-600 min-h-[1.2em]">
+                    {annual && monthlyShown != null ? `${formatMoney(monthlyShown * 12, opt.currency)} por año` : ""}
                   </p>
                   <ul className="space-y-1.5 my-4 flex-1">
                     {included.slice(0, 4).map((f) => (
@@ -228,7 +256,7 @@ function OnboardingGuide({
                     ))}
                   </ul>
                   <button
-                    onClick={() => onPay(opt.code, opt.code === plan.plan_code ? "initial" : "upgrade")}
+                    onClick={() => onPay(opt.code, opt.code === plan.plan_code ? "initial" : "upgrade", annual ? "annual" : "monthly")}
                     disabled={checkoutLoading}
                     className={`w-full rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
                       isRecommended
@@ -282,14 +310,14 @@ export default function PlanOverview() {
   const [downgradeTarget, setDowngradeTarget] = useState<UpgradeOption | null>(null);
   const [downgradeLoading, setDowngradeLoading] = useState<string | null>(null);
 
-  async function startCheckout(planCode?: string, checkoutType?: string) {
+  async function startCheckout(planCode?: string, checkoutType?: string, billingCycle?: "monthly" | "annual") {
     setCheckoutLoading(true);
     if (planCode) setUpgradeLoading(planCode);
     setCheckoutError(null);
     try {
       const body = planCode
-        ? { plan_code: planCode, checkout_type: checkoutType ?? "upgrade" }
-        : {};
+        ? { plan_code: planCode, checkout_type: checkoutType ?? "upgrade", billing_cycle: billingCycle ?? "monthly" }
+        : { billing_cycle: billingCycle ?? "monthly" };
       const res = await fetch("/api/billing/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -423,7 +451,7 @@ export default function PlanOverview() {
     return (
       <OnboardingGuide
         plan={plan}
-        onPay={(code, type) => startCheckout(code, type)}
+        onPay={(code, type, cycle) => startCheckout(code, type, cycle)}
         checkoutLoading={checkoutLoading}
         checkoutError={checkoutError}
         upgradeLoading={upgradeLoading}

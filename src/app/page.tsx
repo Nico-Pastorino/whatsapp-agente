@@ -4,7 +4,7 @@ import Reveal from "@/components/public/Reveal";
 import HeroPhone from "@/components/public/HeroPhone";
 import TryDemo from "@/components/public/TryDemo";
 import Objections from "@/components/public/Objections";
-import { PUBLIC_PLAN_LIST } from "@/lib/plan-display";
+import PricingPlans from "@/components/public/PricingPlans";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -25,6 +25,8 @@ const STEPS = [
 ];
 
 const SMALL_FEATURES = [
+  { icon: "calendar", title: "Agenda de turnos", desc: "La IA toma turnos sola: pide los datos, ofrece horarios y confirma." },
+  { icon: "book", title: "Base de conocimiento", desc: "Cargá tus FAQ y políticas. La IA responde sin derivar al equipo." },
   { icon: "hand", title: "Modo humano", desc: "Tomá el control cuando quieras. La IA se detiene." },
   { icon: "template", title: "Plantillas por rubro", desc: "Configurá tu asistente en minutos según tu negocio." },
   { icon: "catalog", title: "Catálogo", desc: "Cargá productos, precios y servicios para respuestas más precisas." },
@@ -39,6 +41,16 @@ const SOCIAL_PROOF = [
   { icon: "layers", title: "Muchas a la vez", desc: "Atiende varias consultas juntas." },
   { icon: "bell", title: "Nunca se olvida", desc: "Ningún mensaje queda sin responder." },
   { icon: "whatsapp", title: "Tu mismo WhatsApp", desc: "Tu número de siempre." },
+] as const;
+
+const COMPARISON = [
+  { label: "Precio de entrada", atende: "$29.000/mes", others: "USD 49+ (~$70k)", agency: "$200k+ inicial" },
+  { label: "Tu mismo número", atende: "Sí", others: "API nueva", agency: "Depende" },
+  { label: "Listo en minutos", atende: "Sí", others: "Días", agency: "Semanas" },
+  { label: "Agenda de turnos", atende: "Incluida", others: "Extra", agency: "A medida" },
+  { label: "Base de conocimiento IA", atende: "Incluida", others: "Plan alto", agency: "A medida" },
+  { label: "Sin conocimientos técnicos", atende: "Sí", others: "Medio", agency: "No" },
+  { label: "Precios en pesos", atende: "Sí", others: "En dólares", agency: "Variable" },
 ] as const;
 
 const TEMPLATES = [
@@ -88,6 +100,10 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
       return <svg {...common}><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.2-5.1A8.5 8.5 0 1 1 21 11.5z" /><path d="M8.5 9c0 3.6 2.9 6.5 6.5 6.5" /></svg>;
     case "spark":
       return <svg {...common}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18" /></svg>;
+    case "calendar":
+      return <svg {...common}><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9h18M8 2.5v4M16 2.5v4M8 13h2M14 13h2M8 17h2M14 17h2" /></svg>;
+    case "book":
+      return <svg {...common}><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6.5A2.5 2.5 0 0 0 4 22.5z" /><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /></svg>;
     default:
       return <svg {...common}><circle cx="12" cy="12" r="9" /></svg>;
   }
@@ -352,66 +368,71 @@ export default function HomePage() {
 
       {/* ── Planes ─────────────────────────────────────────────────── */}
       <section id="planes" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
-        <Reveal style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+        <Reveal style={{ textAlign: "center", marginBottom: 14 }}>
           <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.03em", margin: 0 }}>
-            Elegí el plan que mejor acompaña a tu negocio.
+            Un plan para cada{" "}
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--accent)" }}>etapa</span>{" "}
+            de tu negocio.
           </h2>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>Precios mensuales en ARS.</span>
         </Reveal>
-        <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 36px", display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+        <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 28px", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "4px 14px" }}>
           <span>✓ Probalo gratis 14 días</span>
           <span>✓ Sin tarjeta para empezar</span>
           <span>✓ Cancelá cuando quieras</span>
         </p>
 
-        <Reveal className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 12, alignItems: "stretch" }}>
-          {PUBLIC_PLAN_LIST.map((plan) => {
-            const featured = plan.code === "pro";
-
-            return (
-            <div key={plan.code} className={`lp-card ${featured ? "on-dark" : ""}`} style={{
-              borderRadius: 22, padding: "28px 28px 24px",
-              background: featured ? "var(--ink)" : "var(--surface)",
-              border: featured ? "1px solid transparent" : "1px solid var(--hairline)",
-              display: "flex", flexDirection: "column", position: "relative",
-            }}>
-              {plan.badge && (
-                <div style={{ position: "absolute", top: -13, right: 22, padding: "4px 14px", borderRadius: 99, background: "var(--accent)", color: "#fff", fontSize: 11, fontWeight: 700 }}>
-                  {plan.badge}
-                </div>
-              )}
-              <p style={{ fontSize: 12, fontWeight: 500, color: featured ? "var(--accent)" : "var(--muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10, fontFamily: "var(--font-mono)" }}>
-                {plan.description}
-              </p>
-              <h3 style={{ fontSize: 22, fontWeight: 700, color: featured ? "#fff" : "var(--ink)", margin: "0 0 8px" }}>{plan.name}</h3>
-              <p style={{ fontSize: 38, fontWeight: 700, color: featured ? "#fff" : "var(--ink)", lineHeight: 1.02, margin: "0 0 24px" }}>
-                {plan.priceLabel}
-              </p>
-              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
-                {plan.features.map((feature) => (
-                  <li key={feature} style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13, color: featured ? "rgba(255,255,255,0.7)" : "var(--ink-2)", lineHeight: 1.5 }}>
-                    <span style={{ color: featured ? "rgba(255,255,255,0.45)" : "var(--green)", flexShrink: 0, fontSize: 14, fontWeight: 600 }}>✓</span>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href={`/signup?plan=${plan.code}`}
-                className="lp-btn"
-                style={{
-                  display: "block", textAlign: "center",
-                  padding: "13px 20px", borderRadius: 12,
-                  fontSize: 14, fontWeight: 600, textDecoration: "none",
-                  background: featured ? "var(--accent)" : "var(--ink)",
-                  color: "#fff", whiteSpace: "nowrap",
-                }}
-              >
-                {plan.cta}
-              </Link>
-            </div>
-          );
-          })}
+        <Reveal>
+          <PricingPlans />
         </Reveal>
+      </section>
+
+      {/* ── Comparativa vs competencia ─────────────────────────────── */}
+      <section id="comparativa" style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 80px" }}>
+        <Reveal style={{ marginBottom: 28, textAlign: "center" }}>
+          <h2 style={{ fontSize: "clamp(28px, 3.6vw, 44px)", fontWeight: 700, lineHeight: 1.06, letterSpacing: "-0.03em", margin: 0 }}>
+            Por qué elegir{" "}
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--accent)" }}>Atendé.</span>
+          </h2>
+          <p style={{ maxWidth: 520, margin: "12px auto 0", fontSize: 14.5, lineHeight: 1.6, color: "var(--ink-3)" }}>
+            Pensado para PyMEs argentinas: en pesos, en tu mismo WhatsApp y sin vueltas técnicas.
+          </p>
+        </Reveal>
+
+        <Reveal className="lp-card" style={{ background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 20, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 560 }}>
+              <thead>
+                <tr style={{ background: "var(--surface-2)" }}>
+                  {["", "Atendé", "Otros chatbots", "Agencia / dev"].map((h, i) => (
+                    <th key={h || i} style={{
+                      textAlign: i === 0 ? "left" : "center",
+                      padding: "16px 18px",
+                      fontWeight: i === 1 ? 700 : 500,
+                      color: i === 1 ? "var(--green-ink)" : "var(--ink-2)",
+                      fontSize: i === 0 ? 12 : 14,
+                      borderBottom: "1px solid var(--hairline)",
+                    }}>
+                      {i === 1 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span className="atd-dot live" style={{ width: 7, height: 7, background: "var(--green)" }} />{h}</span> : h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON.map((row, idx) => (
+                  <tr key={row.label} style={{ background: idx % 2 ? "transparent" : "color-mix(in oklab, var(--green-tint) 22%, transparent)" }}>
+                    <td style={{ padding: "14px 18px", color: "var(--ink-2)", fontWeight: 500 }}>{row.label}</td>
+                    <td style={{ padding: "14px 18px", textAlign: "center", fontWeight: 600, color: "var(--green-ink)" }}>{row.atende}</td>
+                    <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--ink-3)" }}>{row.others}</td>
+                    <td style={{ padding: "14px 18px", textAlign: "center", color: "var(--ink-3)" }}>{row.agency}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
+        <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "12px 2px 0", textAlign: "center" }}>
+          Comparativa orientativa según precios públicos de plataformas de chatbot para WhatsApp (2026).
+        </p>
       </section>
 
       {/* ── Control ────────────────────────────────────────────────── */}

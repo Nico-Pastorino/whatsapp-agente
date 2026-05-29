@@ -5,7 +5,7 @@ import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthShell from "@/components/public/AuthShell";
 import { Eye, Arrow } from "@/components/atende/Icons";
-import { getPublicPlan } from "@/lib/plan-display";
+import { getPublicPlan, formatARS } from "@/lib/plan-display";
 
 function getFriendlyError(message: string): string {
   const normalized = message.trim().toLowerCase();
@@ -18,7 +18,7 @@ function getFriendlyError(message: string): string {
 }
 
 function SignupForm() {
-  const trialPlan = getPublicPlan("pro");
+  const trialPlan = getPublicPlan("growth");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -65,7 +65,7 @@ function SignupForm() {
       <p className="mt-2 text-[26px] font-semibold tracking-[-0.03em] text-[var(--green-ink)]">
         {trialPlan.name}
       </p>
-      <p className="mt-1 text-sm text-[var(--green-soft)]">14 días sin cargo · luego {trialPlan.priceLabel}</p>
+      <p className="mt-1 text-sm text-[var(--green-soft)]">14 días sin cargo · luego {formatARS(trialPlan.priceMonthly)} / mes</p>
     </div>
   );
 

@@ -1,6 +1,7 @@
 create extension if not exists "pgcrypto";
 
 drop table if exists worker_commands cascade;
+drop table if exists appointments cascade;
 drop table if exists outbox_messages cascade;
 drop table if exists payments cascade;
 drop table if exists messages cascade;
@@ -56,6 +57,10 @@ create table business_settings (
   description text not null default '',
   extra text not null default '',
   system_prompt_override text not null default '',
+  quick_replies jsonb not null default '[]'::jsonb,
+  knowledge_base text not null default '',
+  booking_enabled boolean not null default false,
+  booking_config text not null default '',
   updated_at timestamptz not null default now()
 );
 
@@ -236,6 +241,21 @@ create table worker_commands (
   created_at timestamptz not null default now()
 );
 
+create table appointments (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references businesses(id) on delete cascade,
+  conversation_id uuid references conversations(id) on delete set null,
+  contact_id uuid references contacts(id) on delete set null,
+  customer_name text,
+  service text,
+  starts_at timestamptz,
+  notes text,
+  status text not null default 'pending' check (status in ('pending','confirmed','cancelled','done')),
+  source text not null default 'ai' check (source in ('ai','human')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index idx_contacts_business_phone
   on contacts (business_id, phone_number);
 
@@ -282,6 +302,9 @@ create index idx_worker_commands_pending
   on worker_commands (business_id, instance_name, executed, created_at)
   where executed = false;
 
+create index idx_appointments_business_starts
+  on appointments (business_id, starts_at);
+
 insert into plans (
   code,
   name,
@@ -297,11 +320,11 @@ insert into plans (
   (
     'starter',
     'Starter',
-    49000,
+    29000,
     'ARS',
-    500,
-    500,
-    10,
+    null,
+    null,
+    20,
     3,
     1,
     '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "template_tiers": ["basic"]}'::jsonb
@@ -309,26 +332,26 @@ insert into plans (
   (
     'growth',
     'Growth',
-    89000,
+    59000,
     'ARS',
-    2000,
-    2000,
-    100,
+    null,
+    null,
+    150,
     10,
     1,
-    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "template_tiers": ["basic", "commercial"]}'::jsonb
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "knowledge_base": true, "appointments": true, "template_tiers": ["basic", "commercial"]}'::jsonb
   ),
   (
     'pro',
     'Pro',
-    149000,
+    99000,
     'ARS',
-    5000,
-    10000,
-    500,
+    null,
+    null,
+    1000,
     25,
     3,
-    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "priority_support": true, "template_tiers": ["basic", "commercial", "premium"]}'::jsonb
+    '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "knowledge_base": true, "appointments": true, "priority_support": true, "template_tiers": ["basic", "commercial", "premium"]}'::jsonb
   )
 on conflict (code) do update
 set

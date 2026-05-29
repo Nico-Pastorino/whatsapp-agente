@@ -128,6 +128,32 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
     lines.push("", "INFORMACIÓN ADICIONAL:", sanitizeForPrompt(profile.extra, 1000));
   }
 
+  if (profile.knowledge_base) {
+    lines.push(
+      "",
+      "BASE DE CONOCIMIENTO (preguntas frecuentes y políticas del negocio):",
+      sanitizeForPrompt(profile.knowledge_base, 3000),
+      "Usá esta base como fuente principal para responder dudas sobre políticas, envíos, garantías, formas de pago, devoluciones y preguntas frecuentes."
+    );
+  }
+
+  if (profile.booking_enabled) {
+    lines.push(
+      "",
+      "AGENDA DE TURNOS / CITAS:",
+      "Este negocio toma turnos por WhatsApp. Ayudá al cliente a reservar siguiendo estas reglas:"
+    );
+    if (profile.booking_config) {
+      lines.push(sanitizeForPrompt(profile.booking_config, 1500));
+    }
+    lines.push(
+      "Para agendar, pedí con amabilidad los datos que falten: nombre, servicio, día y horario preferido.",
+      "Confirmá el turno repitiendo día, horario y servicio en un mensaje claro.",
+      "No confirmes horarios fuera de los días/horarios indicados. Si el horario pedido no está disponible, ofrecé la opción más cercana.",
+      "Si el cliente quiere cancelar o reprogramar, tomá nota y confirmá el cambio."
+    );
+  }
+
   lines.push(
     "",
     "INSTRUCCIONES DE RESPUESTA:",

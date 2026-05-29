@@ -10,6 +10,9 @@ interface Profile {
   description: string;
   extra: string;
   quick_replies: string[];
+  knowledge_base: string;
+  booking_enabled: boolean;
+  booking_config: string;
 }
 
 const inputClass = "atd-input";
@@ -38,6 +41,9 @@ export default function BusinessConfig() {
     description: "",
     extra: "",
     quick_replies: [],
+    knowledge_base: "",
+    booking_enabled: false,
+    booking_config: "",
   });
   const [newReply, setNewReply] = useState("");
   const [saving, setSaving] = useState(false);
@@ -54,6 +60,9 @@ export default function BusinessConfig() {
           description: data.description ?? "",
           extra: data.extra ?? "",
           quick_replies: Array.isArray(data.quick_replies) ? data.quick_replies : [],
+          knowledge_base: data.knowledge_base ?? "",
+          booking_enabled: Boolean(data.booking_enabled),
+          booking_config: data.booking_config ?? "",
         });
         setLoading(false);
       });
@@ -77,7 +86,7 @@ export default function BusinessConfig() {
       const res = await fetch("/api/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies }),
+        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies, knowledge_base: profile.knowledge_base, booking_enabled: profile.booking_enabled, booking_config: profile.booking_config }),
       });
       if (res.ok) {
         setSaved(true);
@@ -195,6 +204,66 @@ export default function BusinessConfig() {
             placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada`}
             className={`${inputClass} resize-none`}
           />
+        </section>
+
+        {/* Sección: Base de conocimiento */}
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <SectionHeader
+            label="IA avanzada"
+            title="Base de conocimiento"
+            description="Cargá preguntas frecuentes y políticas (envíos, garantías, devoluciones, formas de pago). La IA responde directamente desde esta base, sin derivar al equipo."
+          />
+          <textarea
+            value={profile.knowledge_base}
+            onChange={(e) => updateField("knowledge_base", e.target.value)}
+            rows={7}
+            placeholder={`Ej:\n¿Hacen envíos? Sí, a todo el país por correo. CABA en el día.\n¿Tienen garantía? 6 meses por defectos de fábrica.\n¿Puedo devolver? Sí, dentro de los 30 días con el ticket.\n¿Aceptan cuotas? Hasta 3 sin interés con tarjeta de crédito.`}
+            className={`${inputClass} resize-none`}
+          />
+        </section>
+
+        {/* Sección: Agenda de turnos */}
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <SectionHeader
+              label="Agenda"
+              title="Agenda de turnos automática"
+              description="Activala y la IA toma turnos por WhatsApp siguiendo tus reglas: pide los datos, ofrece horarios disponibles y confirma la reserva."
+            />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={profile.booking_enabled}
+              onClick={() => {
+                setProfile((p) => ({ ...p, booking_enabled: !p.booking_enabled }));
+                setSaved(false);
+              }}
+              style={{
+                flexShrink: 0,
+                width: 46,
+                height: 26,
+                borderRadius: 999,
+                border: "none",
+                cursor: "pointer",
+                padding: 3,
+                background: profile.booking_enabled ? "var(--green)" : "var(--hairline)",
+                transition: "background .18s ease",
+                display: "flex",
+                justifyContent: profile.booking_enabled ? "flex-end" : "flex-start",
+              }}
+            >
+              <span style={{ width: 20, height: 20, borderRadius: 999, background: "#fff", display: "block", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+            </button>
+          </div>
+          {profile.booking_enabled && (
+            <textarea
+              value={profile.booking_config}
+              onChange={(e) => updateField("booking_config", e.target.value)}
+              rows={6}
+              placeholder={`Ej:\nServicios: corte ($8.000, 45 min), color ($20.000, 2 hs)\nDías y horarios: Mar a Sáb de 10 a 19 hs (último turno 18 hs)\nNo atendemos domingos ni lunes.\nSeña: pedimos transferencia del 50% para confirmar.`}
+              className={`${inputClass} resize-none`}
+            />
+          )}
         </section>
 
         {/* Sección 4: Respuestas rápidas */}

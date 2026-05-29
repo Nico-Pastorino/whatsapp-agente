@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
         typeof body.plan_code === "string" ? body.plan_code.trim() : null;
       const checkoutType: "initial" | "upgrade" =
         body.checkout_type === "upgrade" ? "upgrade" : "initial";
+      const billingCycle: "monthly" | "annual" =
+        body.billing_cycle === "annual" ? "annual" : "monthly";
 
       const supabase = getSupabaseAdminClient();
 
@@ -67,6 +69,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Plan no disponible para cobro." }, { status: 400 });
       }
 
+      // Ciclo de facturación: anual = 20% off, se cobra 1 vez cada 12 meses.
+      const ANNUAL_DISCOUNT = 0.2;
+      const monthlyEquivalent =
+        billingCycle === "annual"
+          ? Math.round((plan.price_monthly * (1 - ANNUAL_DISCOUNT)) / 100) * 100
+          : plan.price_monthly;
+      const chargeAmount =
+        billingCycle === "annual" ? monthlyEquivalent * 12 : monthlyEquivalent;
+      const recurringFrequency = billingCycle === "annual" ? 12 : 1;
+
       const { data: payment, error: paymentError } = await supabase
         .from("payments")
         .insert({
@@ -76,7 +88,7 @@ export async function POST(req: NextRequest) {
           plan_code: targetPlanCode,
           checkout_type: checkoutType,
           status: "pending",
-          amount: plan.price_monthly,
+          amount: chargeAmount,
           currency: plan.currency ?? "ARS",
           metadata: {
             triggered_by: checkoutType,
@@ -86,6 +98,7 @@ export async function POST(req: NextRequest) {
             current_plan: currentPlanCode,
             target_plan: targetPlanCode,
             plan_code: targetPlanCode,
+            billing_cycle: billingCycle,
           },
           updated_at: new Date().toISOString(),
         })
@@ -100,15 +113,17 @@ export async function POST(req: NextRequest) {
       console.log(`[mp/checkout] checkout_type=${checkoutType}`);
       console.log(`[mp/checkout] current_plan=${currentPlanCode}`);
       console.log(`[mp/checkout] target_plan=${targetPlanCode}`);
-      console.log(`[mp/checkout] amount=${plan.price_monthly} ${plan.currency ?? "ARS"}`);
+      console.log(`[mp/checkout] billing_cycle=${billingCycle}`);
+      console.log(`[mp/checkout] amount=${chargeAmount} ${plan.currency ?? "ARS"}`);
 
       const client = getMpClient();
       const preApprovalClient = new PreApproval(client);
 
+      const cycleLabel = billingCycle === "annual" ? " (anual)" : "";
       const title =
         checkoutType === "upgrade"
-          ? `Upgrade a ${plan.name} — Agente WhatsApp`
-          : `Plan ${plan.name} — Agente WhatsApp`;
+          ? `Upgrade a ${plan.name}${cycleLabel} — Agente WhatsApp`
+          : `Plan ${plan.name}${cycleLabel} — Agente WhatsApp`;
 
       const access = await checkAccountAccess(businessId);
       const now = new Date();
@@ -130,9 +145,9 @@ export async function POST(req: NextRequest) {
         notification_url: notificationUrl,
         status: "pending",
         auto_recurring: {
-          frequency: 1,
+          frequency: recurringFrequency,
           frequency_type: "months",
-          transaction_amount: plan.price_monthly,
+          transaction_amount: chargeAmount,
           currency_id: plan.currency ?? "ARS",
           ...(trialEnd ? { start_date: trialEnd.toISOString() } : {}),
         },

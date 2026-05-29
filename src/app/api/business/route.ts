@@ -44,7 +44,24 @@ export async function POST(req: NextRequest) {
             .slice(0, 10)
         : undefined;
 
-      await setBusinessProfile({ name, description, products, extra, quick_replies }, businessId);
+      // Base de conocimiento (texto libre, máx 8000 chars)
+      const knowledge_base =
+        typeof body.knowledge_base === "string"
+          ? body.knowledge_base.trim().slice(0, 8000)
+          : undefined;
+
+      // Agenda de turnos
+      const booking_enabled =
+        typeof body.booking_enabled === "boolean" ? body.booking_enabled : undefined;
+      const booking_config =
+        typeof body.booking_config === "string"
+          ? body.booking_config.trim().slice(0, 4000)
+          : undefined;
+
+      await setBusinessProfile(
+        { name, description, products, extra, quick_replies, knowledge_base, booking_enabled, booking_config },
+        businessId
+      );
 
       return NextResponse.json({ ok: true });
     });

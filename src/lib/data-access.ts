@@ -23,6 +23,12 @@ export interface BusinessProfile {
   products: ProductItem[];
   extra: string;
   quick_replies: string[];
+  /** Base de conocimiento (FAQ, políticas, info que la IA usa para responder). */
+  knowledge_base: string;
+  /** Si la IA puede tomar turnos / citas en la conversación. */
+  booking_enabled: boolean;
+  /** Reglas de agenda: horarios, duración, servicios, cómo confirmar. */
+  booking_config: string;
   updated_at: number;
 }
 
@@ -301,12 +307,12 @@ export class TeamManagementError extends Error {
 // ── Plan hierarchy ───────────────────────────────────────────────────────────
 export const PLAN_HIERARCHY: Record<string, number> = {
   starter: 1,
-  growth: 2, // legacy — kept for existing subscriptions, not exposed in UI
-  pro: 2,
-  premium: 2, // legacy — same rank as pro
+  growth: 2,
+  pro: 3,
+  premium: 3, // legacy — same rank as pro
 };
 
-export const ACTIVE_PLAN_CODES = ["starter", "pro"] as const;
+export const ACTIVE_PLAN_CODES = ["starter", "growth", "pro"] as const;
 
 export function canUpgradeTo(
   currentPlan: string,
@@ -2162,7 +2168,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
       .single(),
     supabase
       .from("business_settings")
-      .select("description, extra, quick_replies, updated_at")
+      .select("description, extra, quick_replies, knowledge_base, booking_enabled, booking_config, updated_at")
       .eq("business_id", businessId)
       .single(),
     supabase
@@ -2182,6 +2188,9 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
     description: settings?.description ?? "",
     extra: settings?.extra ?? "",
     quick_replies: Array.isArray(settings?.quick_replies) ? (settings.quick_replies as string[]) : [],
+    knowledge_base: settings?.knowledge_base ?? "",
+    booking_enabled: settings?.booking_enabled ?? false,
+    booking_config: settings?.booking_config ?? "",
     products: (products ?? []).map((product) => ({
       id: product.id,
       name: product.name,
@@ -2204,6 +2213,9 @@ export async function setBusinessProfile(patch: {
   products?: ProductItem[]; // optional — if omitted, products are not touched
   extra: string;
   quick_replies?: string[]; // optional — if omitted, not touched
+  knowledge_base?: string; // optional — if omitted, not touched
+  booking_enabled?: boolean; // optional — if omitted, not touched
+  booking_config?: string; // optional — if omitted, not touched
 }, businessId = getBusinessId()): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
@@ -2220,6 +2232,15 @@ export async function setBusinessProfile(patch: {
   };
   if (patch.quick_replies !== undefined) {
     settingsPatch.quick_replies = patch.quick_replies;
+  }
+  if (patch.knowledge_base !== undefined) {
+    settingsPatch.knowledge_base = patch.knowledge_base;
+  }
+  if (patch.booking_enabled !== undefined) {
+    settingsPatch.booking_enabled = patch.booking_enabled;
+  }
+  if (patch.booking_config !== undefined) {
+    settingsPatch.booking_config = patch.booking_config;
   }
   await supabase.from("business_settings").update(settingsPatch).eq("business_id", businessId);
   console.log(`[business/update] settings updated business_id=${businessId}`);
