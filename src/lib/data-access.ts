@@ -22,6 +22,7 @@ export interface BusinessProfile {
   description: string;
   products: ProductItem[];
   extra: string;
+  quick_replies: string[];
   updated_at: number;
 }
 
@@ -2161,7 +2162,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
       .single(),
     supabase
       .from("business_settings")
-      .select("description, extra, updated_at")
+      .select("description, extra, quick_replies, updated_at")
       .eq("business_id", businessId)
       .single(),
     supabase
@@ -2180,6 +2181,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
     name: business?.display_name ?? "",
     description: settings?.description ?? "",
     extra: settings?.extra ?? "",
+    quick_replies: Array.isArray(settings?.quick_replies) ? (settings.quick_replies as string[]) : [],
     products: (products ?? []).map((product) => ({
       id: product.id,
       name: product.name,
@@ -2201,6 +2203,7 @@ export async function setBusinessProfile(patch: {
   description: string;
   products?: ProductItem[]; // optional — if omitted, products are not touched
   extra: string;
+  quick_replies?: string[]; // optional — if omitted, not touched
 }, businessId = getBusinessId()): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
@@ -2210,11 +2213,15 @@ export async function setBusinessProfile(patch: {
     updated_at: now,
   }).eq("id", businessId);
 
-  await supabase.from("business_settings").update({
+  const settingsPatch: Record<string, unknown> = {
     description: patch.description,
     extra: patch.extra,
     updated_at: now,
-  }).eq("business_id", businessId);
+  };
+  if (patch.quick_replies !== undefined) {
+    settingsPatch.quick_replies = patch.quick_replies;
+  }
+  await supabase.from("business_settings").update(settingsPatch).eq("business_id", businessId);
   console.log(`[business/update] settings updated business_id=${businessId}`);
 
   if (patch.products !== undefined) {

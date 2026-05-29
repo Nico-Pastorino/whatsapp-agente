@@ -35,15 +35,16 @@ export async function POST(req: NextRequest) {
           description: (p.description ?? "").trim(),
         }));
 
-      await setBusinessProfile(
-        {
-          name,
-          description,
-          products,
-          extra,
-        },
-        businessId
-      );
+      // quick_replies: array of non-empty strings, max 10, max 120 chars each
+      const rawReplies = Array.isArray(body.quick_replies) ? body.quick_replies : undefined;
+      const quick_replies = rawReplies
+        ? (rawReplies as unknown[])
+            .filter((r): r is string => typeof r === "string" && r.trim().length > 0)
+            .map((r) => r.trim().slice(0, 120))
+            .slice(0, 10)
+        : undefined;
+
+      await setBusinessProfile({ name, description, products, extra, quick_replies }, businessId);
 
       return NextResponse.json({ ok: true });
     });

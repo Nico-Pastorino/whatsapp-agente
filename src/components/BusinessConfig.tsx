@@ -9,6 +9,7 @@ interface Profile {
   name: string;
   description: string;
   extra: string;
+  quick_replies: string[];
 }
 
 const inputClass = "atd-input";
@@ -36,7 +37,9 @@ export default function BusinessConfig() {
     name: "",
     description: "",
     extra: "",
+    quick_replies: [],
   });
+  const [newReply, setNewReply] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -50,6 +53,7 @@ export default function BusinessConfig() {
           name: data.name ?? "",
           description: data.description ?? "",
           extra: data.extra ?? "",
+          quick_replies: Array.isArray(data.quick_replies) ? data.quick_replies : [],
         });
         setLoading(false);
       });
@@ -73,7 +77,7 @@ export default function BusinessConfig() {
       const res = await fetch("/api/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra }),
+        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies }),
       });
       if (res.ok) {
         setSaved(true);
@@ -191,6 +195,78 @@ export default function BusinessConfig() {
             placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada`}
             className={`${inputClass} resize-none`}
           />
+        </section>
+
+        {/* Sección 4: Respuestas rápidas */}
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <SectionHeader
+            label="Sección 4"
+            title="Respuestas rápidas"
+            description="Frases predefinidas que aparecen como chips cuando un integrante del equipo toma el control de una conversación. Clic para insertar en el mensaje."
+          />
+
+          {/* Lista de respuestas cargadas */}
+          {profile.quick_replies.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+              {profile.quick_replies.map((reply, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "6px 12px", borderRadius: 20,
+                  background: "var(--surface-2)", border: "1px solid var(--hairline)",
+                  fontSize: 13, color: "var(--ink)",
+                }}>
+                  <span style={{ maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {reply}
+                  </span>
+                  <button
+                    onClick={() => setProfile((p) => ({ ...p, quick_replies: p.quick_replies.filter((_, j) => j !== i) }))}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", padding: 0, lineHeight: 1, fontSize: 15 }}
+                    title="Eliminar"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input para agregar nueva respuesta */}
+          {profile.quick_replies.length < 10 && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text"
+                value={newReply}
+                onChange={(e) => setNewReply(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newReply.trim()) {
+                    setProfile((p) => ({ ...p, quick_replies: [...p.quick_replies, newReply.trim()] }));
+                    setNewReply("");
+                  }
+                }}
+                placeholder='Ej: "Ahora te llamo", "Confirmado, te esperamos", "¡Muchas gracias!"'
+                maxLength={120}
+                className={inputClass}
+                style={{ flex: 1 }}
+              />
+              <button
+                onClick={() => {
+                  if (!newReply.trim()) return;
+                  setProfile((p) => ({ ...p, quick_replies: [...p.quick_replies, newReply.trim()] }));
+                  setNewReply("");
+                }}
+                disabled={!newReply.trim()}
+                className="atd-btn primary sm"
+              >
+                Agregar
+              </button>
+            </div>
+          )}
+          {profile.quick_replies.length >= 10 && (
+            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Máximo 10 respuestas rápidas.</p>
+          )}
+          {profile.quick_replies.length === 0 && (
+            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+              Todavía no hay respuestas rápidas. Agregá frases frecuentes de tu equipo.
+            </p>
+          )}
         </section>
 
         {/* Botón guardar */}

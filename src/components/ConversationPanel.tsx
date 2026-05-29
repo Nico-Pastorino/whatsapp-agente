@@ -70,6 +70,7 @@ export default function ConversationPanel({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +79,16 @@ export default function ConversationPanel({
     loadMessages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
+
+  // Load quick replies once on mount
+  useEffect(() => {
+    fetch("/api/business")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (Array.isArray(data?.quick_replies)) setQuickReplies(data.quick_replies);
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -215,6 +226,30 @@ export default function ConversationPanel({
             El asistente responde automáticamente
           </p>
         ) : (
+          <>
+          {/* Quick reply chips */}
+          {quickReplies.length > 0 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--hairline)" }}>
+              {quickReplies.map((reply, i) => (
+                <button
+                  key={i}
+                  onClick={() => setInput(reply)}
+                  style={{
+                    padding: "4px 12px", borderRadius: 16,
+                    background: input === reply ? "var(--ink)" : "var(--surface-2)",
+                    color: input === reply ? "var(--bg)" : "var(--ink-2)",
+                    border: "1px solid var(--hairline)",
+                    fontSize: 12, cursor: "pointer", whiteSpace: "nowrap",
+                    maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis",
+                    transition: "background .15s, color .15s",
+                  }}
+                  title={reply}
+                >
+                  {reply}
+                </button>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ width: 36, height: 36, borderRadius: 999, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Plus size={16} style={{ color: "var(--muted)" }} />
@@ -235,6 +270,7 @@ export default function ConversationPanel({
               {sending ? "·" : <Send size={16} />}
             </button>
           </div>
+          </>
         )}
         {sendError && <p style={{ fontSize: 12, color: "#c0392b", marginTop: 6 }}>{sendError}</p>}
       </div>
