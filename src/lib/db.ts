@@ -78,6 +78,7 @@ export {
   setBusinessProfile,
   setConnectionState,
   setMode,
+  setNeedsAttention,
   updateHumanActivity,
   returnInactiveConversationsToAI,
   HUMAN_INACTIVITY_MINUTES,

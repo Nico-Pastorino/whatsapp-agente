@@ -23,6 +23,7 @@ interface Conversation {
   safe_outgoing_jid: string | null;
   has_safe_outgoing_jid: boolean;
   needs_phone_mapping: boolean;
+  needs_attention: boolean;
 }
 
 interface Props {
@@ -37,6 +38,7 @@ interface Props {
     safe_outgoing_jid: string | null;
     has_safe_outgoing_jid: boolean;
     needs_phone_mapping: boolean;
+    needs_attention: boolean;
   }) => void;
   onDelete: () => void;
   onBack?: () => void;
@@ -67,20 +69,12 @@ export default function ConversationPanel({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [phoneNumber, setPhoneNumber] = useState(
-    () => conversation.phone_number?.replace(/[^\d]/g, "") ?? ""
-  );
-  const [linkingPhone, setLinkingPhone] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [linkSuccess, setLinkSuccess] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMode(conversation.mode);
-    setPhoneNumber(conversation.phone_number?.replace(/[^\d]/g, "") ?? "");
-    setLinkError(null);
-    setLinkSuccess(null);
+    setSendError(null);
     loadMessages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);
@@ -136,36 +130,6 @@ export default function ConversationPanel({
     setSending(false);
   }
 
-  async function handleLinkPhone() {
-    if (!phoneNumber.trim() || linkingPhone) return;
-    setLinkingPhone(true);
-    setLinkError(null);
-    setLinkSuccess(null);
-    const res = await fetch(`/api/contacts/${conversation.contact_id}/link-phone`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber }),
-    });
-    const payload = await res.json().catch(() => null) as {
-      error?: string; safe_outgoing_jid?: string; has_safe_outgoing_jid?: boolean;
-      contact?: { phone_number?: string | null; primary_jid?: string | null };
-    } | null;
-    if (!res.ok || !payload?.safe_outgoing_jid) {
-      setLinkError(payload?.error ?? "No se pudo asociar el número.");
-    } else {
-      onConversationUpdate({
-        id: conversation.id, phone: payload.safe_outgoing_jid,
-        phone_number: payload.contact?.phone_number ?? phoneNumber.replace(/[^\d]/g, ""),
-        primary_jid: payload.contact?.primary_jid ?? payload.safe_outgoing_jid,
-        outgoing_jid: payload.safe_outgoing_jid, safe_outgoing_jid: payload.safe_outgoing_jid,
-        has_safe_outgoing_jid: Boolean(payload.has_safe_outgoing_jid), needs_phone_mapping: false,
-      });
-      setPhoneNumber(""); setLinkError(null);
-      setLinkSuccess("Número asociado correctamente.");
-    }
-    setLinkingPhone(false);
-  }
-
   async function confirmDelete() {
     await fetch(`/api/conversations/${conversation.id}`, { method: "DELETE" });
     setShowDeleteConfirm(false);
@@ -208,6 +172,13 @@ export default function ConversationPanel({
         </div>
       </div>
 
+      {/* Needs attention banner */}
+      {conversation.needs_attention && !isIA && (
+        <div style={{ margin: "8px 14px 0", padding: "10px 14px", borderRadius: 12, background: "var(--human-tint)", border: "1px solid rgba(212,154,58,0.3)", fontSize: 12.5, color: "var(--human)", fontWeight: 500 }}>
+          👋 La IA derivó esta conversación. Respondé para retomar el contacto.
+        </div>
+      )}
+
       {/* Messages */}
       <div style={{ flex: 1, overflow: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
         {messages.length === 0 ? (
@@ -237,31 +208,9 @@ export default function ConversationPanel({
         <div ref={bottomRef} />
       </div>
 
-      {/* Phone mapping warning */}
-      {conversation.needs_phone_mapping && (
-        <div style={{ margin: "0 14px 8px", padding: 12, borderRadius: 12, background: "var(--human-tint)", border: "1px solid rgba(212,154,58,0.2)" }}>
-          <p style={{ fontSize: 12.5, fontWeight: 500, color: "var(--human)", marginBottom: 6 }}>
-            Asociar número para responder
-          </p>
-          {linkSuccess && <p style={{ fontSize: 12, color: "var(--green-soft)", marginBottom: 6 }}>{linkSuccess}</p>}
-          {linkError && <p style={{ fontSize: 12, color: "#c0392b", marginBottom: 6 }}>{linkError}</p>}
-          <div style={{ display: "flex", gap: 6 }}>
-            <input
-              type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder={conversation.phone_number ?? "Ej: 5492355472157"} disabled={linkingPhone}
-              className="atd-input" style={{ flex: 1, height: 36, padding: "0 12px", fontSize: 13 }}
-            />
-            <button onClick={handleLinkPhone} disabled={linkingPhone || !phoneNumber.trim()}
-              className="atd-btn primary sm">
-              {linkingPhone ? "..." : "Asociar"}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Composer */}
       <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--hairline)", background: "var(--surface)" }}>
-        {isIA && !conversation.needs_phone_mapping ? (
+        {isIA ? (
           <p className="mono" style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", textTransform: "uppercase" }}>
             El asistente responde automáticamente
           </p>
@@ -274,13 +223,13 @@ export default function ConversationPanel({
               type="text" value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={conversation.needs_phone_mapping ? "Asociá un número primero" : "Escribí un mensaje..."}
-              disabled={sending || conversation.needs_phone_mapping}
+              placeholder="Escribí un mensaje..."
+              disabled={sending}
               style={{ flex: 1, minHeight: 36, padding: "9px 14px", borderRadius: 18, background: "var(--surface-2)", border: "1px solid var(--hairline)", fontSize: 13, color: "var(--ink)", fontFamily: "var(--font-sans)", outline: "none" }}
             />
             <button
               onClick={sendMessage}
-              disabled={sending || !input.trim() || conversation.needs_phone_mapping}
+              disabled={sending || !input.trim()}
               style={{ width: 36, height: 36, borderRadius: 999, background: "var(--ink)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "none", cursor: "pointer", opacity: sending || !input.trim() ? 0.4 : 1 }}
             >
               {sending ? "·" : <Send size={16} />}

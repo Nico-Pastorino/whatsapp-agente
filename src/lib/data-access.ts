@@ -37,6 +37,7 @@ export interface Conversation {
   safe_outgoing_jid: string | null;
   has_safe_outgoing_jid: boolean;
   needs_phone_mapping: boolean;
+  needs_attention: boolean;
   last_message_at: number | null;
   created_at: number;
   assigned_to: string | null;
@@ -112,6 +113,7 @@ interface ConversationRow {
   last_inbound_jid: string | null;
   display_name: string | null;
   mode: "AI" | "HUMAN";
+  needs_attention: boolean;
   last_message_at: string | null;
   created_at: string;
   assigned_to: string | null;
@@ -568,6 +570,7 @@ function mapConversationRow(row: ConversationRow): Conversation {
     safe_outgoing_jid: null,
     has_safe_outgoing_jid: false,
     needs_phone_mapping: false,
+    needs_attention: row.needs_attention ?? false,
     last_message_at: toUnixSeconds(row.last_message_at),
     created_at: toUnixSeconds(row.created_at) ?? 0,
     assigned_to: row.assigned_to ?? null,
@@ -906,7 +909,7 @@ async function getConversationRowById(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .eq("id", conversationId)
@@ -2366,7 +2369,7 @@ export async function getOrCreateConversation(input: {
       updated_at: new Date().toISOString(),
     })
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .single();
   if (createError || !created) throw createError ?? new Error("conversation insert failed");
@@ -2400,6 +2403,22 @@ export async function setMode(
   }
   const { error } = await supabase.from("conversations").update(patch)
     .eq("business_id", businessId).eq("id", conversationId);
+  if (error) throw error;
+}
+
+// Mark a conversation as needing human attention (set by the AI on handoff).
+// Cleared automatically when a human sends a message from the dashboard.
+export async function setNeedsAttention(
+  conversationId: string,
+  value: boolean,
+  businessId = getBusinessId()
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("conversations")
+    .update({ needs_attention: value, updated_at: new Date().toISOString() })
+    .eq("business_id", businessId)
+    .eq("id", conversationId);
   if (error) throw error;
 }
 
@@ -2451,7 +2470,7 @@ export async function listConversations(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .order("last_message_at", { ascending: false, nullsFirst: false })

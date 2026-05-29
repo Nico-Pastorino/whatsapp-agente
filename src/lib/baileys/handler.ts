@@ -12,8 +12,25 @@ import {
   recordInboundMessageUsage,
   checkAccountAccess,
   setMode,
+  setNeedsAttention,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
+
+// Frases que indican que la IA está derivando al cliente a un asesor humano.
+const HANDOFF_PATTERNS = [
+  /te paso con (un|una) asesor/i,
+  /te comunico con (un|una) asesor/i,
+  /paso con (un|una) persona/i,
+  /derivarte con (un|una)/i,
+  /en breve te contact/i,
+  /alguien de nuestro equipo/i,
+  /un asesor se (va a |va )poner en contacto/i,
+  /mi colega/i,
+];
+
+function isHandoffReply(text: string): boolean {
+  return HANDOFF_PATTERNS.some((p) => p.test(text));
+}
 import { extractPhoneFromJid } from "../whatsapp-jid";
 import { getConnectionState } from "../db";
 import { generateReply } from "../openrouter";
@@ -214,6 +231,14 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
 
   const assistantMsg = await insertMessage(convo.id, "assistant", reply, undefined, businessId);
   await recordAiReplyUsage(businessId);
+
+  // Si la respuesta de la IA deriva al cliente a un asesor, cambia el modo a HUMAN
+  // y marca la conversación para que el equipo sepa que necesita atención.
+  if (isHandoffReply(reply)) {
+    console.log(`[bot/${businessId}] Handoff detectado — cambiando a HUMAN + needs_attention`);
+    await setMode(convo.id, "HUMAN", businessId).catch(() => undefined);
+    await setNeedsAttention(convo.id, true, businessId).catch(() => undefined);
+  }
 
   const sentResult = await sock.sendMessage(replyJid, { text: reply });
   console.log(`[wa/outgoing/${businessId}] conversation_id=${convo.id} target_jid=${replyJid} source=ai status=sent`);

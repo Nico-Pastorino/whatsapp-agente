@@ -7,6 +7,7 @@ import {
   getConversationById,
   recordHumanMessageUsage,
   setMode,
+  setNeedsAttention,
   updateHumanActivity,
 } from "@/lib/db";
 import { toDashboardAuthResponse, withActiveDashboardBusinessContext, withDashboardBusinessContext } from "@/lib/route-auth";
@@ -87,6 +88,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         await setMode(id, "HUMAN", businessId, { assignedTo: user.sub });
       } else {
         await updateHumanActivity(id, businessId);
+      }
+
+      // Clear the attention flag as soon as a human responds.
+      if (conv.needs_attention) {
+        await setNeedsAttention(id, false, businessId).catch(() => undefined);
       }
 
       const message = await insertMessage(id, "human", content, null, businessId);

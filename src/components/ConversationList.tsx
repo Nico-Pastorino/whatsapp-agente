@@ -16,6 +16,7 @@ interface Conversation {
   safe_outgoing_jid: string | null;
   has_safe_outgoing_jid: boolean;
   needs_phone_mapping: boolean;
+  needs_attention: boolean;
   last_message_at: number | null;
   last_message_preview: string | null;
 }
@@ -67,14 +68,27 @@ export default function ConversationList({
 
   const iaCount = conversations.filter((c) => c.mode === "AI").length;
   const humanCount = conversations.filter((c) => c.mode === "HUMAN").length;
+  const attentionCount = conversations.filter((c) => c.needs_attention).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg)" }}>
       {/* Header */}
       <div className="page-header">
-        <div>
-          <div className="page-sub">inbox · {conversations.length} hoy</div>
-          <h1 className="page-title">Conversaciones</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div>
+            <div className="page-sub">inbox · {conversations.length} hoy</div>
+            <h1 className="page-title">Conversaciones</h1>
+          </div>
+          {attentionCount > 0 && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              minWidth: 22, height: 22, borderRadius: 999, padding: "0 6px",
+              background: "var(--human)", color: "#fff",
+              fontSize: 11, fontWeight: 700, lineHeight: 1,
+            }}>
+              {attentionCount}
+            </span>
+          )}
         </div>
         <button
           className="atd-btn ghost sm"
@@ -134,6 +148,7 @@ export default function ConversationList({
             const name = displayName(conv);
             const isIA = conv.mode === "AI";
             const isSelected = selectedId === conv.id;
+            const needsAttention = conv.needs_attention && !isIA;
 
             return (
               <button
@@ -144,7 +159,11 @@ export default function ConversationList({
                   padding: "12px 20px",
                   display: "flex", alignItems: "center", gap: 12,
                   borderTop: i ? "1px solid var(--hairline)" : "none",
-                  background: isSelected ? "var(--surface)" : "transparent",
+                  background: isSelected
+                    ? "var(--surface)"
+                    : needsAttention
+                    ? "rgba(212,154,58,0.06)"
+                    : "transparent",
                   cursor: "pointer",
                   transition: "background .15s",
                 }}
@@ -154,7 +173,7 @@ export default function ConversationList({
                   <Avatar
                     initials={initials(name)}
                     size={42}
-                    bg={isIA ? "var(--green-tint)" : "var(--human-tint)"}
+                    bg={isIA ? "var(--green-tint)" : needsAttention ? "rgba(212,154,58,0.18)" : "var(--human-tint)"}
                     fg={isIA ? "var(--green-ink)" : "var(--human)"}
                   />
                   {isIA && (
@@ -168,21 +187,31 @@ export default function ConversationList({
                       <Spark size={8} />
                     </span>
                   )}
+                  {needsAttention && (
+                    <span style={{
+                      position: "absolute", bottom: -2, right: -2,
+                      width: 16, height: 16, borderRadius: 999,
+                      background: "var(--human)", color: "#fff",
+                      border: "2px solid var(--bg)",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 9, fontWeight: 700,
+                    }}>!</span>
+                  )}
                 </div>
 
                 {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span style={{ fontSize: 14.5, fontWeight: 500, color: "var(--ink)" }}>{name}</span>
+                    <span style={{ fontSize: 14.5, fontWeight: needsAttention ? 600 : 500, color: "var(--ink)" }}>{name}</span>
                     <span className="mono" style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}>
                       {relativeTime(conv.last_message_at)}
                     </span>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
-                    <span style={{ fontSize: 13, color: "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                      {conv.last_message_preview ?? "Sin mensajes"}
+                    <span style={{ fontSize: 13, color: needsAttention ? "var(--human)" : "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                      {needsAttention ? "⚡ Necesita atención" : (conv.last_message_preview ?? "Sin mensajes")}
                     </span>
-                    {!isIA && (
+                    {!isIA && !needsAttention && (
                       <span style={{ marginLeft: 8, width: 8, height: 8, borderRadius: 999, background: "var(--human)", flexShrink: 0 }} />
                     )}
                   </div>

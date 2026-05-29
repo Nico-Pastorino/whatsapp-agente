@@ -28,6 +28,7 @@ interface Conversation {
   safe_outgoing_jid: string | null;
   has_safe_outgoing_jid: boolean;
   needs_phone_mapping: boolean;
+  needs_attention: boolean;
   last_message_at: number | null;
   last_message_preview: string | null;
 }
@@ -41,6 +42,7 @@ interface ConversationUpdate {
   safe_outgoing_jid: string | null;
   has_safe_outgoing_jid: boolean;
   needs_phone_mapping: boolean;
+  needs_attention: boolean;
 }
 
 type DashboardView =
