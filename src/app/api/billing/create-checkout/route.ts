@@ -3,6 +3,8 @@ import { MercadoPagoConfig, PreApproval } from "mercadopago";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
 import { canUpgradeTo, checkAccountAccess } from "@/lib/db";
+// Descuento anual centralizado en plan-display.ts — fuente única para toda la app.
+import { ANNUAL_DISCOUNT } from "@/lib/plan-display";
 
 export const dynamic = "force-dynamic";
 
@@ -69,8 +71,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Plan no disponible para cobro." }, { status: 400 });
       }
 
-      // Ciclo de facturación: anual = 20% off, se cobra 1 vez cada 12 meses.
-      const ANNUAL_DISCOUNT = 0.2;
+      // Ciclo de facturación: anual = 20% off (ANNUAL_DISCOUNT importado de plan-display.ts).
       const monthlyEquivalent =
         billingCycle === "annual"
           ? Math.round((plan.price_monthly * (1 - ANNUAL_DISCOUNT)) / 100) * 100

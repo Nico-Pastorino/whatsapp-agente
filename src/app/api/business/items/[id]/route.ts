@@ -31,6 +31,9 @@ export async function PATCH(
       if (body.financing_options !== undefined) patch.financing_options = typeof body.financing_options === "string" ? body.financing_options.trim() || null : null;
       if (body.internal_notes !== undefined) patch.internal_notes = typeof body.internal_notes === "string" ? body.internal_notes.trim() || null : null;
       if (typeof body.is_active === "boolean") patch.is_active = body.is_active;
+      if (typeof body.is_featured === "boolean") patch.is_featured = body.is_featured;
+      if (body.promotion_label !== undefined) patch.promotion_label = typeof body.promotion_label === "string" ? body.promotion_label.trim() || null : null;
+      if (body.promotion_ends_at !== undefined) patch.promotion_ends_at = typeof body.promotion_ends_at === "string" ? body.promotion_ends_at || null : null;
 
       const updated = await updateBusinessItem(businessId, itemId, patch);
       return NextResponse.json({ item: updated });

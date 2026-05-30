@@ -18,14 +18,37 @@ interface Profile {
   notify_events: string[];
 }
 
-const NOTIFY_EVENT_OPTIONS: { key: string; label: string }[] = [
-  { key: "new_appointment", label: "Nuevo turno" },
-  { key: "appointment_cancelled", label: "Turno cancelado" },
-  { key: "human_handoff", label: "Cliente pidió hablar con una persona" },
-  { key: "hot_lead", label: "Cliente interesado en comprar" },
-  { key: "unanswered", label: "Consulta sin responder" },
-  { key: "daily_summary", label: "Resumen diario de pendientes" },
+const NOTIFY_EVENT_OPTIONS: { key: string; label: string; icon: string }[] = [
+  { key: "new_appointment", label: "Turno reservado", icon: "📅" },
+  { key: "appointment_cancelled", label: "Turno cancelado", icon: "❌" },
+  { key: "human_handoff", label: "Cliente solicita atención humana", icon: "🙋" },
+  { key: "hot_lead", label: "Cliente interesado / venta potencial", icon: "🔥" },
+  { key: "unanswered", label: "IA sin respuesta adecuada", icon: "🤔" },
+  { key: "daily_summary", label: "Resumen diario de actividad", icon: "📊" },
 ];
+
+/** Valida que el número tenga código de país (mínimo 10 dígitos) */
+function validateNotifyPhone(raw: string): { valid: boolean; normalized: string; hint: string } {
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return { valid: false, normalized: "", hint: "" };
+  if (digits.length < 10) {
+    return {
+      valid: false,
+      normalized: digits,
+      hint: "Número muy corto. Incluí el código de país (ej: 54 para Argentina).",
+    };
+  }
+  // Argentina: 54 + código de área + número (total 13 dígitos para celular con 9)
+  // Colombia: 57..., México: 52..., etc.
+  if (digits.startsWith("0")) {
+    return {
+      valid: false,
+      normalized: digits,
+      hint: "No uses 0 al inicio. Usá el código de país directo (ej: 54 9 11...).",
+    };
+  }
+  return { valid: true, normalized: digits, hint: "" };
+}
 
 const inputClass = "atd-input";
 
@@ -317,72 +340,155 @@ export default function BusinessConfig() {
               <span style={{ width: 20, height: 20, borderRadius: 999, background: "#fff", display: "block", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
             </button>
           </div>
-          {profile.notify_enabled && (
-            <>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Número del encargado</label>
-              <input
-                value={profile.notify_phone}
-                onChange={(e) => updateField("notify_phone", e.target.value)}
-                placeholder="Ej: 54 9 11 5555 5555 (con código de país)"
-                className={inputClass}
-                inputMode="tel"
-              />
-              <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "6px 0 14px" }}>
-                Incluí el código de país. Los avisos salen del mismo WhatsApp conectado del negocio.
-              </p>
-              <label className="block text-sm font-medium text-gray-700 mb-2">¿Qué querés que te avise?</label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {NOTIFY_EVENT_OPTIONS.map((opt) => {
-                  const checked = profile.notify_events.includes(opt.key);
-                  return (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => {
-                        setProfile((p) => ({
-                          ...p,
-                          notify_events: checked
-                            ? p.notify_events.filter((e) => e !== opt.key)
-                            : [...p.notify_events, opt.key],
-                        }));
-                        setSaved(false);
-                      }}
+          {profile.notify_enabled && (() => {
+            const phoneValidation = validateNotifyPhone(profile.notify_phone);
+            return (
+              <>
+                {/* Phone number */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                    Número de WhatsApp del encargado
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      value={profile.notify_phone}
+                      onChange={(e) => { updateField("notify_phone", e.target.value); setSaved(false); }}
+                      placeholder="5491151234567"
+                      className={inputClass}
+                      inputMode="tel"
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        border: `1px solid ${checked ? "var(--green-soft)" : "var(--hairline)"}`,
-                        background: checked ? "var(--green-tint)" : "transparent",
+                        paddingRight: 36,
+                        borderColor: profile.notify_phone && !phoneValidation.valid
+                          ? "#fca5a5"
+                          : profile.notify_phone && phoneValidation.valid
+                          ? "var(--green)"
+                          : undefined,
                       }}
-                    >
+                    />
+                    {profile.notify_phone && (
                       <span
                         style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: 5,
-                          flexShrink: 0,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: checked ? "var(--green)" : "transparent",
-                          border: checked ? "none" : "1.5px solid var(--hairline-2)",
-                          color: "#fff",
-                          fontSize: 12,
+                          position: "absolute",
+                          right: 12,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          fontSize: 14,
                         }}
                       >
-                        {checked ? "✓" : ""}
+                        {phoneValidation.valid ? "✅" : "⚠️"}
                       </span>
-                      <span style={{ fontSize: 13.5, color: "var(--ink-2)" }}>{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
+                    )}
+                  </div>
+
+                  {/* Format guidance */}
+                  <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-3)" }}>
+                    {phoneValidation.hint ? (
+                      <span style={{ color: "#b45309" }}>⚠️ {phoneValidation.hint}</span>
+                    ) : (
+                      <span>
+                        Solo dígitos, con código de país.{" "}
+                        <strong>Argentina:</strong> 5491151234567 · <strong>México:</strong> 521234567890 · <strong>Colombia:</strong> 573001234567
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Preview of the JID that will be used */}
+                  {phoneValidation.valid && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: "var(--green-tint)",
+                        border: "1px solid var(--green)",
+                        fontSize: 12,
+                        color: "var(--green)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      ✓ Los avisos se enviarán a WhatsApp:{" "}
+                      <strong>+{phoneValidation.normalized}</strong>
+                    </div>
+                  )}
+                </div>
+
+                {/* Events */}
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>
+                  ¿Qué eventos querés recibir?
+                </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {NOTIFY_EVENT_OPTIONS.map((opt) => {
+                    const checked = profile.notify_events.includes(opt.key);
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          setProfile((p) => ({
+                            ...p,
+                            notify_events: checked
+                              ? p.notify_events.filter((e) => e !== opt.key)
+                              : [...p.notify_events, opt.key],
+                          }));
+                          setSaved(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "12px 14px",
+                          borderRadius: 12,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          border: `1px solid ${checked ? "var(--green)" : "var(--hairline)"}`,
+                          background: checked ? "var(--green-tint)" : "var(--surface)",
+                          transition: "border-color 0.15s, background 0.15s",
+                        }}
+                      >
+                        <span style={{ fontSize: 18, flexShrink: 0 }}>{opt.icon}</span>
+                        <span style={{ fontSize: 13, color: "var(--ink-2)", flex: 1 }}>{opt.label}</span>
+                        <span
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 6,
+                            flexShrink: 0,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: checked ? "var(--green)" : "transparent",
+                            border: checked ? "none" : "1.5px solid var(--hairline-2)",
+                            color: "#fff",
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {checked ? "✓" : ""}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Important note */}
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    background: "var(--surface-2)",
+                    fontSize: 12,
+                    color: "var(--ink-3)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  ℹ️ Los avisos los envía el mismo WhatsApp conectado al negocio. Si el worker no está activo o WhatsApp no está conectado, los avisos se acumularán y se enviarán cuando vuelva la conexión.
+                </div>
+              </>
+            );
+          })()}
         </section>
 
         {/* Sección 4: Respuestas rápidas */}

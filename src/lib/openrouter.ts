@@ -1,7 +1,7 @@
 import OpenAI from "openai";
-import { getBusinessProfile, listActiveItemsForPrompt } from "./db";
+import { getBusinessProfile, listActiveItemsForPrompt, isPromotionActive } from "./db";
 import { SYSTEM_PROMPT } from "./system-prompt";
-import type { Message } from "./db";
+import type { Message, CatalogItem } from "./db";
 
 // ---------------------------------------------------------------------------
 // API key: soporta OPENAI_API_KEY (primaria) y OPENROUTER_API_KEY (alias).
@@ -103,24 +103,60 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
   }
 
   if (items.length > 0) {
-    lines.push("", "CATÁLOGO DE PRODUCTOS / SERVICIOS:");
-    for (const item of items) {
-      let line = `• ${sanitizeForPrompt(item.name, 120)}`;
+    // ── Separar en grupos para darle prioridad al asistente ─────────────────
+    const featured = items.filter((i) => i.is_featured);
+    const withActivePromo = items.filter((i) => isPromotionActive(i));
+    const rest = items.filter((i) => !i.is_featured);
+
+    function formatItem(item: CatalogItem, prefix = "•"): string {
+      let line = `${prefix} ${sanitizeForPrompt(item.name, 120)}`;
       if (item.category) line += ` (${sanitizeForPrompt(item.category, 80)})`;
       if (item.price) {
         line += ` — ${sanitizeForPrompt(item.price, 80)}`;
-        if (item.promo_price) line += ` (promo: ${sanitizeForPrompt(item.promo_price, 80)})`;
+        if (item.promo_price) line += ` → precio promo: ${sanitizeForPrompt(item.promo_price, 80)}`;
       }
-      if (item.stock_status === "unavailable") line += " | Sin stock";
-      else if (item.stock_status === "on_demand") line += " | Bajo pedido";
+      if (item.stock_status === "unavailable") line += " [Sin stock]";
+      else if (item.stock_status === "on_demand") line += " [Bajo pedido]";
       if (item.item_type === "service") {
         if (item.duration) line += ` | Duración: ${sanitizeForPrompt(item.duration, 80)}`;
         if (item.requires_booking) line += " | Requiere turno";
       }
-      lines.push(line);
-      if (item.description) {
-        lines.push(`  ${sanitizeForPrompt(item.description, 200)}`);
+      if (item.payment_options) line += ` | Pagos: ${sanitizeForPrompt(item.payment_options, 100)}`;
+      if (item.financing_options) line += ` | Financiación: ${sanitizeForPrompt(item.financing_options, 100)}`;
+      return line;
+    }
+
+    // ── Destacados ─────────────────────────────────────────────────────────
+    if (featured.length > 0) {
+      lines.push("", "⭐ PRODUCTOS/SERVICIOS DESTACADOS (mencionarlos primero cuando sea relevante):");
+      for (const item of featured) {
+        lines.push(formatItem(item, "⭐"));
+        if (item.description) lines.push(`   ${sanitizeForPrompt(item.description, 200)}`);
       }
+    }
+
+    // ── Promociones activas ─────────────────────────────────────────────────
+    if (withActivePromo.length > 0) {
+      lines.push("", "🏷️ PROMOCIONES ACTIVAS (priorizar en consultas de precio/financiación):");
+      for (const item of withActivePromo) {
+        let promoLine = `• ${sanitizeForPrompt(item.name, 100)}`;
+        if (item.promotion_label) promoLine += ` — ${sanitizeForPrompt(item.promotion_label, 150)}`;
+        if (item.promotion_ends_at) {
+          const ends = new Date(item.promotion_ends_at);
+          if (!Number.isNaN(ends.getTime())) {
+            promoLine += ` (válida hasta ${ends.toLocaleDateString("es-AR")})`;
+          }
+        }
+        if (item.promo_price) promoLine += ` | Precio especial: ${sanitizeForPrompt(item.promo_price, 80)}`;
+        lines.push(promoLine);
+      }
+    }
+
+    // ── Catálogo completo ───────────────────────────────────────────────────
+    lines.push("", "📦 CATÁLOGO COMPLETO:");
+    for (const item of rest) {
+      lines.push(formatItem(item));
+      if (item.description) lines.push(`  ${sanitizeForPrompt(item.description, 200)}`);
     }
   }
 

@@ -4,11 +4,12 @@ import { getSupabaseAdminClient } from "@/lib/supabase";
 import { createAppSessionToken, getSessionCookieOptions } from "@/lib/app-session";
 import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 
-const VALID_PLANS = new Set(["starter", "growth", "pro"]); // growth kept for legacy
-// El trial de 14 días usa SIEMPRE el plan Starter (decisión de producto: el trial
-// no debe desbloquear funcionalidades de planes superiores). El usuario podrá
-// elegir Growth o Pro al pagar.
-const TRIAL_PLAN_CODE = "starter";
+const VALID_PLANS = new Set(["starter", "growth", "pro"]);
+// El trial de 14 días usa el plan Growth para que el usuario experimente el valor
+// completo de la plataforma: agenda, base de conocimiento, avisos, plantillas
+// comerciales y catálogo amplio. Al vencer el trial, elige el plan a pagar
+// (Starter, Growth o Pro). Sin Growth trial → conversión más baja.
+const TRIAL_PLAN_CODE = "growth";
 const TRIAL_DAYS = 14;
 
 function slugify(text: string): string {

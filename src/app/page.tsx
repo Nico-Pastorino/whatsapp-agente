@@ -18,7 +18,7 @@ const PROBLEMS = [
 
 const STEPS = [
   { num: "1", title: "Registrá tu negocio", desc: "Cargá el nombre, 30 segundos, lista la IA." },
-  { num: "2", title: "Elegí tu plan", desc: "Starter para arrancar. Pro para vender más." },
+  { num: "2", title: "Elegí tu plan", desc: "14 días gratis con Growth. Después, el plan que más te convenga." },
   { num: "3", title: "Conectá WhatsApp", desc: "Escaneá un QR. Listo." },
   { num: "4", title: "Aplicá tu plantilla", desc: "Por rubro. Directo, ya probado." },
   { num: "5", title: "Tu asistente responde", desc: "Vos lo ves. Escalá. IA + vos." },

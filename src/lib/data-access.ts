@@ -167,7 +167,10 @@ type CachedValue<T> = {
 };
 
 const SUBSCRIPTION_CACHE_TTL_MS = 60_000;
-const BUSINESS_PROFILE_CACHE_TTL_MS = 5 * 60_000;
+// Reducido a 60s: el worker tiene su propio cache en memoria. Si el usuario
+// cambia notify_enabled/notify_phone en el dashboard, el worker debe reflejarlo
+// rápidamente sin tener que esperar 5 minutos.
+const BUSINESS_PROFILE_CACHE_TTL_MS = 60_000;
 const SUBSCRIPTION_SELECT =
   "plan_code, status, monthly_message_limit, monthly_ai_reply_limit, current_period_start, current_period_end, trial_started_at, trial_ends_at, paid_at, subscription_started_at, subscription_ends_at, mercado_pago_preapproval_id, mercado_pago_preapproval_status, cancel_at_period_end, cancelled_at";
 const subscriptionCache = new Map<string, CachedValue<SubscriptionRow | null>>();
@@ -3087,7 +3090,7 @@ export interface CatalogItem {
   name: string;
   category: string | null;
   description: string | null;
-  price: string | null;       // maps to price_text column
+  price: string | null;           // maps to price_text column
   promo_price: string | null;
   stock_status: StockStatus | null;
   duration: string | null;
@@ -3096,12 +3099,24 @@ export interface CatalogItem {
   financing_options: string | null;
   internal_notes: string | null;
   is_active: boolean;
+  is_featured: boolean;
+  /** Etiqueta de promoción, ej: "Hot Sale", "12 cuotas sin interés" */
+  promotion_label: string | null;
+  /** Fecha de vencimiento de la promoción (ISO string). null = sin vencimiento. */
+  promotion_ends_at: string | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
 }
 
 export type CatalogItemInput = Omit<CatalogItem, "id" | "business_id" | "sort_order" | "created_at" | "updated_at">;
+
+/** Chequea si una promoción está actualmente activa (no vencida). */
+export function isPromotionActive(item: CatalogItem): boolean {
+  if (!item.promotion_label) return false;
+  if (!item.promotion_ends_at) return true; // sin fecha = siempre activa
+  return new Date(item.promotion_ends_at).getTime() > Date.now();
+}
 
 export interface CatalogCapacity {
   count: number;
@@ -3110,7 +3125,7 @@ export interface CatalogCapacity {
 }
 
 const CATALOG_SELECT =
-  "id, business_id, item_type, name, category, description, price_text, promo_price, stock_status, duration, requires_booking, payment_options, financing_options, internal_notes, is_active, sort_order, created_at, updated_at";
+  "id, business_id, item_type, name, category, description, price_text, promo_price, stock_status, duration, requires_booking, payment_options, financing_options, internal_notes, is_active, is_featured, promotion_label, promotion_ends_at, sort_order, created_at, updated_at";
 
 function mapRowToCatalogItem(row: Record<string, unknown>): CatalogItem {
   return {
@@ -3129,6 +3144,9 @@ function mapRowToCatalogItem(row: Record<string, unknown>): CatalogItem {
     financing_options: (row.financing_options as string | null) ?? null,
     internal_notes: (row.internal_notes as string | null) ?? null,
     is_active: (row.is_active as boolean) ?? true,
+    is_featured: (row.is_featured as boolean) ?? false,
+    promotion_label: (row.promotion_label as string | null) ?? null,
+    promotion_ends_at: (row.promotion_ends_at as string | null) ?? null,
     sort_order: (row.sort_order as number) ?? 0,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -3208,6 +3226,9 @@ export async function createBusinessItem(
       financing_options: input.financing_options ?? null,
       internal_notes: input.internal_notes ?? null,
       is_active: input.is_active ?? true,
+      is_featured: input.is_featured ?? false,
+      promotion_label: input.promotion_label ?? null,
+      promotion_ends_at: input.promotion_ends_at ?? null,
       sort_order: capacity.count,
       created_at: now,
       updated_at: now,
@@ -3238,6 +3259,9 @@ export async function updateBusinessItem(
   if (input.financing_options !== undefined) patch.financing_options = input.financing_options;
   if (input.internal_notes !== undefined) patch.internal_notes = input.internal_notes;
   if (input.is_active !== undefined) patch.is_active = input.is_active;
+  if (input.is_featured !== undefined) patch.is_featured = input.is_featured;
+  if (input.promotion_label !== undefined) patch.promotion_label = input.promotion_label;
+  if (input.promotion_ends_at !== undefined) patch.promotion_ends_at = input.promotion_ends_at;
 
   const { data, error } = await supabase
     .from("products")
@@ -3281,7 +3305,8 @@ export async function toggleBusinessItemActive(
   return updateBusinessItem(businessId, itemId, { is_active: next });
 }
 
-// Items formatted for AI prompt — no internal_notes, active only, max 30
+// Items formatted for AI prompt — no internal_notes, active only, max 50
+// Featured items first, then by sort_order/created_at.
 export async function listActiveItemsForPrompt(
   businessId = getBusinessId()
 ): Promise<CatalogItem[]> {
@@ -3292,9 +3317,10 @@ export async function listActiveItemsForPrompt(
     .eq("business_id", businessId)
     .eq("is_active", true)
     .is("deleted_at", null)
+    .order("is_featured", { ascending: false }) // featured primero
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true })
-    .limit(30);
+    .limit(50);
   if (error) throw error;
   return (data ?? []).map((row) => mapRowToCatalogItem(row as Record<string, unknown>));
 }
@@ -3505,8 +3531,11 @@ export type InternalNotificationEvent = (typeof INTERNAL_NOTIFICATION_EVENTS)[nu
 export async function planAllowsInternalNotifications(
   businessId = getBusinessId()
 ): Promise<boolean> {
-  const features = await getPlanFeatures(businessId);
-  return features.appointments === true || features.knowledge_base === true;
+  // Notifications are allowed for any active or trial subscription.
+  // We intentionally do NOT gate by plan features: the user-controlled
+  // notify_enabled toggle and their notify_phone are sufficient guards.
+  const sub = await getCachedSubscription(businessId);
+  return sub?.status === "active" || sub?.status === "trial";
 }
 
 function buildNewAppointmentMessage(a: Appointment): string {

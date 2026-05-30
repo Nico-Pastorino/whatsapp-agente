@@ -1,8 +1,12 @@
 export type PublicPlanCode = "starter" | "growth" | "pro";
 export type BillingCycle = "monthly" | "annual";
 
-/** Descuento aplicado al pagar 12 meses por adelantado. */
+/** Descuento aplicado al pagar 12 meses por adelantado. FUENTE ÚNICA — importar desde acá. */
 export const ANNUAL_DISCOUNT = 0.2; // 20% off
+
+/** Duración del trial en días. Siempre 14, en plan Growth. */
+export const TRIAL_DAYS = 14;
+export const TRIAL_PLAN_CODE: PublicPlanCode = "growth";
 
 export interface PublicPlanDefinition {
   code: PublicPlanCode;
@@ -40,6 +44,8 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
     name: "Starter",
     priceMonthly: 29000,
     description: "Para empezar a responder consultas con IA.",
+    // Todos los planes llevan al mismo trial Growth de 14 días.
+    // El CTA del Starter explica el acceso inmediato.
     cta: "Empezar con Starter",
     features: [
       "1 número de WhatsApp",
@@ -56,14 +62,16 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
     priceMonthly: 59000,
     description: "Para negocios que ya venden y quieren escalar.",
     badge: "Más popular",
-    cta: "Empezar con Growth",
+    // CTA diferenciado: Growth es el plan del trial, así el usuario sabe qué prueba.
+    cta: "Probar gratis 14 días",
     features: [
       "Todo lo del Starter",
       "Plantillas comerciales por rubro",
       "Hasta 150 productos en catálogo",
       "Hasta 10 usuarios del equipo",
-      "Agenda de turnos automática 🗓️",
+      "Avisos al encargado por WhatsApp",
       "Base de conocimiento para la IA",
+      "Agenda de turnos automática 🗓️",
       "Métricas de conversaciones",
     ],
   }),
@@ -78,8 +86,11 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
       "Plantillas premium (todos los rubros)",
       "Hasta 1.000 productos en catálogo",
       "Hasta 25 usuarios del equipo",
-      "Hasta 3 números de WhatsApp",
-      "Soporte prioritario",
+      // NOTA TÉCNICA: "Hasta 3 números de WhatsApp" fue eliminado porque
+      // el worker actualmente soporta 1 sesión por negocio. No prometer
+      // lo que no está implementado. Re-agregar cuando multi-sesión esté listo.
+      "Soporte prioritario por email",
+      "Métricas avanzadas de conversaciones",
     ],
   }),
 };

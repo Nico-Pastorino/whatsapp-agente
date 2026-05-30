@@ -98,6 +98,7 @@ export {
   createBusinessItem,
   deleteBusinessItem,
   getCatalogCapacity,
+  isPromotionActive,
   listActiveItemsForPrompt,
   listBusinessItems,
   toggleBusinessItemActive,

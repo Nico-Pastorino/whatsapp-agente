@@ -52,6 +52,9 @@ export async function POST(req: NextRequest) {
           financing_options: typeof body.financing_options === "string" ? body.financing_options.trim() || null : null,
           internal_notes: typeof body.internal_notes === "string" ? body.internal_notes.trim() || null : null,
           is_active: body.is_active !== false,
+          is_featured: body.is_featured === true,
+          promotion_label: typeof body.promotion_label === "string" ? body.promotion_label.trim() || null : null,
+          promotion_ends_at: typeof body.promotion_ends_at === "string" ? body.promotion_ends_at || null : null,
         });
         return NextResponse.json({ item: created });
       } catch (err) {

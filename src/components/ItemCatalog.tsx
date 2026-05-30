@@ -14,10 +14,7 @@ interface CatalogState {
   canAdd: boolean;
 }
 
-type FilterType = "all" | "product" | "service";
-type FilterStatus = "all" | "active" | "inactive";
-
-// ── Form state ────────────────────────────────────────────────────────────────
+type TabFilter = "all" | "product" | "service" | "promotion" | "featured";
 
 interface FormState {
   item_type: CatalogItemType;
@@ -33,6 +30,9 @@ interface FormState {
   financing_options: string;
   internal_notes: string;
   is_active: boolean;
+  is_featured: boolean;
+  promotion_label: string;
+  promotion_ends_at: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -49,6 +49,9 @@ const EMPTY_FORM: FormState = {
   financing_options: "",
   internal_notes: "",
   is_active: true,
+  is_featured: false,
+  promotion_label: "",
+  promotion_ends_at: "",
 };
 
 function formToBody(form: FormState): Record<string, unknown> {
@@ -66,6 +69,9 @@ function formToBody(form: FormState): Record<string, unknown> {
     financing_options: form.financing_options || null,
     internal_notes: form.internal_notes || null,
     is_active: form.is_active,
+    is_featured: form.is_featured,
+    promotion_label: form.promotion_label || null,
+    promotion_ends_at: form.promotion_ends_at || null,
   };
 }
 
@@ -84,10 +90,21 @@ function itemToForm(item: CatalogItem): FormState {
     financing_options: item.financing_options ?? "",
     internal_notes: item.internal_notes ?? "",
     is_active: item.is_active,
+    is_featured: item.is_featured,
+    promotion_label: item.promotion_label ?? "",
+    promotion_ends_at: item.promotion_ends_at
+      ? new Date(item.promotion_ends_at).toISOString().slice(0, 16)
+      : "",
   };
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+function isPromoActive(item: CatalogItem): boolean {
+  if (!item.promotion_label) return false;
+  if (!item.promotion_ends_at) return true;
+  return new Date(item.promotion_ends_at).getTime() > Date.now();
+}
+
+// ── Input class ───────────────────────────────────────────────────────────────
 
 const inputClass = "atd-input";
 
@@ -97,11 +114,134 @@ const STOCK_LABELS: Record<StockStatus, string> = {
   on_demand: "Bajo pedido",
 };
 
-const STOCK_STYLES: Record<StockStatus, React.CSSProperties> = {
-  available: { background: "var(--green-tint)", color: "var(--green)" },
-  unavailable: { background: "#ffeaea", color: "#c0392b" },
-  on_demand: { background: "#fff3cd", color: "#7a5800" },
-};
+// ── Summary Cards ─────────────────────────────────────────────────────────────
+
+function SummaryCard({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  icon: string;
+  color?: string;
+}) {
+  return (
+    <div
+      className="atd-card"
+      style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 120 }}
+    >
+      <span style={{ fontSize: 22 }}>{icon}</span>
+      <div>
+        <p style={{ fontSize: 18, fontWeight: 700, color: color ?? "var(--ink)", margin: 0 }}>
+          {value}
+        </p>
+        <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>{label}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── AI Preview ────────────────────────────────────────────────────────────────
+
+function AiPreview({ items }: { items: CatalogItem[] }) {
+  const active = items.filter((i) => i.is_active);
+  const featured = items.filter((i) => i.is_featured && i.is_active);
+  const promos = items.filter(isPromoActive);
+
+  if (active.length === 0) return null;
+
+  const firstItem = featured[0] ?? active[0];
+  const secondItem = active.find((i) => i !== firstItem);
+
+  let assistantReply = "";
+  if (firstItem) {
+    assistantReply = `Sí, tenemos disponible ${firstItem.name}`;
+    if (firstItem.price) assistantReply += ` a ${firstItem.price}`;
+    if (firstItem.promo_price) assistantReply += ` (precio especial: ${firstItem.promo_price})`;
+    if (promos.length > 0) assistantReply += `. Además tenemos una promo activa: ${promos[0]!.promotion_label}`;
+    if (firstItem.financing_options) assistantReply += `. Financiación: ${firstItem.financing_options}`;
+    if (secondItem) assistantReply += `. También contamos con ${secondItem.name}`;
+    assistantReply += `. ¿Te cuento más detalles?`;
+  }
+
+  const clientQuestion = `¿Tienen ${firstItem?.name ?? "algo disponible"}?`;
+
+  return (
+    <div
+      className="atd-card"
+      style={{ margin: "12px 20px 0", padding: 0, overflow: "hidden", border: "1px solid var(--hairline)" }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "12px 16px",
+          borderBottom: "1px solid var(--hairline)",
+          background: "var(--surface-2)",
+        }}
+      >
+        <span style={{ fontSize: 16 }}>🤖</span>
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
+            Así responderá tu asistente
+          </p>
+          <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
+            Ejemplo generado con tu catálogo real
+          </p>
+        </div>
+        <span
+          style={{
+            marginLeft: "auto",
+            fontSize: 10,
+            fontWeight: 600,
+            padding: "3px 8px",
+            borderRadius: 99,
+            background: "var(--green-tint)",
+            color: "var(--green)",
+          }}
+        >
+          🟢 Sincronizado
+        </span>
+      </div>
+      <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Cliente */}
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div
+            style={{
+              maxWidth: "80%",
+              background: "#dcf8c6",
+              borderRadius: "12px 12px 2px 12px",
+              padding: "8px 12px",
+              fontSize: 13,
+              color: "#111",
+            }}
+          >
+            {clientQuestion}
+          </div>
+        </div>
+        {/* Asistente */}
+        <div style={{ display: "flex", justifyContent: "flex-start" }}>
+          <div
+            style={{
+              maxWidth: "80%",
+              background: "var(--surface)",
+              border: "1px solid var(--hairline)",
+              borderRadius: "12px 12px 12px 2px",
+              padding: "8px 12px",
+              fontSize: 13,
+              color: "var(--ink)",
+            }}
+          >
+            {assistantReply}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Item Card ─────────────────────────────────────────────────────────────────
 
@@ -109,92 +249,306 @@ function ItemCard({
   item,
   onEdit,
   onDelete,
-  onToggle,
+  onToggleActive,
+  onToggleFeatured,
+  onDuplicate,
   toggling,
+  featuringId,
 }: {
   item: CatalogItem;
   onEdit: () => void;
   onDelete: () => void;
-  onToggle: () => void;
+  onToggleActive: () => void;
+  onToggleFeatured: () => void;
+  onDuplicate: () => void;
   toggling: boolean;
+  featuringId: string | null;
 }) {
+  const promoActive = isPromoActive(item);
+  const featuring = featuringId === item.id;
+
   return (
-    <div className="atd-card" style={{ padding: 16, opacity: item.is_active ? 1 : 0.6, height: "100%" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{item.name}</p>
-            <span className="atd-pill" style={{
-              fontSize: 10,
-              background: item.item_type === "service" ? "#f0e8ff" : "#e8f0ff",
-              color: item.item_type === "service" ? "#7c3aed" : "#1d4ed8",
-              border: "none",
-            }}>
-              {item.item_type === "service" ? "Servicio" : "Producto"}
-            </span>
-            {!item.is_active && (
-              <span className="atd-pill" style={{ fontSize: 10, background: "var(--surface-2)", color: "var(--muted)", border: "none" }}>
-                Inactivo
+    <div
+      className="atd-card"
+      style={{
+        padding: 0,
+        overflow: "hidden",
+        opacity: item.is_active ? 1 : 0.65,
+        border: item.is_featured ? "1px solid #f59e0b" : "1px solid var(--hairline)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Featured banner */}
+      {item.is_featured && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #f59e0b, #fbbf24)",
+            padding: "4px 12px",
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#fff",
+            letterSpacing: "0.5px",
+            textTransform: "uppercase",
+          }}
+        >
+          ⭐ Destacado · Prioridad en respuestas IA
+        </div>
+      )}
+
+      {/* Promo banner */}
+      {promoActive && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #10b981, #34d399)",
+            padding: "4px 12px",
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#fff",
+          }}
+        >
+          🏷️ {item.promotion_label}
+          {item.promotion_ends_at &&
+            ` · hasta ${new Date(item.promotion_ends_at).toLocaleDateString("es-AR")}`}
+        </div>
+      )}
+
+      {/* Body */}
+      <div style={{ padding: 16, flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Header row */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+                {item.name}
+              </p>
+              <span
+                className="atd-pill"
+                style={{
+                  fontSize: 10,
+                  background: item.item_type === "service" ? "#f0e8ff" : "#e8f0ff",
+                  color: item.item_type === "service" ? "#7c3aed" : "#1d4ed8",
+                  border: "none",
+                }}
+              >
+                {item.item_type === "service" ? "Servicio" : "Producto"}
               </span>
+              {!item.is_active && (
+                <span
+                  className="atd-pill"
+                  style={{ fontSize: 10, background: "var(--surface-2)", color: "var(--muted)", border: "none" }}
+                >
+                  Inactivo
+                </span>
+              )}
+            </div>
+            {item.category && (
+              <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{item.category}</p>
             )}
           </div>
-          {item.category && (
-            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{item.category}</p>
-          )}
+
+          {/* Featured star toggle */}
+          <button
+            onClick={onToggleFeatured}
+            disabled={featuring}
+            title={item.is_featured ? "Quitar destacado" : "Destacar"}
+            style={{
+              flexShrink: 0,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 18,
+              opacity: featuring ? 0.5 : 1,
+              lineHeight: 1,
+              padding: 2,
+              color: item.is_featured ? "#f59e0b" : "var(--hairline)",
+              filter: item.is_featured ? "none" : "grayscale(1)",
+              transition: "color 0.2s, filter 0.2s",
+            }}
+          >
+            ⭐
+          </button>
         </div>
 
+        {/* Precio */}
+        {(item.price || item.promo_price) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {item.price && (
+              <p
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: item.promo_price ? "var(--muted)" : "var(--ink)",
+                  textDecoration: item.promo_price ? "line-through" : "none",
+                  margin: 0,
+                }}
+              >
+                {item.price}
+              </p>
+            )}
+            {item.promo_price && (
+              <p style={{ fontSize: 15, fontWeight: 700, color: "var(--green)", margin: 0 }}>
+                {item.promo_price}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Description */}
+        {item.description && (
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--ink-3)",
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical" as const,
+              margin: 0,
+            }}
+          >
+            {item.description}
+          </p>
+        )}
+
+        {/* Service details */}
+        {item.item_type === "service" && (item.duration || item.requires_booking) && (
+          <div style={{ display: "flex", gap: 10, fontSize: 11.5, color: "var(--muted)" }}>
+            {item.duration && <span>⏱ {item.duration}</span>}
+            {item.requires_booking && <span>📅 Requiere turno</span>}
+          </div>
+        )}
+
+        {/* Stock status */}
         {item.stock_status && item.stock_status !== "available" && (
-          <span className="atd-pill" style={{ fontSize: 10, flexShrink: 0, border: "none", ...STOCK_STYLES[item.stock_status] }}>
+          <span
+            className="atd-pill"
+            style={{
+              fontSize: 10,
+              alignSelf: "flex-start",
+              border: "none",
+              background: item.stock_status === "unavailable" ? "#ffeaea" : "#fff3cd",
+              color: item.stock_status === "unavailable" ? "#c0392b" : "#7a5800",
+            }}
+          >
             {STOCK_LABELS[item.stock_status]}
           </span>
         )}
+
+        {/* IA visibility badge */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11,
+            color: item.is_active ? "var(--green)" : "var(--muted)",
+            background: item.is_active ? "var(--green-tint)" : "var(--surface-2)",
+            padding: "4px 8px",
+            borderRadius: 8,
+            alignSelf: "flex-start",
+          }}
+        >
+          {item.is_active ? "✓ Visible para IA" : "— Oculto para IA"}
+        </div>
       </div>
 
-      {/* Price */}
-      {(item.price || item.promo_price) && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          {item.price && (
-            <p style={{ fontSize: 13, fontWeight: 600, color: item.promo_price ? "var(--muted)" : "var(--ink)", textDecoration: item.promo_price ? "line-through" : "none", margin: 0 }}>
-              {item.price}
-            </p>
-          )}
-          {item.promo_price && (
-            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--green)", margin: 0 }}>{item.promo_price}</p>
-          )}
-        </div>
-      )}
-
-      {/* Description */}
-      {item.description && (
-        <p style={{ fontSize: 11.5, color: "var(--ink-3)", marginBottom: 8, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>{item.description}</p>
-      )}
-
-      {/* Service specifics */}
-      {item.item_type === "service" && (item.duration || item.requires_booking) && (
-        <div style={{ display: "flex", gap: 12, fontSize: 11.5, color: "var(--muted)", marginBottom: 8 }}>
-          {item.duration && <span>⏱ {item.duration}</span>}
-          {item.requires_booking && <span>📅 Requiere turno</span>}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div style={{ display: "grid", gap: 6, paddingTop: 10, borderTop: "1px solid var(--hairline)", gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
-        <button onClick={onEdit} style={{ padding: "8px 0", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
-          Editar
-        </button>
-        <button onClick={onToggle} disabled={toggling} style={{ padding: "8px 0", fontSize: 12, fontWeight: 500, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", borderRadius: 8, opacity: toggling ? 0.5 : 1 }}>
-          {toggling ? "..." : item.is_active ? "Desactivar" : "Activar"}
-        </button>
-        <button onClick={onDelete} style={{ padding: "8px 0", fontSize: 12, fontWeight: 500, color: "#c0392b", background: "none", border: "none", cursor: "pointer", borderRadius: 8 }}>
-          Eliminar
-        </button>
+      {/* Action row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          borderTop: "1px solid var(--hairline)",
+        }}
+      >
+        {[
+          { label: "Editar", onClick: onEdit, color: "var(--ink-2)" },
+          { label: "Duplicar", onClick: onDuplicate, color: "var(--muted)" },
+          {
+            label: toggling ? "..." : item.is_active ? "Desactivar" : "Activar",
+            onClick: onToggleActive,
+            color: "var(--muted)",
+            disabled: toggling,
+          },
+          { label: "Eliminar", onClick: onDelete, color: "#c0392b" },
+        ].map((action, i) => (
+          <button
+            key={i}
+            onClick={action.onClick}
+            disabled={"disabled" in action && action.disabled}
+            style={{
+              padding: "10px 4px",
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: action.color,
+              background: "none",
+              border: "none",
+              borderRight: i < 3 ? "1px solid var(--hairline)" : "none",
+              cursor: "pointer",
+              opacity: ("disabled" in action && action.disabled) ? 0.5 : 1,
+            }}
+          >
+            {action.label}
+          </button>
+        ))}
       </div>
     </div>
   );
 }
 
-// ── Item Form (overlay) ───────────────────────────────────────────────────────
+// ── Form Step 1: Tipo ─────────────────────────────────────────────────────────
+
+function TypeStep({
+  value,
+  onChange,
+}: {
+  value: CatalogItemType;
+  onChange: (t: CatalogItemType) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <p style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", textAlign: "center", margin: 0 }}>
+        ¿Qué querés agregar?
+      </p>
+      {(["product", "service"] as CatalogItemType[]).map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          style={{
+            padding: "18px 20px",
+            borderRadius: 14,
+            border: value === t ? "2px solid var(--green)" : "1px solid var(--hairline)",
+            background: value === t ? "var(--green-tint)" : "var(--surface)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            textAlign: "left",
+            transition: "border-color 0.15s, background 0.15s",
+          }}
+        >
+          <span style={{ fontSize: 28 }}>{t === "product" ? "📦" : "🛠️"}</span>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
+              {t === "product" ? "Producto" : "Servicio"}
+            </p>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: 0, marginTop: 2 }}>
+              {t === "product"
+                ? "Algo físico o digital que vendés"
+                : "Una actividad o tarea que ofrecés"}
+            </p>
+          </div>
+          {value === t && (
+            <span style={{ marginLeft: "auto", color: "var(--green)", fontSize: 18 }}>✓</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Item Form (full overlay) ──────────────────────────────────────────────────
 
 function ItemForm({
   initial,
@@ -210,225 +564,442 @@ function ItemForm({
   onClose: () => void;
 }) {
   const [form, setForm] = useState<FormState>(initial);
+  const [step, setStep] = useState<"type" | "fields">(initial.name ? "fields" : "type");
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   const isService = form.item_type === "service";
+  const isEdit = !!initial.name;
+
+  function handleTypeSelect(t: CatalogItemType) {
+    set("item_type", t);
+    setStep("fields");
+  }
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 16 }}>
-      <div className="atd-card" style={{ width: "100%", maxWidth: 520, display: "flex", flexDirection: "column", maxHeight: "92vh", padding: 0, overflow: "hidden" }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        background: "rgba(0,0,0,0.45)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        className="atd-card"
+        style={{
+          width: "100%",
+          maxWidth: 540,
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "94vh",
+          padding: 0,
+          overflow: "hidden",
+        }}
+      >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--hairline)", flexShrink: 0 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
-            {initial.name ? "Editar" : "Nuevo"}{" "}
-            {form.item_type === "service" ? "servicio" : "producto"}
-          </h3>
-          <button onClick={onClose} style={{ fontSize: 20, lineHeight: 1, color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}>×</button>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "16px 20px",
+            borderBottom: "1px solid var(--hairline)",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {step === "fields" && !isEdit && (
+              <button
+                onClick={() => setStep("type")}
+                style={{
+                  fontSize: 18,
+                  color: "var(--muted)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                ←
+              </button>
+            )}
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
+              {isEdit
+                ? `Editar ${isService ? "servicio" : "producto"}`
+                : step === "type"
+                ? "Agregar al catálogo"
+                : `Nuevo ${isService ? "servicio" : "producto"}`}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ fontSize: 22, lineHeight: 1, color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}
+          >
+            ×
+          </button>
         </div>
 
         {/* Body */}
-        <div style={{ overflowY: "auto", flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Type tabs */}
-          <div className="atd-seg">
-            {(["product", "service"] as CatalogItemType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => set("item_type", t)}
-                className={form.item_type === t ? "active" : ""}
-              >
-                {t === "product" ? "Producto" : "Servicio"}
-              </button>
-            ))}
-          </div>
-
-          {/* Name */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Nombre <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder={isService ? "Ej: Corte de pelo" : "Ej: iPhone 13"}
-              className={inputClass}
-              autoFocus
-            />
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Categoría</label>
-            <input
-              type="text"
-              value={form.category}
-              onChange={(e) => set("category", e.target.value)}
-              placeholder={isService ? "Ej: Corte, Color, Tratamiento" : "Ej: iPhone, Samsung, Accesorios"}
-              className={inputClass}
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Descripción</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              rows={2}
-              placeholder="Descripción breve para que la IA la use al responder"
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-
-          {/* Price */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Precio</label>
-              <input
-                type="text"
-                value={form.price}
-                onChange={(e) => set("price", e.target.value)}
-                placeholder="Ej: $5000 / 50 USD"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Precio promo</label>
-              <input
-                type="text"
-                value={form.promo_price}
-                onChange={(e) => set("promo_price", e.target.value)}
-                placeholder="Ej: $4000"
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          {/* Product-specific: stock */}
-          {!isService && (
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Stock / Disponibilidad</label>
-              <select
-                value={form.stock_status}
-                onChange={(e) => set("stock_status", e.target.value as StockStatus)}
-                className={inputClass}
-              >
-                <option value="available">Disponible</option>
-                <option value="unavailable">Sin stock</option>
-                <option value="on_demand">Bajo pedido</option>
-              </select>
-            </div>
-          )}
-
-          {/* Product-specific: payment & financing */}
-          {!isService && (
+        <div
+          style={{
+            overflowY: "auto",
+            flex: 1,
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
+          {step === "type" ? (
+            <TypeStep value={form.item_type} onChange={handleTypeSelect} />
+          ) : (
             <>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Métodos de pago</label>
-                <input
-                  type="text"
-                  value={form.payment_options}
-                  onChange={(e) => set("payment_options", e.target.value)}
-                  placeholder="Ej: Efectivo, transferencia, tarjeta"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Financiación / cuotas</label>
-                <input
-                  type="text"
-                  value={form.financing_options}
-                  onChange={(e) => set("financing_options", e.target.value)}
-                  placeholder="Ej: 3 cuotas sin interés, 12 cuotas"
-                  className={inputClass}
-                />
-              </div>
-            </>
-          )}
+              {/* Type switcher when editing */}
+              {isEdit && (
+                <div className="atd-seg">
+                  {(["product", "service"] as CatalogItemType[]).map((t) => (
+                    <button key={t} onClick={() => set("item_type", t)} className={form.item_type === t ? "active" : ""}>
+                      {t === "product" ? "Producto" : "Servicio"}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-          {/* Service-specific: duration & booking */}
-          {isService && (
-            <>
+              {/* Name */}
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Duración</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                  Nombre <span style={{ color: "var(--accent)" }}>*</span>
+                </label>
                 <input
                   type="text"
-                  value={form.duration}
-                  onChange={(e) => set("duration", e.target.value)}
-                  placeholder="Ej: 30 min, 1 hora"
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder={isService ? "Ej: Corte de pelo" : "Ej: iPhone 15 Pro"}
+                  className={inputClass}
+                  autoFocus
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                  Categoría
+                </label>
+                <input
+                  type="text"
+                  value={form.category}
+                  onChange={(e) => set("category", e.target.value)}
+                  placeholder={isService ? "Ej: Corte, Color, Tratamiento" : "Ej: Smartphones, Accesorios"}
                   className={inputClass}
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <input
-                  id="requires_booking"
-                  type="checkbox"
-                  checked={form.requires_booking}
-                  onChange={(e) => set("requires_booking", e.target.checked)}
-                  className="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400"
+
+              {/* Price row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                    Precio
+                  </label>
+                  <input
+                    type="text"
+                    value={form.price}
+                    onChange={(e) => set("price", e.target.value)}
+                    placeholder="Ej: $5.000 / 50 USD"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                    Precio promo
+                  </label>
+                  <input
+                    type="text"
+                    value={form.promo_price}
+                    onChange={(e) => set("promo_price", e.target.value)}
+                    placeholder="Ej: $4.000"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                  Descripción{" "}
+                  <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>
+                    (la IA usa esto para responder)
+                  </span>
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => set("description", e.target.value)}
+                  rows={2}
+                  placeholder="Describí brevemente este producto/servicio"
+                  className={`${inputClass} resize-none`}
                 />
-                <label htmlFor="requires_booking" className="text-sm text-gray-700">
-                  Requiere turno / reserva previa
+              </div>
+
+              {/* Product-specific */}
+              {!isService && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                      Stock / Disponibilidad
+                    </label>
+                    <select
+                      value={form.stock_status}
+                      onChange={(e) => set("stock_status", e.target.value as StockStatus)}
+                      className={inputClass}
+                    >
+                      <option value="available">✓ Disponible</option>
+                      <option value="unavailable">✗ Sin stock</option>
+                      <option value="on_demand">→ Bajo pedido</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                      Métodos de pago
+                    </label>
+                    <input
+                      type="text"
+                      value={form.payment_options}
+                      onChange={(e) => set("payment_options", e.target.value)}
+                      placeholder="Ej: Efectivo, transferencia, tarjeta"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                      Financiación / cuotas
+                    </label>
+                    <input
+                      type="text"
+                      value={form.financing_options}
+                      onChange={(e) => set("financing_options", e.target.value)}
+                      placeholder="Ej: 3 cuotas sin interés, 12 cuotas con Visa"
+                      className={inputClass}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Service-specific */}
+              {isService && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                      Duración estimada
+                    </label>
+                    <input
+                      type="text"
+                      value={form.duration}
+                      onChange={(e) => set("duration", e.target.value)}
+                      placeholder="Ej: 30 min, 1 hora"
+                      className={inputClass}
+                    />
+                  </div>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      color: "var(--ink)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.requires_booking}
+                      onChange={(e) => set("requires_booking", e.target.checked)}
+                    />
+                    Requiere turno / reserva previa
+                  </label>
+                </>
+              )}
+
+              {/* Promotion section */}
+              <div
+                style={{
+                  borderTop: "1px solid var(--hairline)",
+                  paddingTop: 14,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <p style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-2)", margin: 0, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  🏷️ Promoción
+                </p>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                    Etiqueta de promoción
+                  </label>
+                  <input
+                    type="text"
+                    value={form.promotion_label}
+                    onChange={(e) => set("promotion_label", e.target.value)}
+                    placeholder="Ej: Hot Sale, 12 cuotas sin interés"
+                    className={inputClass}
+                  />
+                </div>
+                {form.promotion_label && (
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                      Válida hasta
+                      <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)", marginLeft: 6 }}>
+                        (dejar vacío = sin vencimiento)
+                      </span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={form.promotion_ends_at}
+                      onChange={(e) => set("promotion_ends_at", e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Options */}
+              <div
+                style={{
+                  borderTop: "1px solid var(--hairline)",
+                  paddingTop: 14,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    cursor: "pointer",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid var(--hairline)",
+                    background: form.is_featured ? "#fffbeb" : "var(--surface)",
+                    fontSize: 13,
+                    color: "var(--ink)",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.is_featured}
+                    onChange={(e) => set("is_featured", e.target.checked)}
+                  />
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600 }}>⭐ Destacado</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
+                      La IA lo mencionará primero ante consultas relevantes
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    color: "var(--ink)",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid var(--hairline)",
+                    background: form.is_active ? "var(--green-tint)" : "var(--surface)",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(e) => set("is_active", e.target.checked)}
+                  />
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600 }}>
+                      {form.is_active ? "✓ Activo" : "○ Inactivo"}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
+                      Solo los items activos son visibles para la IA
+                    </p>
+                  </div>
                 </label>
               </div>
+
+              {/* Internal notes */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
+                  Nota interna{" "}
+                  <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>
+                    (no se muestra al cliente ni a la IA)
+                  </span>
+                </label>
+                <textarea
+                  value={form.internal_notes}
+                  onChange={(e) => set("internal_notes", e.target.value)}
+                  rows={2}
+                  placeholder="Uso interno: proveedores, códigos, recordatorios..."
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              {error && (
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    background: "#fff0ee",
+                    border: "1px solid #fca5a5",
+                    fontSize: 13,
+                    color: "#b91c1c",
+                  }}
+                >
+                  {error}
+                </div>
+              )}
             </>
-          )}
-
-          {/* Status */}
-          <div className="flex items-center gap-3">
-            <input
-              id="is_active"
-              type="checkbox"
-              checked={form.is_active}
-              onChange={(e) => set("is_active", e.target.checked)}
-              className="rounded border-gray-300 text-emerald-500 focus:ring-emerald-400"
-            />
-            <label htmlFor="is_active" className="text-sm text-gray-700">
-              Activo (visible para la IA y disponible para clientes)
-            </label>
-          </div>
-
-          {/* Internal notes */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Nota interna
-              <span className="ml-1 font-normal text-gray-400">(no se muestra al cliente ni a la IA)</span>
-            </label>
-            <textarea
-              value={form.internal_notes}
-              onChange={(e) => set("internal_notes", e.target.value)}
-              rows={2}
-              placeholder="Uso interno: proveedores, códigos, recordatorios..."
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-
-          {error && (
-            <p style={{ fontSize: 13, color: "var(--accent)", padding: "10px 14px", background: "#fff0ee", borderRadius: 12 }}>{error}</p>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", gap: 10, padding: "14px 20px", borderTop: "1px solid var(--hairline)", flexShrink: 0 }}>
-          <button onClick={onClose} disabled={saving} className="atd-btn secondary" style={{ flex: 1 }}>Cancelar</button>
-          <button
-            onClick={() => onSave(form)}
-            disabled={saving || !form.name.trim()}
-            className="atd-btn primary"
-            style={{ flex: 1 }}
+        {step === "fields" && (
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "14px 20px",
+              borderTop: "1px solid var(--hairline)",
+              flexShrink: 0,
+            }}
           >
-            {saving ? "Guardando..." : "Guardar"}
-          </button>
-        </div>
+            <button onClick={onClose} disabled={saving} className="atd-btn secondary" style={{ flex: 1 }}>
+              Cancelar
+            </button>
+            <button
+              onClick={() => onSave(form)}
+              disabled={saving || !form.name.trim()}
+              className="atd-btn primary"
+              style={{ flex: 2 }}
+            >
+              {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Agregar al catálogo"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ItemCatalog() {
   const [state, setState] = useState<CatalogState>({
@@ -438,8 +1009,8 @@ export default function ItemCatalog() {
     canAdd: true,
   });
   const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState<FilterType>("all");
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
+  const [loadError, setLoadError] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<CatalogItem | null>(null);
@@ -447,16 +1018,28 @@ export default function ItemCatalog() {
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [featuringId, setFeaturingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadItems = useCallback(async () => {
     try {
+      setLoadError(false);
       const res = await fetch("/api/business/items", { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setLoadError(true);
+        return;
+      }
       const data = await res.json();
-      setState({ items: data.items ?? [], count: data.count ?? 0, limit: data.limit ?? 10, canAdd: data.canAdd ?? true });
+      setState({
+        items: data.items ?? [],
+        count: data.count ?? 0,
+        limit: data.limit ?? 10,
+        canAdd: data.canAdd ?? true,
+      });
+      setLastUpdated(new Date());
     } catch {
-      // silent
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -468,7 +1051,7 @@ export default function ItemCatalog() {
 
   function showSuccess(msg: string) {
     setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 3000);
+    setTimeout(() => setSuccessMsg(null), 3500);
   }
 
   async function handleSave(form: FormState) {
@@ -485,15 +1068,15 @@ export default function ItemCatalog() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setFormError(data.error ?? "Error guardando.");
+        setFormError(data.error ?? "Error guardando. Intentá de nuevo.");
         return;
       }
       setShowForm(false);
       setEditItem(null);
       await loadItems();
-      showSuccess(isEdit ? "Cambios guardados." : "Producto/servicio creado.");
+      showSuccess(isEdit ? "✓ Cambios guardados correctamente." : "✓ Agregado al catálogo.");
     } catch {
-      setFormError("Error de conexión.");
+      setFormError("Error de conexión. Revisá tu internet e intentá de nuevo.");
     } finally {
       setSaving(false);
     }
@@ -504,11 +1087,11 @@ export default function ItemCatalog() {
     if (res.ok) {
       setDeleteConfirmId(null);
       await loadItems();
-      showSuccess("Eliminado correctamente.");
+      showSuccess("✓ Eliminado correctamente.");
     }
   }
 
-  async function handleToggle(item: CatalogItem) {
+  async function handleToggleActive(item: CatalogItem) {
     setTogglingId(item.id);
     const res = await fetch(`/api/business/items/${item.id}`, {
       method: "PATCH",
@@ -522,10 +1105,46 @@ export default function ItemCatalog() {
     setTogglingId(null);
   }
 
+  async function handleToggleFeatured(item: CatalogItem) {
+    setFeaturingId(item.id);
+    const res = await fetch(`/api/business/items/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_featured: !item.is_featured }),
+    });
+    if (res.ok) {
+      await loadItems();
+      showSuccess(item.is_featured ? "Quitado de destacados." : "⭐ Marcado como destacado.");
+    }
+    setFeaturingId(null);
+  }
+
+  function handleDuplicate(item: CatalogItem) {
+    const form = itemToForm(item);
+    form.name = `${form.name} (copia)`;
+    form.is_featured = false;
+    setEditItem(null);
+    setFormError(null);
+    setShowForm(true);
+    // Open form pre-filled with the duplicate data
+    // We need to pass initial form state — let's store it
+    setPrefillForm(form);
+  }
+
+  const [prefillForm, setPrefillForm] = useState<FormState | null>(null);
+
+  // ── Derived stats ──────────────────────────────────────────────────────────
+  const activeProducts = state.items.filter((i) => i.is_active && i.item_type === "product").length;
+  const activeServices = state.items.filter((i) => i.is_active && i.item_type === "service").length;
+  const activePromos = state.items.filter(isPromoActive).length;
+  const featuredCount = state.items.filter((i) => i.is_featured && i.is_active).length;
+
+  // ── Filtered items ─────────────────────────────────────────────────────────
   const filteredItems = state.items.filter((item) => {
-    if (filterType !== "all" && item.item_type !== filterType) return false;
-    if (filterStatus === "active" && !item.is_active) return false;
-    if (filterStatus === "inactive" && item.is_active) return false;
+    if (activeTab === "product" && item.item_type !== "product") return false;
+    if (activeTab === "service" && item.item_type !== "service") return false;
+    if (activeTab === "promotion" && !isPromoActive(item)) return false;
+    if (activeTab === "featured" && !item.is_featured) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -538,8 +1157,15 @@ export default function ItemCatalog() {
   });
 
   const pct = state.limit > 0 ? Math.min(100, (state.count / state.limit) * 100) : 0;
-  const nearLimit = pct >= 80 && pct < 100;
   const atLimit = !state.canAdd;
+
+  const tabs: { key: TabFilter; label: string; count?: number }[] = [
+    { key: "all", label: "Todo", count: state.items.length },
+    { key: "product", label: "Productos", count: state.items.filter((i) => i.item_type === "product").length },
+    { key: "service", label: "Servicios", count: state.items.filter((i) => i.item_type === "service").length },
+    { key: "promotion", label: "Promociones", count: activePromos },
+    { key: "featured", label: "⭐ Destacados", count: featuredCount },
+  ];
 
   if (loading) {
     return (
@@ -550,193 +1176,377 @@ export default function ItemCatalog() {
   }
 
   return (
-    <DashboardContentShell maxWidth={1180}>
+    <DashboardContentShell maxWidth={1200}>
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="page-header">
+        <div>
+          <div className="page-sub">02 · catálogo</div>
+          <h1 className="page-title">Lo que vendés</h1>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 2 }}>
+            Todo lo que cargues acá lo usa tu asistente para responder y vender por WhatsApp.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setEditItem(null);
+            setPrefillForm(null);
+            setFormError(null);
+            setShowForm(true);
+          }}
+          disabled={atLimit}
+          className="atd-btn primary sm"
+        >
+          + Agregar
+        </button>
+      </div>
 
-        {/* Header */}
-        <div className="page-header">
-          <div>
-            <div className="page-sub">02 · catálogo</div>
-            <h1 className="page-title">Productos y Servicios</h1>
-          </div>
+      {/* ── Error de carga ─────────────────────────────────────────────────── */}
+      {loadError && (
+        <div
+          style={{
+            margin: "10px 20px 0",
+            padding: "12px 16px",
+            borderRadius: 12,
+            border: "1px solid #fca5a5",
+            background: "#fff0ee",
+            fontSize: 13,
+            color: "#b91c1c",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span>
+            ⚠️ Error cargando el catálogo. Puede que falte aplicar la migración de base de datos.
+          </span>
           <button
-            onClick={() => { setEditItem(null); setFormError(null); setShowForm(true); }}
-            disabled={atLimit}
-            className="atd-btn primary sm"
+            onClick={loadItems}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#b91c1c",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
           >
-            + Agregar
+            Reintentar
           </button>
         </div>
+      )}
 
-        <div style={{ padding: "0 20px 6px", fontSize: 13, color: "var(--ink-3)" }}>
-          Lo que cargues acá lo usa la IA para responder consultas de clientes.
+      {/* ── Success message ────────────────────────────────────────────────── */}
+      {successMsg && (
+        <div
+          style={{
+            margin: "10px 20px 0",
+            padding: "10px 16px",
+            borderRadius: 12,
+            border: "1px solid var(--green)",
+            background: "var(--green-tint)",
+            fontSize: 13,
+            color: "var(--green)",
+            fontWeight: 500,
+          }}
+        >
+          {successMsg}
         </div>
+      )}
 
-        {/* Success banner */}
-        {successMsg && (
-          <div style={{ margin: "10px 20px 0", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--green)", background: "var(--green-tint)", fontSize: 13, color: "var(--green)" }}>
-            {successMsg}
+      {/* ── Summary cards ─────────────────────────────────────────────────── */}
+      <div style={{ padding: "12px 20px 0", display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <SummaryCard label="Productos activos" value={activeProducts} icon="📦" />
+        <SummaryCard label="Servicios activos" value={activeServices} icon="🛠️" />
+        <SummaryCard label="Promociones activas" value={activePromos} icon="🏷️" color="#10b981" />
+        <SummaryCard label="Destacados" value={featuredCount} icon="⭐" color="#f59e0b" />
+        <div
+          className="atd-card"
+          style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 140 }}
+        >
+          <span style={{ fontSize: 22 }}>{loadError ? "🔴" : "🟢"}</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: loadError ? "#c0392b" : "var(--green)", margin: 0 }}>
+              {loadError ? "Error de sincronización" : "Sincronizado con IA"}
+            </p>
+            {lastUpdated && !loadError && (
+              <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
+                Actualizado {lastUpdated.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Usage bar */}
-        <div className="atd-card" style={{ margin: "12px 20px 0", padding: "14px 16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-3)", marginBottom: 8 }}>
-            <span>
-              Items: <strong style={{ color: "var(--ink)" }}>{state.count} / {state.limit}</strong>
-            </span>
-            {nearLimit && !atLimit && <span style={{ color: "#7a5800", fontWeight: 500 }}>Casi al límite</span>}
-            {atLimit && <span style={{ color: "#c0392b", fontWeight: 500 }}>Límite alcanzado</span>}
-          </div>
-          <div style={{ height: 6, borderRadius: 99, background: "var(--surface-2)", overflow: "hidden" }}>
-            <div style={{
-              height: "100%", borderRadius: 99,
-              background: atLimit ? "#c0392b" : nearLimit ? "#d97706" : "var(--green)",
-              width: `${pct}%`, transition: "width 0.3s",
-            }} />
-          </div>
-          {atLimit && (
-            <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <p style={{ fontSize: 12, color: "#c0392b" }}>Alcanzaste el límite de tu plan. Mejorá para agregar más.</p>
-              <Link href="/app/plan" style={{ fontSize: 12, fontWeight: 600, color: "var(--green)", whiteSpace: "nowrap" }}>Mejorar plan →</Link>
-            </div>
+      {/* ── AI Preview ────────────────────────────────────────────────────── */}
+      {state.items.some((i) => i.is_active) && <AiPreview items={state.items} />}
+
+      {/* ── Usage bar ─────────────────────────────────────────────────────── */}
+      <div className="atd-card" style={{ margin: "12px 20px 0", padding: "12px 16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>
+          <span>
+            Capacidad del plan:{" "}
+            <strong style={{ color: "var(--ink)" }}>
+              {state.count} / {state.limit === 9999 ? "∞" : state.limit}
+            </strong>
+          </span>
+          {atLimit && <span style={{ color: "#c0392b", fontWeight: 600 }}>Límite alcanzado</span>}
+          {pct >= 80 && !atLimit && (
+            <span style={{ color: "#d97706", fontWeight: 600 }}>Casi al límite ({Math.round(pct)}%)</span>
           )}
         </div>
-
-        {/* Filters */}
-        <div style={{ padding: "12px 20px 0" }}>
-          <div className="atd-card" style={{ padding: 16 }}>
-            <div style={{ display: "grid", gap: 12 }}>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nombre, categoría o descripción..."
-                className="atd-input"
-              />
-              <div style={{ display: "grid", gap: 10 }} className="lg:grid-cols-[auto_1fr]">
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {(["all", "product", "service"] as FilterType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setFilterType(t)}
-                      className="atd-pill"
-                      style={{
-                        background: filterType === t ? "var(--ink)" : "var(--surface)",
-                        color: filterType === t ? "#fff" : "var(--ink-2)",
-                        border: filterType === t ? "none" : "1px solid var(--hairline)",
-                        cursor: "pointer", fontSize: 12,
-                      }}
-                    >
-                      {t === "all" ? "Todos" : t === "product" ? "Productos" : "Servicios"}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {(["all", "active", "inactive"] as FilterStatus[]).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setFilterStatus(s)}
-                      className="atd-pill"
-                      style={{
-                        background: filterStatus === s ? "var(--ink)" : "var(--surface)",
-                        color: filterStatus === s ? "#fff" : "var(--ink-2)",
-                        border: filterStatus === s ? "none" : "1px solid var(--hairline)",
-                        cursor: "pointer", fontSize: 12,
-                      }}
-                    >
-                      {s === "all" ? "Cualquier estado" : s === "active" ? "Activos" : "Inactivos"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+        {state.limit !== 9999 && (
+          <div
+            style={{
+              height: 5,
+              borderRadius: 99,
+              background: "var(--surface-2)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                borderRadius: 99,
+                background: atLimit ? "#c0392b" : pct >= 80 ? "#d97706" : "var(--green)",
+                width: `${pct}%`,
+                transition: "width 0.4s",
+              }}
+            />
           </div>
-        </div>
+        )}
+        {atLimit && (
+          <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <p style={{ fontSize: 12, color: "#c0392b", margin: 0 }}>
+              Llegaste al límite de tu plan. Mejorá para agregar más productos.
+            </p>
+            <Link href="/app/plan" style={{ fontSize: 12, fontWeight: 700, color: "var(--green)", whiteSpace: "nowrap" }}>
+              Mejorar plan →
+            </Link>
+          </div>
+        )}
+      </div>
 
-        {/* List */}
-        <div style={{ padding: "12px 20px 0" }}>
-          {filteredItems.length === 0 ? (
-            <div style={{ padding: "48px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 18, background: "var(--surface)" }}>
-              {state.items.length === 0 ? (
-                <>
-                  <p style={{ fontSize: 28, marginBottom: 10 }}>📦</p>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>
-                    Todavía no cargaste productos o servicios.
-                  </p>
-                  <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>
-                    Agregá lo que vendés para que tu asistente pueda responder mejor.
-                  </p>
-                  <button
-                    onClick={() => { setEditItem(null); setFormError(null); setShowForm(true); }}
-                    disabled={atLimit}
-                    className="atd-btn primary sm"
-                    style={{ marginTop: 16 }}
-                  >
-                    Agregar el primero
-                  </button>
-                </>
-              ) : (
-                <>
-                  <p style={{ fontSize: 13, color: "var(--ink-3)" }}>No hay resultados para los filtros seleccionados.</p>
-                  <button
-                    onClick={() => { setSearch(""); setFilterType("all"); setFilterStatus("all"); }}
-                    style={{ marginTop: 8, fontSize: 13, color: "var(--green)", background: "none", border: "none", cursor: "pointer" }}
-                  >
-                    Limpiar filtros
-                  </button>
-                </>
+      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
+      <div style={{ padding: "12px 20px 0", overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--hairline)", paddingBottom: 0 }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                padding: "8px 14px",
+                fontSize: 13,
+                fontWeight: activeTab === tab.key ? 600 : 400,
+                color: activeTab === tab.key ? "var(--green)" : "var(--ink-3)",
+                background: "none",
+                border: "none",
+                borderBottom: activeTab === tab.key ? "2px solid var(--green)" : "2px solid transparent",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                marginBottom: -1,
+                transition: "color 0.15s, border-color 0.15s",
+              }}
+            >
+              {tab.label}
+              {typeof tab.count === "number" && tab.count > 0 && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: 99,
+                    background: activeTab === tab.key ? "var(--green)" : "var(--surface-2)",
+                    color: activeTab === tab.key ? "#fff" : "var(--muted)",
+                  }}
+                >
+                  {tab.count}
+                </span>
               )}
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-              {filteredItems.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onEdit={() => {
-                    setEditItem(item);
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Search ────────────────────────────────────────────────────────── */}
+      {state.items.length > 0 && (
+        <div style={{ padding: "10px 20px 0" }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, categoría o descripción..."
+            className="atd-input"
+            style={{ maxWidth: 400 }}
+          />
+        </div>
+      )}
+
+      {/* ── Items Grid ────────────────────────────────────────────────────── */}
+      <div style={{ padding: "12px 20px 20px" }}>
+        {filteredItems.length === 0 ? (
+          <div
+            style={{
+              padding: "48px 20px",
+              textAlign: "center",
+              border: "2px dashed var(--hairline)",
+              borderRadius: 18,
+              background: "var(--surface)",
+            }}
+          >
+            {state.items.length === 0 ? (
+              <>
+                <p style={{ fontSize: 36, marginBottom: 12 }}>📦</p>
+                <p style={{ fontSize: 15, fontWeight: 600, color: "var(--ink-2)" }}>
+                  Tu catálogo está vacío
+                </p>
+                <p style={{ marginTop: 6, fontSize: 13, color: "var(--ink-3)", maxWidth: 340, margin: "6px auto 0" }}>
+                  Agregá tus productos y servicios para que tu asistente pueda responder consultas y generar ventas.
+                </p>
+                <button
+                  onClick={() => {
+                    setEditItem(null);
+                    setPrefillForm(null);
                     setFormError(null);
                     setShowForm(true);
                   }}
-                  onDelete={() => setDeleteConfirmId(item.id)}
-                  onToggle={() => handleToggle(item)}
-                  toggling={togglingId === item.id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+                  disabled={atLimit}
+                  className="atd-btn primary sm"
+                  style={{ marginTop: 20 }}
+                >
+                  Agregar el primero
+                </button>
+              </>
+            ) : activeTab === "promotion" ? (
+              <>
+                <p style={{ fontSize: 32, marginBottom: 10 }}>🏷️</p>
+                <p style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>Sin promociones activas</p>
+                <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 4 }}>
+                  Editá un producto o servicio y agregá una etiqueta de promoción.
+                </p>
+              </>
+            ) : activeTab === "featured" ? (
+              <>
+                <p style={{ fontSize: 32, marginBottom: 10 }}>⭐</p>
+                <p style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>Sin items destacados</p>
+                <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 4 }}>
+                  Hacé click en la ⭐ de cualquier item para destacarlo.
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 13, color: "var(--ink-3)" }}>
+                  No hay resultados para &ldquo;{search}&rdquo;
+                </p>
+                <button
+                  onClick={() => setSearch("")}
+                  style={{
+                    marginTop: 8,
+                    fontSize: 13,
+                    color: "var(--green)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Limpiar búsqueda
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              alignItems: "start",
+            }}
+          >
+            {filteredItems.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                onEdit={() => {
+                  setEditItem(item);
+                  setPrefillForm(null);
+                  setFormError(null);
+                  setShowForm(true);
+                }}
+                onDelete={() => setDeleteConfirmId(item.id)}
+                onToggleActive={() => handleToggleActive(item)}
+                onToggleFeatured={() => handleToggleFeatured(item)}
+                onDuplicate={() => handleDuplicate(item)}
+                toggling={togglingId === item.id}
+                featuringId={featuringId}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-      
-
-      {/* Item form overlay */}
+      {/* ── Item Form ─────────────────────────────────────────────────────── */}
       {showForm && (
         <ItemForm
-          initial={editItem ? itemToForm(editItem) : EMPTY_FORM}
+          initial={prefillForm ?? (editItem ? itemToForm(editItem) : EMPTY_FORM)}
           saving={saving}
           error={formError}
           onSave={handleSave}
-          onClose={() => { setShowForm(false); setEditItem(null); }}
+          onClose={() => {
+            setShowForm(false);
+            setEditItem(null);
+            setPrefillForm(null);
+          }}
         />
       )}
 
-      {/* Delete confirmation */}
+      {/* ── Delete Confirmation ───────────────────────────────────────────── */}
       {deleteConfirmId && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div className="atd-card" style={{ width: "100%", maxWidth: 360, padding: 24 }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div className="atd-card" style={{ width: "100%", maxWidth: 380, padding: 24 }}>
+            <p style={{ fontSize: 28, marginBottom: 8 }}>🗑️</p>
             <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
               ¿Eliminar este producto/servicio?
             </h4>
             <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
-              La acción no se puede deshacer. Los datos serán eliminados permanentemente.
+              Esta acción no se puede deshacer. El item será eliminado permanentemente del catálogo
+              y la IA dejará de usarlo.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setDeleteConfirmId(null)} className="atd-btn secondary" style={{ flex: 1 }}>Cancelar</button>
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="atd-btn secondary"
+                style={{ flex: 1 }}
+              >
+                Cancelar
+              </button>
               <button
                 onClick={() => handleDelete(deleteConfirmId)}
-                style={{ flex: 1, padding: "10px 16px", borderRadius: 12, background: "#c0392b", color: "#fff", fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer" }}
+                style={{
+                  flex: 1,
+                  padding: "10px 16px",
+                  borderRadius: 12,
+                  background: "#c0392b",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
-                Eliminar
+                Sí, eliminar
               </button>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { UpgradeOption } from "@/lib/db";
+import { ANNUAL_DISCOUNT, formatARS } from "@/lib/plan-display";
 import DashboardContentShell from "./DashboardContentShell";
 
 interface PlanSummary {
@@ -61,7 +62,9 @@ function formatMoney(value: number | null | undefined, currency: string): string
   }).format(value);
 }
 
-// ── Hardcoded feature lists per plan ─────────────────────────────────────────
+// ── Feature lists por plan ────────────────────────────────────────────────────
+// Fuente única: alineadas con plan-display.ts y la DB (supabase/migrations/020).
+// NUNCA incluir features no implementadas — rompe confianza con el usuario pagador.
 
 const PLAN_INCLUDED: Record<string, string[]> = {
   starter: [
@@ -69,42 +72,43 @@ const PLAN_INCLUDED: Record<string, string[]> = {
     "Modo humano (tomás el control)",
     "1 número de WhatsApp",
     "Hasta 3 usuarios del equipo",
-    "Hasta 20 productos/servicios",
+    "Hasta 20 productos/servicios en catálogo",
     "Plantilla básica de rubro",
-    "Turnos manuales (agenda básica)",
   ],
   growth: [
     "Todo lo del Starter",
     "Plantillas comerciales por rubro",
-    "Hasta 150 productos/servicios",
+    "Hasta 150 productos/servicios en catálogo",
     "Hasta 10 usuarios del equipo",
-    "Agenda de turnos completa + IA",
-    "Avisos internos al encargado",
+    "Avisos al encargado por WhatsApp",
+    "Agenda de turnos automática con IA",
     "Base de conocimiento para la IA",
     "Métricas de conversaciones",
   ],
   pro: [
     "Todo lo del Growth",
     "Plantillas premium (todos los rubros)",
-    "Hasta 1.000 productos/servicios",
+    "Hasta 1.000 productos/servicios en catálogo",
     "Hasta 25 usuarios del equipo",
-    "Hasta 3 números de WhatsApp",
-    "Más avisos internos y volumen de turnos",
-    "Soporte prioritario",
+    // "Hasta 3 números de WhatsApp" ELIMINADO — no implementado en el worker.
+    // Reactivar cuando el worker soporte multi-sesión por negocio.
+    "Soporte prioritario por email",
+    "Métricas avanzadas de conversaciones",
   ],
 };
 
 const PLAN_LOCKED: Record<string, string[]> = {
   starter: [
-    "Agenda de turnos con IA",
-    "Avisos internos al encargado",
-    "Plantillas comerciales",
-    "Base de conocimiento",
+    "Agenda de turnos automática con IA",
+    "Avisos al encargado por WhatsApp",
+    "Plantillas comerciales y premium",
+    "Base de conocimiento para la IA",
     "Métricas de conversaciones",
   ],
   growth: [
     "Más de 10 usuarios del equipo",
-    "Hasta 3 números de WhatsApp",
+    "Hasta 1.000 productos/servicios",
+    "Soporte prioritario",
   ],
   pro: [],
 };
@@ -172,7 +176,7 @@ function OnboardingGuide({
   upgradeLoading: string | null;
 }) {
   const [annual, setAnnual] = useState(false);
-  const ANNUAL_DISCOUNT = 0.2;
+  // ANNUAL_DISCOUNT viene de plan-display.ts (fuente única: 0.2 = 20% off).
   const trialExpired = plan.access_reason === "trial_expired";
   const pendingPayment = plan.status === "pending_payment";
   const title = trialExpired
@@ -261,9 +265,18 @@ function OnboardingGuide({
                     {formatMoney(monthlyShown, opt.currency)}
                     <span className="text-sm font-normal text-gray-400"> / mes</span>
                   </p>
-                  <p className="text-[11px] text-emerald-600 min-h-[1.2em]">
-                    {annual && monthlyShown != null ? `${formatMoney(monthlyShown * 12, opt.currency)} por año` : ""}
-                  </p>
+                  {annual && monthlyShown != null && opt.price_monthly != null ? (
+                    <div className="min-h-[2.2em]">
+                      <p className="text-[11px] text-gray-400">
+                        {formatMoney(monthlyShown * 12, opt.currency)} · facturado anualmente
+                      </p>
+                      <p className="text-[11px] font-semibold text-emerald-600">
+                        Ahorrás {formatARS((opt.price_monthly - monthlyShown) * 12)} al año
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="min-h-[2.2em]" />
+                  )}
                   <ul className="space-y-1.5 my-4 flex-1">
                     {included.slice(0, 4).map((f) => (
                       <li key={f} className="flex items-start gap-2 text-xs text-gray-600">
@@ -624,8 +637,14 @@ export default function PlanOverview() {
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
               <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--accent)", color: "var(--on-accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>✦</span>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--accent-ink)" }}>Probá {opt.name}</div>
-                <div style={{ fontSize: 12, color: "var(--accent-ink)", opacity: 0.75, marginTop: 2 }}>{PLAN_TAGLINE[opt.code] ?? "Más funciones y más capacidad."}</div>
+                <div style={{ fontSize: 14, fontWeight: 500, color: "var(--accent-ink)" }}>Mejorar a {opt.name}</div>
+                <div style={{ fontSize: 12, color: "var(--accent-ink)", opacity: 0.75, marginTop: 2 }}>
+                  {PLAN_TAGLINE[opt.code] ?? "Más funciones y más capacidad."}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--accent-ink)", opacity: 0.6, marginTop: 3 }}>
+                  {formatMoney(opt.price_monthly, opt.currency)}/mes ·{" "}
+                  o {formatMoney(Math.round((opt.price_monthly * (1 - ANNUAL_DISCOUNT)) / 100) * 100, opt.currency)}/mes con pago anual
+                </div>
               </div>
             </div>
             <button
@@ -634,7 +653,7 @@ export default function PlanOverview() {
               className="atd-btn accent sm"
               style={{ width: "100%" }}
             >
-              {(upgradeLoading === opt.code && checkoutLoading) ? "Redirigiendo..." : `Mejorar a ${opt.name} — ${formatMoney(opt.price_monthly, opt.currency)}/mes`}
+              {(upgradeLoading === opt.code && checkoutLoading) ? "Redirigiendo..." : `Mejorar a ${opt.name}`}
             </button>
           </div>
         ))}
