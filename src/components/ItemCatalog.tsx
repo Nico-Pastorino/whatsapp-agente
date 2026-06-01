@@ -143,7 +143,7 @@ function SummaryCard({
   );
 }
 
-// ── AI Preview ────────────────────────────────────────────────────────────────
+// ── Assistant Preview ─────────────────────────────────────────────────────────
 
 function AiPreview({ items }: { items: CatalogItem[] }) {
   const active = items.filter((i) => i.is_active);
@@ -293,7 +293,7 @@ function ItemCard({
             textTransform: "uppercase",
           }}
         >
-          ⭐ Destacado · Prioridad en respuestas IA
+          Destacado · el asistente lo prioriza
         </div>
       )}
 
@@ -339,7 +339,7 @@ function ItemCard({
                   className="atd-pill"
                   style={{ fontSize: 10, background: "var(--surface-2)", color: "var(--muted)", border: "none" }}
                 >
-                  Inactivo
+                  Pausado
                 </span>
               )}
             </div>
@@ -436,7 +436,7 @@ function ItemCard({
           </span>
         )}
 
-        {/* IA visibility badge */}
+        {/* Assistant visibility badge */}
         <div
           style={{
             display: "flex",
@@ -450,7 +450,7 @@ function ItemCard({
             alignSelf: "flex-start",
           }}
         >
-          {item.is_active ? "✓ Visible para IA" : "— Oculto para IA"}
+          {item.is_active ? "Visible para el asistente" : "Pausado para el asistente"}
         </div>
       </div>
 
@@ -466,7 +466,7 @@ function ItemCard({
           { label: "Editar", onClick: onEdit, color: "var(--ink-2)" },
           { label: "Duplicar", onClick: onDuplicate, color: "var(--muted)" },
           {
-            label: toggling ? "..." : item.is_active ? "Desactivar" : "Activar",
+            label: toggling ? "..." : item.is_active ? "Pausar" : "Activar",
             onClick: onToggleActive,
             color: "var(--muted)",
             disabled: toggling,
@@ -734,7 +734,7 @@ function ItemForm({
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
                   Descripción{" "}
                   <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>
-                    (la IA usa esto para responder)
+                    (tu asistente usa esto para responder)
                   </span>
                 </label>
                 <textarea
@@ -900,7 +900,7 @@ function ItemForm({
                   <div>
                     <p style={{ margin: 0, fontWeight: 600 }}>⭐ Destacado</p>
                     <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
-                      La IA lo mencionará primero ante consultas relevantes
+                      Tu asistente lo mencionará primero ante consultas relevantes
                     </p>
                   </div>
                 </label>
@@ -929,7 +929,7 @@ function ItemForm({
                       {form.is_active ? "✓ Activo" : "○ Inactivo"}
                     </p>
                     <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
-                      Solo los items activos son visibles para la IA
+                      Solo los productos y servicios activos son visibles para tu asistente
                     </p>
                   </div>
                 </label>
@@ -940,7 +940,7 @@ function ItemForm({
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
                   Nota interna{" "}
                   <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted)" }}>
-                    (no se muestra al cliente ni a la IA)
+                    (no se muestra al cliente ni al asistente)
                   </span>
                 </label>
                 <textarea
@@ -1016,6 +1016,7 @@ export default function ItemCatalog() {
   const [editItem, setEditItem] = useState<CatalogItem | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [featuringId, setFeaturingId] = useState<string | null>(null);
@@ -1050,13 +1051,24 @@ export default function ItemCatalog() {
   }, [loadItems]);
 
   function showSuccess(msg: string) {
+    setActionError(null);
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(null), 3500);
+  }
+
+  async function getErrorMessage(res: Response, fallback: string): Promise<string> {
+    try {
+      const data = await res.json();
+      return typeof data.error === "string" ? data.error : fallback;
+    } catch {
+      return fallback;
+    }
   }
 
   async function handleSave(form: FormState) {
     setSaving(true);
     setFormError(null);
+    setActionError(null);
     try {
       const isEdit = !!editItem;
       const url = isEdit ? `/api/business/items/${editItem!.id}` : "/api/business/items";
@@ -1074,7 +1086,8 @@ export default function ItemCatalog() {
       setShowForm(false);
       setEditItem(null);
       await loadItems();
-      showSuccess(isEdit ? "✓ Cambios guardados correctamente." : "✓ Agregado al catálogo.");
+      const itemLabel = form.item_type === "service" ? "Servicio" : "Producto";
+      showSuccess(isEdit ? "Cambios guardados." : `${itemLabel} guardado.`);
     } catch {
       setFormError("Error de conexión. Revisá tu internet e intentá de nuevo.");
     } finally {
@@ -1083,16 +1096,20 @@ export default function ItemCatalog() {
   }
 
   async function handleDelete(itemId: string) {
+    setActionError(null);
     const res = await fetch(`/api/business/items/${itemId}`, { method: "DELETE" });
     if (res.ok) {
       setDeleteConfirmId(null);
       await loadItems();
-      showSuccess("✓ Eliminado correctamente.");
+      showSuccess("Eliminado correctamente.");
+    } else {
+      setActionError(await getErrorMessage(res, "No se pudo eliminar. Intentá de nuevo."));
     }
   }
 
   async function handleToggleActive(item: CatalogItem) {
     setTogglingId(item.id);
+    setActionError(null);
     const res = await fetch(`/api/business/items/${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1100,13 +1117,16 @@ export default function ItemCatalog() {
     });
     if (res.ok) {
       await loadItems();
-      showSuccess(item.is_active ? "Desactivado." : "Activado.");
+      showSuccess(item.is_active ? "Pausado." : "Activo.");
+    } else {
+      setActionError(await getErrorMessage(res, "No se pudo guardar el cambio. Intentá de nuevo."));
     }
     setTogglingId(null);
   }
 
   async function handleToggleFeatured(item: CatalogItem) {
     setFeaturingId(item.id);
+    setActionError(null);
     const res = await fetch(`/api/business/items/${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -1114,7 +1134,9 @@ export default function ItemCatalog() {
     });
     if (res.ok) {
       await loadItems();
-      showSuccess(item.is_featured ? "Quitado de destacados." : "⭐ Marcado como destacado.");
+      showSuccess(item.is_featured ? "Quitado de destacados." : "Marcado como destacado.");
+    } else {
+      setActionError(await getErrorMessage(res, "No se pudo guardar el cambio. Intentá de nuevo."));
     }
     setFeaturingId(null);
   }
@@ -1191,6 +1213,7 @@ export default function ItemCatalog() {
             setEditItem(null);
             setPrefillForm(null);
             setFormError(null);
+            setActionError(null);
             setShowForm(true);
           }}
           disabled={atLimit}
@@ -1217,7 +1240,7 @@ export default function ItemCatalog() {
           }}
         >
           <span>
-            ⚠️ Error cargando el catálogo. Puede que falte aplicar la migración de base de datos.
+            No pudimos cargar tus productos y servicios. Intentá de nuevo.
           </span>
           <button
             onClick={loadItems}
@@ -1233,6 +1256,23 @@ export default function ItemCatalog() {
           >
             Reintentar
           </button>
+        </div>
+      )}
+
+      {actionError && (
+        <div
+          style={{
+            margin: "10px 20px 0",
+            padding: "10px 16px",
+            borderRadius: 12,
+            border: "1px solid #fca5a5",
+            background: "#fff0ee",
+            fontSize: 13,
+            color: "#b91c1c",
+            fontWeight: 500,
+          }}
+        >
+          {actionError}
         </div>
       )}
 
@@ -1267,7 +1307,7 @@ export default function ItemCatalog() {
           <span style={{ fontSize: 22 }}>{loadError ? "🔴" : "🟢"}</span>
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: loadError ? "#c0392b" : "var(--green)", margin: 0 }}>
-              {loadError ? "Error de sincronización" : "Sincronizado con IA"}
+              {loadError ? "No sincronizado" : "Listo para el asistente"}
             </p>
             {lastUpdated && !loadError && (
               <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
@@ -1278,7 +1318,7 @@ export default function ItemCatalog() {
         </div>
       </div>
 
-      {/* ── AI Preview ────────────────────────────────────────────────────── */}
+      {/* ── Assistant Preview ─────────────────────────────────────────────── */}
       {state.items.some((i) => i.is_active) && <AiPreview items={state.items} />}
 
       {/* ── Usage bar ─────────────────────────────────────────────────────── */}
@@ -1409,6 +1449,7 @@ export default function ItemCatalog() {
                     setEditItem(null);
                     setPrefillForm(null);
                     setFormError(null);
+                    setActionError(null);
                     setShowForm(true);
                   }}
                   disabled={atLimit}
@@ -1429,9 +1470,9 @@ export default function ItemCatalog() {
             ) : activeTab === "featured" ? (
               <>
                 <p style={{ fontSize: 32, marginBottom: 10 }}>⭐</p>
-                <p style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>Sin items destacados</p>
+                <p style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>Sin destacados</p>
                 <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 4 }}>
-                  Hacé click en la ⭐ de cualquier item para destacarlo.
+                  Hacé click en la estrella de cualquier producto o servicio para destacarlo.
                 </p>
               </>
             ) : (
@@ -1521,8 +1562,8 @@ export default function ItemCatalog() {
               ¿Eliminar este producto/servicio?
             </h4>
             <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
-              Esta acción no se puede deshacer. El item será eliminado permanentemente del catálogo
-              y la IA dejará de usarlo.
+              Esta acción no se puede deshacer. Se va a eliminar del catálogo
+              y tu asistente dejará de usarlo.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button

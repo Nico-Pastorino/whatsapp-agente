@@ -3127,6 +3127,14 @@ export interface CatalogCapacity {
 const CATALOG_SELECT =
   "id, business_id, item_type, name, category, description, price_text, promo_price, stock_status, duration, requires_booking, payment_options, financing_options, internal_notes, is_active, is_featured, promotion_label, promotion_ends_at, sort_order, created_at, updated_at";
 
+function nullableCatalogText(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function requiredCatalogText(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function mapRowToCatalogItem(row: Record<string, unknown>): CatalogItem {
   return {
     id: row.id as string,
@@ -3134,8 +3142,8 @@ function mapRowToCatalogItem(row: Record<string, unknown>): CatalogItem {
     item_type: (row.item_type as CatalogItemType) ?? "product",
     name: row.name as string,
     category: (row.category as string | null) ?? null,
-    description: (row.description as string | null) ?? null,
-    price: (row.price_text as string | null) ?? null,
+    description: nullableCatalogText(row.description),
+    price: nullableCatalogText(row.price_text),
     promo_price: (row.promo_price as string | null) ?? null,
     stock_status: (row.stock_status as StockStatus | null) ?? null,
     duration: (row.duration as string | null) ?? null,
@@ -3216,8 +3224,8 @@ export async function createBusinessItem(
       item_type: input.item_type ?? "product",
       name: input.name,
       category: input.category ?? null,
-      description: input.description ?? null,
-      price_text: input.price ?? null,
+      description: requiredCatalogText(input.description),
+      price_text: requiredCatalogText(input.price),
       promo_price: input.promo_price ?? null,
       stock_status: input.stock_status ?? "available",
       duration: input.duration ?? null,
@@ -3236,6 +3244,7 @@ export async function createBusinessItem(
     .select(CATALOG_SELECT)
     .single();
   if (error) throw error;
+  businessProfileCache.delete(businessId);
   return mapRowToCatalogItem(data as Record<string, unknown>);
 }
 
@@ -3249,8 +3258,8 @@ export async function updateBusinessItem(
   if (input.item_type !== undefined) patch.item_type = input.item_type;
   if (input.name !== undefined) patch.name = input.name;
   if (input.category !== undefined) patch.category = input.category;
-  if (input.description !== undefined) patch.description = input.description;
-  if (input.price !== undefined) patch.price_text = input.price;
+  if (input.description !== undefined) patch.description = requiredCatalogText(input.description);
+  if (input.price !== undefined) patch.price_text = requiredCatalogText(input.price);
   if (input.promo_price !== undefined) patch.promo_price = input.promo_price;
   if (input.stock_status !== undefined) patch.stock_status = input.stock_status;
   if (input.duration !== undefined) patch.duration = input.duration;
@@ -3272,6 +3281,7 @@ export async function updateBusinessItem(
     .select(CATALOG_SELECT)
     .single();
   if (error) throw error;
+  businessProfileCache.delete(businessId);
   return mapRowToCatalogItem(data as Record<string, unknown>);
 }
 
@@ -3286,6 +3296,7 @@ export async function deleteBusinessItem(
     .eq("id", itemId)
     .eq("business_id", businessId); // ownership check
   if (error) throw error;
+  businessProfileCache.delete(businessId);
 }
 
 export async function toggleBusinessItemActive(

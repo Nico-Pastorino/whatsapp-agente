@@ -26,14 +26,15 @@ export async function POST(req: NextRequest) {
       const description: string = (body.description ?? "").trim();
       const extra: string = (body.extra ?? "").trim();
 
-      const rawProducts = Array.isArray(body.products) ? body.products : [];
-      const products = rawProducts
-        .filter((p: { name?: string }) => typeof p.name === "string" && p.name.trim())
-        .map((p: { name: string; price?: string; description?: string }) => ({
-          name: p.name.trim(),
-          price: (p.price ?? "").trim(),
-          description: (p.description ?? "").trim(),
-        }));
+      const products = Array.isArray(body.products)
+        ? body.products
+            .filter((p: { name?: string }) => typeof p.name === "string" && p.name.trim())
+            .map((p: { name: string; price?: string; description?: string }) => ({
+              name: p.name.trim(),
+              price: (p.price ?? "").trim(),
+              description: (p.description ?? "").trim(),
+            }))
+        : undefined;
 
       // quick_replies: array of non-empty strings, max 10, max 120 chars each
       const rawReplies = Array.isArray(body.quick_replies) ? body.quick_replies : undefined;
