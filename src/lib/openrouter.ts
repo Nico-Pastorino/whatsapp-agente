@@ -78,6 +78,82 @@ function sanitizeForPrompt(input: string, maxLength = 2000): string {
   return out;
 }
 
+export type ConversationActionEvent = "none" | "appointment_request" | "appointment_ready" | "human_handoff" | "hot_lead";
+
+export interface ConversationAction {
+  event: ConversationActionEvent;
+  confidence: number;
+  customer_reply: string | null;
+  reason: string | null;
+  summary: string | null;
+  appointment: {
+    customer_name: string | null;
+    service: string | null;
+    starts_at: string | null;
+    notes: string | null;
+    missing_fields: string[];
+  } | null;
+}
+
+function extractJsonObject(input: string): Record<string, unknown> | null {
+  const trimmed = input.trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    return JSON.parse(trimmed.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string").map((v) => v.trim()).filter(Boolean) : [];
+}
+
+function normalizeAction(raw: Record<string, unknown> | null): ConversationAction | null {
+  if (!raw) return null;
+  const event = raw.event;
+  if (
+    event !== "none" &&
+    event !== "appointment_request" &&
+    event !== "appointment_ready" &&
+    event !== "human_handoff" &&
+    event !== "hot_lead"
+  ) {
+    return null;
+  }
+
+  const appointmentRaw =
+    raw.appointment && typeof raw.appointment === "object"
+      ? (raw.appointment as Record<string, unknown>)
+      : null;
+
+  return {
+    event,
+    confidence:
+      typeof raw.confidence === "number" && Number.isFinite(raw.confidence)
+        ? Math.max(0, Math.min(1, raw.confidence))
+        : 0,
+    customer_reply: asString(raw.customer_reply),
+    reason: asString(raw.reason),
+    summary: asString(raw.summary),
+    appointment: appointmentRaw
+      ? {
+          customer_name: asString(appointmentRaw.customer_name),
+          service: asString(appointmentRaw.service),
+          starts_at: asString(appointmentRaw.starts_at),
+          notes: asString(appointmentRaw.notes),
+          missing_fields: asStringArray(appointmentRaw.missing_fields),
+        }
+      : null,
+  };
+}
+
 async function buildSystemPrompt(businessId: string): Promise<string> {
   const [profile, items] = await Promise.all([
     getBusinessProfile(businessId).catch(() => null),
@@ -184,8 +260,9 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
     }
     lines.push(
       "Para agendar, pedí con amabilidad los datos que falten: nombre, servicio, día y horario preferido.",
-      "Confirmá el turno repitiendo día, horario y servicio en un mensaje claro.",
-      "No confirmes horarios fuera de los días/horarios indicados. Si el horario pedido no está disponible, ofrecé la opción más cercana.",
+      "Cuando el cliente ya dio los datos principales, decile que dejás la reserva solicitada y que el equipo la confirma.",
+      "No inventes disponibilidad ni confirmes un horario si la información cargada no lo permite.",
+      "Si no hay disponibilidad real configurada, tomá la solicitud como pendiente de confirmación.",
       "Si el cliente quiere cancelar o reprogramar, tomá nota y confirmá el cambio."
     );
   }
@@ -205,7 +282,7 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
     "CUÁNDO USAR LA INFORMACIÓN DEL NEGOCIO:",
     "Si el cliente pregunta por precios, productos, servicios, horarios, ubicación o formas de pago, buscá la respuesta PRIMERO en el catálogo y en la información adicional antes de responder.",
     "Si la información está disponible → respondé directamente con esos datos. NO derives al asesor si la respuesta ya está en el contexto.",
-    "Solo decí 'Dejame pasarte con alguien de nuestro equipo' cuando el cliente pide algo que claramente requiere una persona: negociaciones especiales, reclamos, pagos con problemas, o cuando definitivamente no tenés ningún dato relevante.",
+    "Si el cliente pide hablar con una persona o pregunta algo que requiere confirmación humana, respondé natural: 'Dame un momento y lo consulto.', 'Dejame confirmar eso y te respondo bien.' o una frase similar. Evitá frases robóticas como 'te paso con un humano', 'derivando' o 'contacta con soporte'.",
     "",
     "REGLA CLAVE — ante preguntas sobre precios o disponibilidad:",
     "1. Si tenés el dato → respondé con ese dato.",
@@ -244,4 +321,66 @@ export async function generateReply(history: Message[], businessId: string): Pro
     response.choices[0]?.message?.content?.trim() ??
     "No pude generar una respuesta."
   );
+}
+
+export async function analyzeConversationAction(
+  history: Message[],
+  businessId: string,
+  context: { customerName?: string | null; customerPhone?: string | null } = {}
+): Promise<ConversationAction | null> {
+  if (!API_KEY) return null;
+
+  const profile = await getBusinessProfile(businessId).catch(() => null);
+  if (!profile) return null;
+
+  const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+  const actionSignals =
+    /(turno|reserva|reservar|agendar|cita|horario|mañana|hoy|pasado|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|hablar|persona|asesor|encargad|precio|stock|disponible|confirmar|consult|me interesa|quiero comprar)/i;
+  if (!profile.booking_enabled && !actionSignals.test(lastUser)) return null;
+
+  const now = new Date();
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content: [
+        "Analizá una conversación de WhatsApp para detectar acciones internas del negocio.",
+        "Respondé SOLO JSON válido, sin markdown.",
+        `Fecha/hora actual ISO: ${now.toISOString()}. Zona horaria esperada para interpretar fechas relativas: America/Argentina/Buenos_Aires.`,
+        `Agenda activada: ${profile.booking_enabled ? "sí" : "no"}.`,
+        profile.booking_config ? `Reglas de agenda del negocio:\n${sanitizeForPrompt(profile.booking_config, 1200)}` : "No hay disponibilidad real configurada.",
+        context.customerName ? `Nombre conocido del cliente: ${sanitizeForPrompt(context.customerName, 120)}` : "Nombre conocido del cliente: desconocido.",
+        context.customerPhone ? `WhatsApp conocido del cliente: ${sanitizeForPrompt(context.customerPhone, 60)}` : "WhatsApp conocido del cliente: desconocido.",
+        "",
+        "Eventos posibles:",
+        "- none: no hace falta acción.",
+        "- appointment_request: el cliente quiere reservar, pero faltan datos. customer_reply debe pedir solo los datos faltantes con tono natural.",
+        "- appointment_ready: hay nombre, servicio o motivo, y día/hora suficientes para registrar una solicitud de reserva pendiente. No confirmes disponibilidad real.",
+        "- human_handoff: el cliente pide una persona o el tema requiere confirmación humana.",
+        "- hot_lead: el cliente muestra intención clara de compra o reserva, pero no corresponde crear turno todavía.",
+        "",
+        "Para appointment_ready, appointment.starts_at debe ser ISO si se puede inferir fecha y hora. Si no hay año, usá la próxima fecha futura razonable.",
+        "Si falta nombre, servicio/motivo, día u hora, NO uses appointment_ready; usá appointment_request.",
+        "El customer_reply para appointment_ready debe sonar como: 'Perfecto, te dejo la reserva solicitada 🙌 La paso para confirmar y te avisamos apenas quede confirmada.'",
+        "Para human_handoff, customer_reply debe sonar humano: 'Dame un momento y lo consulto para responderte bien.'",
+        "",
+        "JSON esperado:",
+        '{"event":"none|appointment_request|appointment_ready|human_handoff|hot_lead","confidence":0.0,"customer_reply":null,"reason":null,"summary":null,"appointment":{"customer_name":null,"service":null,"starts_at":null,"notes":null,"missing_fields":[]}}',
+      ].join("\n"),
+    },
+    ...history.slice(-12).map((m) => ({
+      role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+      content: m.content,
+    })),
+  ];
+
+  const response = await client.chat.completions.create({
+    model: MODEL,
+    messages,
+    max_tokens: 450,
+    temperature: 0.1,
+    response_format: { type: "json_object" },
+  });
+
+  const content = response.choices[0]?.message?.content ?? "";
+  return normalizeAction(extractJsonObject(content));
 }

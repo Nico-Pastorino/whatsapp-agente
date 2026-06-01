@@ -14,6 +14,8 @@ import {
   setMode,
   setNeedsAttention,
   enqueueInternalNotification,
+  createAppointment,
+  listAppointments,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
 
@@ -27,6 +29,10 @@ const HANDOFF_PATTERNS = [
   /alguien de nuestro equipo/i,
   /un asesor se (va a |va )poner en contacto/i,
   /mi colega/i,
+  /dame un momento y lo consulto/i,
+  /dejame confirmar/i,
+  /lo reviso con el equipo/i,
+  /consulto para no decirte algo incorrecto/i,
 ];
 
 function isHandoffReply(text: string): boolean {
@@ -34,7 +40,33 @@ function isHandoffReply(text: string): boolean {
 }
 import { extractPhoneFromJid } from "../whatsapp-jid";
 import { getConnectionState } from "../db";
-import { generateReply } from "../openrouter";
+import { analyzeConversationAction, generateReply, type ConversationAction } from "../openrouter";
+
+function buildHumanHandoffMessage(input: {
+  customerLabel: string;
+  customerPhone: string | null;
+  reason: string | null;
+  lastMessage: string;
+  summary: string | null;
+  assistantReply: string;
+}): string {
+  const lines = ["⚠️ *Requiere atención humana*"];
+  lines.push(`Cliente: ${input.customerLabel}`);
+  if (input.customerPhone) lines.push(`WhatsApp: ${input.customerPhone}`);
+  if (input.reason) lines.push(`Motivo: ${input.reason}`);
+  lines.push(`Último mensaje: ${input.lastMessage}`);
+  if (input.summary) lines.push(`Resumen: ${input.summary}`);
+  lines.push(`La IA ya le respondió: "${input.assistantReply}"`);
+  lines.push("Revisar en el panel de Atende.");
+  return lines.join("\n");
+}
+
+function hasUsableAppointment(action: ConversationAction): boolean {
+  if (action.event !== "appointment_ready" || !action.appointment) return false;
+  if (!action.appointment.customer_name || !action.appointment.service || !action.appointment.starts_at) return false;
+  const startsAt = new Date(action.appointment.starts_at);
+  return !Number.isNaN(startsAt.getTime());
+}
 
 export function setupMessageHandler(sock: WASocket, businessId: string): void {
   console.log(`[bot/${businessId}] Handler de mensajes registrado`);
@@ -211,12 +243,77 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   }
 
   const history = await getRecentHistory(convo.id, 20, businessId);
-  console.log(`[bot/${businessId}] Llamando LLM con ${history.length} mensajes...`);
   const t0 = Date.now();
 
-  const reply = await generateReply(history, businessId);
+  const action = await analyzeConversationAction(history, businessId, {
+    customerName: fresh.name,
+    customerPhone: fresh.phone_number,
+  }).catch((err) => {
+    console.warn(`[bot/${businessId}] action analysis falló:`, err instanceof Error ? err.message : err);
+    return null;
+  });
+
+  let reply: string | null = null;
+  let createdAppointmentId: string | null = null;
+
+  if (action && action.confidence >= 0.62) {
+    if (hasUsableAppointment(action)) {
+      const recentAppointments = await listAppointments(businessId, {
+        includeCancelled: true,
+        limit: 25,
+      }).catch(() => []);
+      const duplicateRecent = recentAppointments.some((a) => {
+        if (a.conversation_id !== convo.id || a.source !== "ai") return false;
+        const createdAt = new Date(a.created_at).getTime();
+        return !Number.isNaN(createdAt) && Date.now() - createdAt < 15 * 60 * 1000;
+      });
+
+      if (!duplicateRecent) {
+        const appointment = action.appointment!;
+        const startsAt = new Date(appointment.starts_at!).toISOString();
+        const notes = [
+          appointment.notes,
+          action.summary ? `Resumen: ${action.summary}` : null,
+          `Último mensaje: ${text.trim()}`,
+        ].filter(Boolean).join("\n");
+
+        const created = await createAppointment(
+          {
+            customer_name: appointment.customer_name,
+            customer_phone: fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid),
+            service: appointment.service,
+            starts_at: startsAt,
+            notes,
+            status: "pending",
+            source: "ai",
+            conversation_id: convo.id,
+            contact_id: convo.contact_id,
+          },
+          businessId
+        ).catch((err) => {
+          console.error(`[appointments/${businessId}] create from AI falló:`, err);
+          return null;
+        });
+        createdAppointmentId = created?.id ?? null;
+      }
+
+      reply =
+        action.customer_reply ??
+        "Perfecto, te dejo la reserva solicitada 🙌\nLa paso para confirmar y te avisamos apenas quede confirmada.";
+    } else if (action.event === "appointment_request" && action.customer_reply) {
+      reply = action.customer_reply;
+    } else if ((action.event === "human_handoff" || action.event === "hot_lead") && action.customer_reply) {
+      reply = action.customer_reply;
+    }
+  }
+
+  if (!reply) {
+    console.log(`[bot/${businessId}] Llamando LLM con ${history.length} mensajes...`);
+    reply = await generateReply(history, businessId);
+  }
+
   const elapsed = Date.now() - t0;
-  console.log(`[bot/${businessId}] LLM respondió en ${elapsed}ms`);
+  console.log(`[bot/${businessId}] respuesta lista en ${elapsed}ms appointment=${createdAppointmentId ?? ""}`);
 
   // Usar directamente el remoteJid del mensaje entrante para responder.
   const replyJid = remoteJid;
@@ -235,22 +332,56 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
 
   // Si la respuesta de la IA deriva al cliente a un asesor, cambia el modo a HUMAN
   // y marca la conversación para que el equipo sepa que necesita atención.
-  if (isHandoffReply(reply)) {
+  const shouldHandoff =
+    isHandoffReply(reply) ||
+    (action?.event === "human_handoff" && action.confidence >= 0.62);
+
+  if (shouldHandoff) {
     console.log(`[bot/${businessId}] Handoff detectado — cambiando a HUMAN + needs_attention`);
     await setMode(convo.id, "HUMAN", businessId).catch(() => undefined);
     await setNeedsAttention(convo.id, true, businessId).catch(() => undefined);
 
     // Aviso interno al encargado (dedup por conversación + día para no spamear).
     const day = new Date().toISOString().slice(0, 10);
-    const who = fresh.name || extractPhoneFromJid(remoteJid) || "Un cliente";
+    const customerPhone = fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
+    const who = fresh.name || customerPhone || "Un cliente";
     await enqueueInternalNotification(
       {
         event_type: "human_handoff",
         dedup_key: `handoff:${convo.id}:${day}`,
-        content: `🙋 *Te necesitan en una conversación*\n${who} pidió hablar con una persona. Entrá al panel para responder.`,
+        content: buildHumanHandoffMessage({
+          customerLabel: who,
+          customerPhone,
+          reason: action?.reason ?? "Necesita confirmación del equipo",
+          lastMessage: text.trim(),
+          summary: action?.summary ?? null,
+          assistantReply: reply,
+        }),
       },
       businessId
     ).catch((err) => console.error(`[notify/${businessId}] handoff enqueue falló:`, err));
+  }
+
+  if (action?.event === "hot_lead" && action.confidence >= 0.7 && !shouldHandoff) {
+    const day = new Date().toISOString().slice(0, 10);
+    const customerPhone = fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
+    const who = fresh.name || customerPhone || "Un cliente";
+    await enqueueInternalNotification(
+      {
+        event_type: "hot_lead",
+        dedup_key: `hot_lead:${convo.id}:${day}`,
+        content: [
+          "🔥 *Cliente interesado*",
+          `Cliente: ${who}`,
+          customerPhone ? `WhatsApp: ${customerPhone}` : null,
+          action.reason ? `Motivo: ${action.reason}` : null,
+          `Último mensaje: ${text.trim()}`,
+          action.summary ? `Resumen: ${action.summary}` : null,
+          "Revisar en el panel de Atende.",
+        ].filter(Boolean).join("\n"),
+      },
+      businessId
+    ).catch((err) => console.error(`[notify/${businessId}] hot_lead enqueue falló:`, err));
   }
 
   const sentResult = await sock.sendMessage(replyJid, { text: reply });

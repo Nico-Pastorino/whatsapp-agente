@@ -3550,17 +3550,18 @@ export async function planAllowsInternalNotifications(
 }
 
 function buildNewAppointmentMessage(a: Appointment): string {
-  const lines = ["🗓️ *Nuevo turno*"];
+  const lines = ["📅 *Nueva reserva solicitada*"];
   if (a.customer_name) lines.push(`Cliente: ${a.customer_name}`);
-  if (a.customer_phone) lines.push(`Tel: ${a.customer_phone}`);
+  if (a.customer_phone) lines.push(`WhatsApp: ${a.customer_phone}`);
   if (a.service) lines.push(`Servicio: ${a.service}`);
   if (a.starts_at) {
     const d = new Date(a.starts_at);
     if (!Number.isNaN(d.getTime())) {
-      lines.push(`Cuándo: ${d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}`);
+      lines.push(`Día/hora: ${d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}`);
     }
   }
-  if (a.notes) lines.push(`Nota: ${a.notes}`);
+  if (a.notes) lines.push(`Mensaje: ${a.notes}`);
+  lines.push("Revisar en el panel de Atende.");
   return lines.join("\n");
 }
 

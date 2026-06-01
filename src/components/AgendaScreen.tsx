@@ -6,9 +6,9 @@ import DashboardContentShell from "./DashboardContentShell";
 
 const STATUS_META: Record<AppointmentStatus, { label: string; bg: string; color: string }> = {
   pending: { label: "Pendiente", bg: "var(--accent-soft)", color: "var(--accent-ink)" },
-  confirmed: { label: "Confirmado", bg: "var(--green-tint)", color: "var(--green-ink)" },
-  cancelled: { label: "Cancelado", bg: "#f1d9d6", color: "#7a271a" },
-  done: { label: "Completado", bg: "var(--surface-2)", color: "var(--ink-2)" },
+  confirmed: { label: "Confirmada", bg: "var(--green-tint)", color: "var(--green-ink)" },
+  cancelled: { label: "Cancelada", bg: "#f1d9d6", color: "#7a271a" },
+  done: { label: "Completada", bg: "var(--surface-2)", color: "var(--ink-2)" },
 };
 
 const STATUS_ORDER: AppointmentStatus[] = ["pending", "confirmed", "done", "cancelled"];
@@ -55,18 +55,21 @@ export default function AgendaScreen() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
+      setLoadError(null);
       const res = await fetch("/api/appointments?all=1", { cache: "no-store" });
       if (!res.ok) {
+        setLoadError("No pudimos cargar las reservas. Intentá de nuevo.");
         setLoading(false);
         return;
       }
       const data = (await res.json()) as { appointments: Appointment[] };
       setAppointments(data.appointments ?? []);
     } catch {
-      /* noop */
+      setLoadError("Error de conexión. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -161,19 +164,34 @@ export default function AgendaScreen() {
 
   const upcoming = sorted.filter((a) => a.status !== "cancelled" && a.status !== "done");
   const past = sorted.filter((a) => a.status === "cancelled" || a.status === "done");
+  const pendingCount = appointments.filter((a) => a.status === "pending").length;
+  const confirmedCount = appointments.filter((a) => a.status === "confirmed").length;
+  const assistantCount = appointments.filter((a) => a.source === "ai").length;
 
   return (
-    <DashboardContentShell maxWidth={760}>
+    <DashboardContentShell maxWidth={960}>
       <div style={{ padding: "20px 16px 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Tus turnos</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Turnos y reservas</h1>
           <button onClick={openNew} className="atd-btn green" style={{ whiteSpace: "nowrap" }}>
-            + Nuevo turno
+            + Nueva reserva
           </button>
         </div>
         <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 18px" }}>
-          Gestioná las reservas de tus clientes. Cambiá el estado con un toque.
+          Gestioná las reservas de tus clientes y confirmá las solicitudes que toma tu asistente por WhatsApp.
         </p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
+          <Summary label="Pendientes" value={pendingCount} />
+          <Summary label="Confirmadas" value={confirmedCount} />
+          <Summary label="Tomadas por el asistente" value={assistantCount} />
+        </div>
+
+        {loadError && (
+          <div className="atd-card" style={{ padding: 14, marginBottom: 14, color: "#b42318", borderColor: "#fca5a5" }}>
+            {loadError}
+          </div>
+        )}
 
         {loading ? (
           <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Cargando…</div>
@@ -184,7 +202,7 @@ export default function AgendaScreen() {
             <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 16px" }}>
               Creá tu primer turno o dejá que tu asistente los tome por vos.
             </p>
-            <button onClick={openNew} className="atd-btn green">+ Nuevo turno</button>
+            <button onClick={openNew} className="atd-btn green">+ Nueva reserva</button>
           </div>
         ) : (
           <>
@@ -198,7 +216,7 @@ export default function AgendaScreen() {
             {past.length > 0 && (
               <>
                 <p style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", margin: "0 0 10px" }}>
-                  Finalizados / cancelados
+                  Completadas / canceladas
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: 0.72 }}>
                   {past.map((a) => (
@@ -222,7 +240,7 @@ export default function AgendaScreen() {
             style={{ width: "100%", maxWidth: 520, borderRadius: "20px 20px 0 0", padding: 20, maxHeight: "92vh", overflowY: "auto" }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{editing ? "Editar turno" : "Nuevo turno"}</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{editing ? "Editar reserva" : "Nueva reserva"}</h3>
               <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "var(--muted)" }}>×</button>
             </div>
 
@@ -267,12 +285,21 @@ export default function AgendaScreen() {
             {error && <p style={{ color: "#b42318", fontSize: 13, margin: "4px 0 0" }}>{error}</p>}
 
             <button onClick={save} disabled={saving} className="atd-btn green" style={{ width: "100%", marginTop: 14, opacity: saving ? 0.6 : 1 }}>
-              {saving ? "Guardando…" : editing ? "Guardar cambios" : "Crear turno"}
+              {saving ? "Guardando…" : editing ? "Guardar cambios" : "Crear reserva"}
             </button>
           </div>
         </div>
       )}
     </DashboardContentShell>
+  );
+}
+
+function Summary({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="atd-card" style={{ padding: "12px 14px" }}>
+      <p style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{value}</p>
+      <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>{label}</p>
+    </div>
   );
 }
 
@@ -305,7 +332,12 @@ function AppointmentCard({
           {a.customer_phone && <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "2px 0 0" }}>{a.customer_phone}</p>}
           {a.notes && <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "4px 0 0", fontStyle: "italic" }}>{a.notes}</p>}
           {a.source === "ai" && (
-            <span style={{ display: "inline-block", marginTop: 6, fontSize: 11, color: "var(--green-soft)", fontWeight: 600 }}>✨ Tomado por la IA</span>
+            <span style={{ display: "inline-block", marginTop: 6, fontSize: 11, color: "var(--green-soft)", fontWeight: 600 }}>Tomado por el asistente</span>
+          )}
+          {a.conversation_id && (
+            <span style={{ display: "inline-block", marginTop: 6, marginLeft: a.source === "ai" ? 8 : 0, fontSize: 11, color: "var(--muted)" }}>
+              Viene de una conversación
+            </span>
           )}
         </div>
         <span style={{ flexShrink: 0, padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: meta.bg, color: meta.color }}>

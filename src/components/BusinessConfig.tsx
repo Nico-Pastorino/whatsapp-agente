@@ -269,7 +269,7 @@ export default function BusinessConfig() {
             <SectionHeader
               label="Agenda"
               title="Agenda de turnos automática"
-              description="Activala y la IA toma turnos por WhatsApp siguiendo tus reglas: pide los datos, ofrece horarios disponibles y confirma la reserva."
+              description="Activala y tu asistente toma solicitudes de reserva por WhatsApp siguiendo tus reglas: pide los datos y las deja pendientes de confirmación."
             />
             <button
               type="button"
@@ -313,7 +313,7 @@ export default function BusinessConfig() {
             <SectionHeader
               label="Avisos"
               title="Avisar al encargado"
-              description="Recibí un WhatsApp a tu número cuando pase algo importante: un turno nuevo, un cliente que pide hablar con una persona, y más."
+              description="Cuando tu asistente necesite ayuda, vamos a avisar a este número por WhatsApp."
             />
             <button
               type="button"
