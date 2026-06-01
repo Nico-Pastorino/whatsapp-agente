@@ -23,7 +23,7 @@ const NOTIFY_EVENT_OPTIONS: { key: string; label: string; icon: string }[] = [
   { key: "appointment_cancelled", label: "Turno cancelado", icon: "❌" },
   { key: "human_handoff", label: "Cliente solicita atención humana", icon: "🙋" },
   { key: "hot_lead", label: "Cliente interesado / venta potencial", icon: "🔥" },
-  { key: "unanswered", label: "IA sin respuesta adecuada", icon: "🤔" },
+  { key: "unanswered", label: "Asistente sin respuesta adecuada", icon: "🤔" },
   { key: "daily_summary", label: "Resumen diario de actividad", icon: "📊" },
 ];
 
@@ -88,6 +88,7 @@ export default function BusinessConfig() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [catalogCount, setCatalogCount] = useState(0);
 
   const reloadProfile = useCallback(() => {
     fetch("/api/business")
@@ -107,13 +108,29 @@ export default function BusinessConfig() {
         });
         setLoading(false);
       });
+    fetch("/api/business/items", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { count?: number }) => setCatalogCount(data.count ?? 0))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
     reloadProfile();
   }, [reloadProfile]);
 
-  const profileIsEmpty = !profile.description && !profile.extra;
+  const profileIsEmpty = !profile.description && !profile.extra && !profile.knowledge_base;
+  const checklist = [
+    { label: "Datos del negocio", done: Boolean(profile.name.trim() && profile.description.trim()), href: "#datos-negocio" },
+    { label: "Productos o servicios", done: catalogCount > 0, href: "/app/catalog" },
+    { label: "Preguntas frecuentes", done: Boolean(profile.knowledge_base.trim()), href: "#preguntas-frecuentes" },
+    { label: "Horarios", done: /horario|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|hs|hora/i.test(profile.extra), href: "#info-clave" },
+    { label: "Tono de respuesta", done: /tono|responder|respuesta|cercano|formal|amable|rápido|rapido/i.test(`${profile.extra}\n${profile.knowledge_base}`), href: "#info-clave" },
+    { label: "Avisos al encargado", done: profile.notify_enabled && Boolean(profile.notify_phone.trim()), href: "#avisos-encargado" },
+    { label: "Prueba de respuesta", done: profile.quick_replies.length > 0, href: "#respuestas-rapidas" },
+  ];
+  const completedSteps = checklist.filter((item) => item.done).length;
+  const progress = Math.round((completedSteps / checklist.length) * 100);
+  const nextStep = checklist.find((item) => !item.done);
 
   function updateField(field: keyof Profile, value: string) {
     setProfile((p) => ({ ...p, [field]: value }));
@@ -157,12 +174,170 @@ export default function BusinessConfig() {
         <div className="page-header">
           <div>
             <div className="page-sub">01 · configuración</div>
-            <h1 className="page-title">Mi negocio</h1>
+            <h1 className="page-title">Entrená tu asistente</h1>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
+              Completá la información clave para que tu asistente responda mejor por WhatsApp.
+            </p>
           </div>
         </div>
 
-        <div style={{ padding: "0 20px 6px", fontSize: 13, color: "var(--ink-3)" }}>
-          La información que cargues acá es usada por la IA para responder consultas de clientes.
+        <div style={{ padding: "0 20px 6px", display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          <section className="atd-card" style={{ padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 14 }}>
+              <div>
+                <div className="page-sub" style={{ marginBottom: 4 }}>estado del asistente</div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Configuración del asistente</h2>
+                <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
+                  Tu asistente está configurado al {progress}%.
+                </p>
+              </div>
+              <strong style={{ fontSize: 28, color: "var(--green)", lineHeight: 1 }}>{progress}%</strong>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", marginBottom: 14 }}>
+              <div style={{ width: `${progress}%`, height: "100%", background: "var(--green)", borderRadius: 999 }} />
+            </div>
+            <p style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 14px" }}>
+              Próxima acción recomendada: <strong>{nextStep?.label ?? "Probar y guardar cambios"}</strong>
+            </p>
+            <a href={nextStep?.href ?? "#respuestas-rapidas"} className="atd-btn primary" style={{ display: "inline-flex", textDecoration: "none" }}>
+              Continuar configuración
+            </a>
+          </section>
+
+          <section className="atd-card" style={{ padding: 20 }}>
+            <div className="page-sub" style={{ marginBottom: 10 }}>checklist</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {checklist.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    color: "var(--ink)",
+                    textDecoration: "none",
+                    fontSize: 13,
+                  }}
+                >
+                  <span style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 999,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    background: item.done ? "var(--green)" : "var(--surface-2)",
+                    color: item.done ? "#fff" : "var(--muted)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}>
+                    {item.done ? "✓" : "•"}
+                  </span>
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Acciones rápidas: navegación directa a cada sección */}
+        <div style={{ padding: "4px 20px 0" }}>
+          <p className="page-sub" style={{ marginBottom: 10 }}>qué podés configurar</p>
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))" }}>
+            {([
+              {
+                icon: "🏪",
+                label: "Datos del negocio",
+                desc: "Nombre y descripción",
+                href: "#datos-negocio",
+                done: checklist.find((c) => c.label === "Datos del negocio")?.done ?? false,
+                isLink: false,
+              },
+              {
+                icon: "🛍️",
+                label: "Catálogo",
+                desc: "Productos y servicios",
+                href: "/app/catalog",
+                done: checklist.find((c) => c.label === "Productos o servicios")?.done ?? false,
+                isLink: true,
+              },
+              {
+                icon: "💬",
+                label: "Preguntas frecuentes",
+                desc: "Base de conocimiento",
+                href: "#preguntas-frecuentes",
+                done: checklist.find((c) => c.label === "Preguntas frecuentes")?.done ?? false,
+                isLink: false,
+              },
+              {
+                icon: "📋",
+                label: "Instrucciones",
+                desc: "Horarios, pagos, reglas",
+                href: "#info-clave",
+                done: checklist.find((c) => c.label === "Horarios")?.done ?? false,
+                isLink: false,
+              },
+              {
+                icon: "📅",
+                label: "Turnos",
+                desc: "Agenda automática",
+                href: "#turnos-reservas",
+                done: profile.booking_enabled,
+                isLink: false,
+              },
+              {
+                icon: "🔔",
+                label: "Avisos",
+                desc: "Notificar al encargado",
+                href: "#avisos-encargado",
+                done: checklist.find((c) => c.label === "Avisos al encargado")?.done ?? false,
+                isLink: false,
+              },
+              {
+                icon: "⚡",
+                label: "Respuestas rápidas",
+                desc: "Frases para el equipo",
+                href: "#respuestas-rapidas",
+                done: checklist.find((c) => c.label === "Prueba de respuesta")?.done ?? false,
+                isLink: false,
+              },
+            ] as { icon: string; label: string; desc: string; href: string; done: boolean; isLink: boolean }[]).map((action) => {
+              const cardStyle = {
+                display: "flex" as const,
+                flexDirection: "column" as const,
+                padding: "14px",
+                borderRadius: 14,
+                border: `1.5px solid ${action.done ? "var(--green)" : "var(--hairline)"}`,
+                background: action.done ? "var(--green-tint)" : "var(--surface)",
+                textDecoration: "none",
+                cursor: "pointer" as const,
+                minHeight: 88,
+                justifyContent: "space-between" as const,
+                transition: "border-color 0.15s",
+              };
+              const inner = (
+                <>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
+                    <span style={{ fontSize: 20 }}>{action.icon}</span>
+                    {action.done && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--green)", background: "rgba(16,185,129,0.12)", padding: "2px 7px", borderRadius: 999 }}>
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: "0 0 3px" }}>{action.label}</p>
+                    <p style={{ fontSize: 11, color: "var(--ink-3)", margin: 0, lineHeight: 1.4 }}>{action.desc}</p>
+                  </div>
+                </>
+              );
+              return action.isLink
+                ? <Link key={action.label} href={action.href} style={cardStyle}>{inner}</Link>
+                : <a key={action.label} href={action.href} style={cardStyle}>{inner}</a>;
+            })}
+          </div>
         </div>
 
         {/* Plantillas por Rubro */}
@@ -172,7 +347,7 @@ export default function BusinessConfig() {
         />
 
         {/* Sección 1: Identidad del negocio */}
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="datos-negocio" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
             label="Sección 1"
             title="Identidad del negocio"
@@ -211,7 +386,7 @@ export default function BusinessConfig() {
           <SectionHeader
             label="Sección 2"
             title="Catálogo de productos y servicios"
-            description="Gestioná lo que vendés desde la sección dedicada. La IA usa esa información para responder consultas sobre precios, stock y disponibilidad."
+            description="Gestioná lo que vendés desde la sección dedicada. Tu asistente usa esa información para responder consultas sobre precios, stock y disponibilidad."
           />
           <Link
             href="/app/catalog"
@@ -232,7 +407,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Sección 3: Instrucciones adicionales */}
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="info-clave" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
             label="Sección 3"
             title="Instrucciones adicionales"
@@ -248,11 +423,11 @@ export default function BusinessConfig() {
         </section>
 
         {/* Sección: Base de conocimiento */}
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="preguntas-frecuentes" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
-            label="IA avanzada"
+            label="Entrenamiento"
             title="Base de conocimiento"
-            description="Cargá preguntas frecuentes y políticas (envíos, garantías, devoluciones, formas de pago). La IA responde directamente desde esta base, sin derivar al equipo."
+            description="Cargá preguntas frecuentes y políticas (envíos, garantías, devoluciones, formas de pago). Tu asistente responde mejor con esta base."
           />
           <textarea
             value={profile.knowledge_base}
@@ -264,7 +439,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Sección: Agenda de turnos */}
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="turnos-reservas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
               label="Agenda"
@@ -308,7 +483,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Sección: Avisos internos */}
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="avisos-encargado" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
               label="Avisos"
@@ -392,7 +567,7 @@ export default function BusinessConfig() {
                     )}
                   </div>
 
-                  {/* Preview of the JID that will be used */}
+                {/* Phone preview */}
                   {phoneValidation.valid && (
                     <div
                       style={{
@@ -484,7 +659,7 @@ export default function BusinessConfig() {
                     lineHeight: 1.5,
                   }}
                 >
-                  ℹ️ Los avisos los envía el mismo WhatsApp conectado al negocio. Si el worker no está activo o WhatsApp no está conectado, los avisos se acumularán y se enviarán cuando vuelva la conexión.
+                  Cuando tu asistente necesite ayuda, vamos a avisar a este número.
                 </div>
               </>
             );
@@ -492,7 +667,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Sección 4: Respuestas rápidas */}
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="respuestas-rapidas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
             label="Sección 4"
             title="Respuestas rápidas"

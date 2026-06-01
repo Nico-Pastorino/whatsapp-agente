@@ -1,16 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BUSINESS_TEMPLATES,
   type BusinessTemplate,
 } from "@/lib/business-templates";
 
+// ── Categorías de plantillas ────────────────────────────────────────────────
+const TEMPLATE_CATEGORIES: { id: string; label: string; emoji: string }[] = [
+  { id: "all", label: "Todos", emoji: "✨" },
+  { id: "venta", label: "Venta", emoji: "🛍️" },
+  { id: "servicios", label: "Servicios", emoji: "🔧" },
+  { id: "gastronomia", label: "Gastronomía", emoji: "🍽️" },
+  { id: "salud", label: "Salud", emoji: "🩺" },
+  { id: "educacion", label: "Educación", emoji: "📚" },
+  { id: "eventos", label: "Eventos", emoji: "🎉" },
+  { id: "otro", label: "General", emoji: "🚀" },
+];
+
+const TEMPLATE_CATEGORY_MAP: Record<string, string> = {
+  tech_store: "venta",
+  clothing: "venta",
+  real_estate: "venta",
+  dealership: "venta",
+  hair_salon: "servicios",
+  gym: "servicios",
+  tech_support: "servicios",
+  restaurant: "gastronomia",
+  clinic: "salud",
+  education: "educacion",
+  events: "eventos",
+  general: "otro",
+};
+
 const TIER_ACCESS: Record<string, string[]> = {
   starter: ["basic"],
   pro: ["basic", "commercial", "premium"],
   premium: ["basic", "commercial", "premium"],
-  // legacy aliases
   growth: ["basic", "commercial", "premium"],
 };
 
@@ -18,11 +44,11 @@ function isTemplateLocked(tier: string, planCode: string): boolean {
   return !(TIER_ACCESS[planCode] ?? ["basic"]).includes(tier);
 }
 
-function requiredPlanLabel(_tier: string): string {
+function requiredPlanLabel(): string {
   return "Pro";
 }
 
-function requiredPlanCode(_tier: string): string {
+function requiredPlanCode(): string {
   return "pro";
 }
 
@@ -33,6 +59,8 @@ interface Props {
 
 export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
   const [planCode, setPlanCode] = useState<string>("starter");
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<BusinessTemplate | null>(null);
   const [lockedSelected, setLockedSelected] = useState<BusinessTemplate | null>(null);
   const [applying, setApplying] = useState(false);
@@ -48,9 +76,18 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
       .catch(() => undefined);
   }, []);
 
-  const activeTemplates = BUSINESS_TEMPLATES.filter((t) => !t.comingSoon);
-  const soonTemplates = BUSINESS_TEMPLATES.filter((t) => t.comingSoon);
-  const availableTemplates = activeTemplates.filter((t) => !isTemplateLocked(t.tier, planCode)).length;
+  const templates = BUSINESS_TEMPLATES.filter((t) => !t.comingSoon);
+  const availableTemplates = templates.filter((t) => !isTemplateLocked(t.tier, planCode)).length;
+  const filteredTemplates = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return templates;
+    return templates.filter((t) =>
+      [t.name, t.description, ...t.suggestedCategories, ...t.faqs]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle)
+    );
+  }, [query, templates]);
 
   async function applyTemplate(mode: "merge" | "replace") {
     if (!selected) return;
@@ -64,124 +101,70 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setError(data.error ?? "Error aplicando la plantilla.");
+        setError(data.error ?? "No pudimos aplicar la plantilla.");
       } else {
         setAppliedId(selected.id);
         setSelected(null);
+        setIsOpen(false);
         onApplied();
       }
     } catch {
       setError("Error de conexión. Intentá de nuevo.");
+    } finally {
+      setApplying(false);
     }
-    setApplying(false);
   }
 
   return (
     <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-      {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <div className="page-sub" style={{ marginBottom: 4 }}>Plantillas por Rubro</div>
-        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
-          Elegí el rubro de tu negocio
-        </h3>
-        <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>
-          Aplicá una plantilla inicial para que tu asistente empiece con respuestas y tono recomendados. Podés personalizarla después.
-        </p>
-      </div>
-
-      {/* Success banner */}
-      {appliedId && (
-        <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 12, border: "1px solid var(--green)", background: "var(--green-tint)", fontSize: 13, color: "var(--green)" }}>
-          Plantilla aplicada. Ahora podés personalizarla con los datos reales de tu negocio.
-        </div>
-      )}
-
-      {/* Error banner */}
-      {error && (
-        <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 12, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 13, color: "var(--accent)" }}>
-          {error}
-        </div>
-      )}
-
-      <div
-        style={{
-          marginBottom: 14,
-          borderRadius: 16,
-          border: "1px solid var(--hairline)",
-          background: "var(--surface-2)",
-          padding: 14,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 14, flexWrap: "wrap" }}>
-          <div>
-            <div className="page-sub" style={{ marginBottom: 4 }}>plantillas activas</div>
-            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
-              {availableTemplates} disponibles con tu plan actual.
-            </p>
-          </div>
-          <span className="atd-pill green" style={{ fontSize: 11 }}>
-            {planCode.toUpperCase()}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 xl:grid-cols-3">
-          {activeTemplates.map((t) => {
-            const locked = isTemplateLocked(t.tier, planCode);
-            return (
-              <TemplateCard
-                key={t.id}
-                template={t}
-                isApplied={appliedId === t.id}
-                isLocked={locked}
-                onSelect={() => {
-                  setError(null);
-                  if (locked) {
-                    setLockedSelected(t);
-                  } else {
-                    setSelected(t);
-                  }
-                }}
-              />
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Coming soon grid */}
-      <div style={{ marginTop: 18 }}>
-        <div style={{ marginBottom: 10 }}>
-          <div className="page-sub" style={{ marginBottom: 4 }}>próximamente</div>
-          <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
-            Rubros que vamos a sumar pronto o que requieren un plan superior.
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 220, flex: 1 }}>
+          <div className="page-sub" style={{ marginBottom: 4 }}>plantillas por rubro</div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+            Empezá más rápido con una plantilla
+          </h3>
+          <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)", maxWidth: 560 }}>
+            Elegí un rubro y cargamos una base inicial para tu asistente. Después podés editar todo.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {soonTemplates.map((t) => {
-            const locked = isTemplateLocked(t.tier, planCode);
-            return (
-              <div
-                key={t.id}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "12px 14px", borderRadius: 14,
-                  border: "1px dashed var(--hairline-2)", background: "rgba(255,255,255,0.55)",
-                  opacity: 0.8,
-                  userSelect: "none",
-                  minHeight: 72,
-                }}
-              >
-                <span style={{ fontSize: 18 }}>{t.emoji}</span>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: 0 }}>{t.name}</p>
-                  <p style={{ fontSize: 11, color: "var(--muted)", margin: "2px 0 0" }}>
-                    {locked ? `Plan ${requiredPlanLabel(t.tier)}` : "Próximamente"}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <button onClick={() => setIsOpen(true)} className="atd-btn primary">
+          Ver plantillas
+        </button>
       </div>
+
+      <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <span className="atd-pill green">{availableTemplates} disponibles</span>
+        <span className="atd-pill">{planCode.toUpperCase()}</span>
+        {appliedId && (
+          <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
+            Listo. Tu asistente ya tiene una base para responder mejor.
+          </span>
+        )}
+        {error && (
+          <span style={{ fontSize: 13, color: "#c0392b", fontWeight: 600 }}>
+            {error}
+          </span>
+        )}
+      </div>
+
+      {isOpen && (
+        <TemplateSheet
+          planCode={planCode}
+          query={query}
+          setQuery={setQuery}
+          templates={filteredTemplates}
+          appliedId={appliedId}
+          onClose={() => setIsOpen(false)}
+          onSelect={(template) => {
+            setError(null);
+            if (isTemplateLocked(template.tier, planCode)) {
+              setLockedSelected(template);
+            } else {
+              setSelected(template);
+            }
+          }}
+        />
+      )}
 
       {selected && (
         <ConfirmModal
@@ -204,7 +187,117 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
   );
 }
 
-function TemplateCard({
+function TemplateSheet({
+  planCode,
+  query,
+  setQuery,
+  templates,
+  appliedId,
+  onClose,
+  onSelect,
+}: {
+  planCode: string;
+  query: string;
+  setQuery: (value: string) => void;
+  templates: BusinessTemplate[];
+  appliedId: string | null;
+  onClose: () => void;
+  onSelect: (template: BusinessTemplate) => void;
+}) {
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
+  const filtered = useMemo(() => {
+    if (selectedCategory === "all") return templates;
+    return templates.filter((t) => TEMPLATE_CATEGORY_MAP[t.id] === selectedCategory);
+  }, [templates, selectedCategory]);
+
+  // Reset category when search query changes
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (value.trim()) setSelectedCategory("all");
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.42)", zIndex: 80, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 12 }}>
+      <div className="atd-card" style={{ width: "100%", maxWidth: 920, maxHeight: "90svh", padding: 0, overflow: "hidden", borderRadius: "22px 22px 14px 14px" }}>
+        {/* Header */}
+        <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--hairline)", display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Elegí un rubro</h3>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
+              Cargamos una base inicial que después podés editar.
+            </p>
+          </div>
+          <button onClick={onClose} aria-label="Cerrar" style={{ width: 36, height: 36, borderRadius: 999, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink)", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>
+            ×
+          </button>
+        </div>
+
+        {/* Search + Category filters */}
+        <div style={{ padding: "12px 18px 0", borderBottom: "1px solid var(--hairline)", paddingBottom: 12 }}>
+          <input
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            className="atd-input"
+            placeholder="Buscar rubro, categoría o pregunta frecuente…"
+            style={{ marginBottom: 10 }}
+          />
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {TEMPLATE_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => { setSelectedCategory(cat.id); setQuery(""); }}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: 999,
+                  border: `1.5px solid ${selectedCategory === cat.id ? "var(--green)" : "var(--hairline)"}`,
+                  background: selectedCategory === cat.id ? "var(--green-tint)" : "var(--surface)",
+                  color: selectedCategory === cat.id ? "var(--green)" : "var(--ink-2)",
+                  fontSize: 12,
+                  fontWeight: selectedCategory === cat.id ? 700 : 400,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span>{cat.emoji}</span>
+                <span>{cat.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Templates grid */}
+        <div style={{ padding: 18, overflowY: "auto", maxHeight: "calc(90svh - 175px)" }}>
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+            {filtered.map((template) => {
+              const locked = isTemplateLocked(template.tier, planCode);
+              return (
+                <TemplateRow
+                  key={template.id}
+                  template={template}
+                  isApplied={appliedId === template.id}
+                  isLocked={locked}
+                  onSelect={() => onSelect(template)}
+                />
+              );
+            })}
+          </div>
+          {filtered.length === 0 && (
+            <div style={{ padding: 36, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
+              <p style={{ fontSize: 24, margin: "0 0 8px" }}>🔍</p>
+              No encontramos plantillas para esa búsqueda.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TemplateRow({
   template,
   isApplied,
   isLocked,
@@ -216,64 +309,69 @@ function TemplateCard({
   onSelect: () => void;
 }) {
   return (
-    <div style={{
-      padding: 16, borderRadius: 16,
-      border: `1px solid ${isApplied ? "var(--green)" : "var(--hairline)"}`,
-      background: isApplied ? "var(--green-tint)" : "var(--surface)",
-      display: "flex", flexDirection: "column", gap: 12,
-      opacity: isLocked ? 0.78 : 1,
-      minHeight: 250,
-    }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>{template.emoji}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{template.name}</p>
+    <button
+      onClick={onSelect}
+      disabled={isApplied}
+      style={{
+        padding: 16,
+        borderRadius: 16,
+        border: `1.5px solid ${isApplied ? "var(--green)" : "var(--hairline)"}`,
+        background: isApplied ? "var(--green-tint)" : "var(--surface)",
+        textAlign: "left",
+        cursor: isApplied ? "default" : "pointer",
+        opacity: isLocked ? 0.72 : 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      {/* Header: emoji + nombre + badge */}
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{template.emoji}</span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{template.name}</p>
             {isLocked && (
-              <span className="atd-pill" style={{ background: "#fff3cd", color: "#7a5800", border: "none", fontSize: 10 }}>
-                {requiredPlanLabel(template.tier)}
+              <span style={{ background: "#fff3cd", color: "#7a5800", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+                {requiredPlanLabel()}
+              </span>
+            )}
+            {isApplied && (
+              <span style={{ background: "var(--green)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+                Aplicada
               </span>
             )}
           </div>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--ink-3)",
-              marginTop: 4,
-              lineHeight: 1.5,
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical" as const,
-              overflow: "hidden",
-            }}
-          >
+          <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "3px 0 0", lineHeight: 1.45 }}>
             {template.description}
           </p>
         </div>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {template.suggestedCategories.slice(0, 2).map((cat) => (
-          <span key={cat} className="atd-pill" style={{ fontSize: 10, background: "var(--surface-2)", maxWidth: "100%" }}>
+      {/* Tono */}
+      <div style={{ fontSize: 11, color: "var(--ink-3)", background: "var(--surface-2)", borderRadius: 8, padding: "5px 8px", lineHeight: 1.4 }}>
+        <span style={{ fontWeight: 600, color: "var(--ink-2)" }}>Tono: </span>{template.tone}
+      </div>
+
+      {/* Categorías sugeridas */}
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+        {template.suggestedCategories.slice(0, 4).map((cat) => (
+          <span key={cat} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 999, background: "var(--surface-2)", color: "var(--ink-3)", border: "1px solid var(--hairline)" }}>
             {cat}
           </span>
         ))}
-        {template.suggestedCategories.length > 2 && (
-          <span className="atd-pill" style={{ fontSize: 10, background: "transparent", border: "1px dashed var(--hairline-2)", color: "var(--muted)" }}>
-            +{template.suggestedCategories.length - 2} categorías
+        {template.suggestedCategories.length > 4 && (
+          <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 999, background: "var(--surface-2)", color: "var(--ink-3)" }}>
+            +{template.suggestedCategories.length - 4} más
           </span>
         )}
       </div>
 
-      <button
-        onClick={onSelect}
-        disabled={isApplied}
-        className={`atd-btn ${isApplied ? "secondary" : "primary"} sm`}
-        style={{ width: "100%", fontSize: 12, marginTop: "auto" }}
-      >
-        {isApplied ? "✓ Aplicada" : isLocked ? `Requiere ${requiredPlanLabel(template.tier)}` : "Usar plantilla"}
-      </button>
-    </div>
+      {/* CTA */}
+      <div style={{ fontSize: 12, fontWeight: 700, color: isApplied ? "var(--green)" : isLocked ? "#7a5800" : "var(--green)", marginTop: "auto" }}>
+        {isApplied ? "✓ Plantilla aplicada" : isLocked ? `Mejorar a ${requiredPlanLabel()} para usar` : "→ Usar esta plantilla"}
+      </div>
+    </button>
   );
 }
 
@@ -293,63 +391,46 @@ function ConfirmModal({
   onCancel: () => void;
 }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, padding: 16 }}>
-      <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 90, padding: 16 }}>
+      <div className="atd-card" style={{ width: "100%", maxWidth: 430, padding: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <span style={{ fontSize: 28 }}>{template.emoji}</span>
           <div>
-            <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{template.name}</h4>
-            <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>Plantilla lista para usar</p>
+            <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+              ¿Cómo querés usar esta plantilla?
+            </h4>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "2px 0 0" }}>{template.name}</p>
           </div>
         </div>
 
         {profileIsEmpty ? (
           <>
-            <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 20 }}>
-              Se cargará la configuración inicial de la plantilla. Podés editarla después desde las secciones de abajo.
+            <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 18 }}>
+              Vamos a cargar una base inicial para tu asistente. Después podés editar todo.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={onCancel} disabled={applying} className="atd-btn secondary" style={{ flex: 1 }}>Cancelar</button>
               <button onClick={onReplace} disabled={applying} className="atd-btn primary" style={{ flex: 1 }}>
-                {applying ? "Aplicando..." : "Aplicar plantilla"}
+                {applying ? "Aplicando..." : "Usar plantilla"}
               </button>
             </div>
           </>
         ) : (
           <>
             <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 14 }}>
-              Ya tenés información cargada. ¿Cómo querés aplicar la plantilla?
+              Ya tenés información cargada. Elegí si querés conservarla o reemplazarla.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-              <button
-                onClick={onMerge}
-                disabled={applying}
-                style={{
-                  padding: "12px 16px", borderRadius: 12, border: "1px solid var(--green)",
-                  background: "var(--green-tint)", textAlign: "left", cursor: "pointer",
-                  opacity: applying ? 0.5 : 1,
-                }}
-              >
-                <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--green)" }}>Agregar sin borrar</span>
-                <span style={{ fontSize: 11, color: "var(--green)", opacity: 0.8 }}>Suma la plantilla a lo que ya tenés cargado</span>
+              <button onClick={onMerge} disabled={applying} style={{ padding: "13px 16px", borderRadius: 12, border: "1px solid var(--green)", background: "var(--green-tint)", textAlign: "left", cursor: "pointer", opacity: applying ? 0.5 : 1 }}>
+                <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--green)" }}>Completar datos faltantes</span>
+                <span style={{ fontSize: 12, color: "var(--green)", opacity: 0.85 }}>Conserva lo que ya cargaste y suma sugerencias.</span>
               </button>
-              <button
-                onClick={onReplace}
-                disabled={applying}
-                style={{
-                  padding: "12px 16px", borderRadius: 12, border: "1px solid #ffd3c8",
-                  background: "#fff4f2", textAlign: "left", cursor: "pointer",
-                  opacity: applying ? 0.5 : 1,
-                }}
-              >
-                <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--accent)" }}>Reemplazar todo</span>
-                <span style={{ fontSize: 11, color: "var(--accent)", opacity: 0.8 }}>Borra descripción, catálogo e info adicional actuales</span>
+              <button onClick={onReplace} disabled={applying} style={{ padding: "13px 16px", borderRadius: 12, border: "1px solid #ffd3c8", background: "#fff4f2", textAlign: "left", cursor: "pointer", opacity: applying ? 0.5 : 1 }}>
+                <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>Reemplazar configuración actual</span>
+                <span style={{ fontSize: 12, color: "var(--accent)", opacity: 0.85 }}>Cambia descripción, preguntas frecuentes, catálogo inicial y reglas.</span>
               </button>
             </div>
             <button onClick={onCancel} disabled={applying} className="atd-btn secondary" style={{ width: "100%" }}>Cancelar</button>
-            {applying && (
-              <p style={{ textAlign: "center", fontSize: 12, color: "var(--green)", marginTop: 10 }}>Aplicando plantilla...</p>
-            )}
           </>
         )}
       </div>
@@ -364,8 +445,8 @@ function UpgradeModal({
   template: BusinessTemplate;
   onClose: () => void;
 }) {
-  const planLabel = requiredPlanLabel(template.tier);
-  const planCode = requiredPlanCode(template.tier);
+  const planLabel = requiredPlanLabel();
+  const planCode = requiredPlanCode();
 
   async function handleUpgrade() {
     try {
@@ -375,34 +456,21 @@ function UpgradeModal({
         body: JSON.stringify({ plan_code: planCode, checkout_type: "upgrade" }),
       });
       const data = await res.json();
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
+      if (data.checkoutUrl) window.location.href = data.checkoutUrl;
     } catch {
-      // fail silently
+      // checkout errors are shown in the billing flow
     }
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, padding: 16 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 90, padding: 16 }}>
       <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <span style={{ fontSize: 28 }}>{template.emoji}</span>
-          <div>
-            <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{template.name}</h4>
-            <span className="atd-pill" style={{ background: "#fff3cd", color: "#7a5800", border: "none", marginTop: 4, display: "inline-block" }}>
-              Plan {planLabel}
-            </span>
-          </div>
-        </div>
-
-        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}>
-          Esta plantilla está disponible en {planLabel}.
+        <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+          {template.emoji} {template.name}
+        </h4>
+        <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "8px 0 18px" }}>
+          Esta plantilla está disponible en {planLabel}. En prueba gratis podés usar las funciones de Growth.
         </p>
-        <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
-          {"Con Pro podés usar todas las plantillas comerciales, cargar hasta 500 productos, gestionar tu equipo completo y ver métricas de conversaciones."}
-        </p>
-
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <button onClick={handleUpgrade} className="atd-btn primary" style={{ width: "100%" }}>
             Mejorar a {planLabel}

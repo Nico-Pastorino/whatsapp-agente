@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBusinessProfile, setBusinessProfile, canUseTemplate } from "@/lib/db";
 import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
-import { getTemplateById, buildExtraFromTemplate } from "@/lib/business-templates";
+import {
+  getTemplateById,
+  buildExtraFromTemplate,
+  buildKnowledgeBaseFromTemplate,
+} from "@/lib/business-templates";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +17,7 @@ export async function POST(req: NextRequest) {
       const mode: "merge" | "replace" = body.mode === "replace" ? "replace" : "merge";
 
       if (!templateId) {
-        return NextResponse.json({ error: "templateId requerido." }, { status: 400 });
+        return NextResponse.json({ error: "Elegí una plantilla para continuar." }, { status: 400 });
       }
 
       const template = getTemplateById(templateId);
@@ -33,11 +37,13 @@ export async function POST(req: NextRequest) {
 
       const current = await getBusinessProfile(businessId);
       const templateExtra = buildExtraFromTemplate(template);
+      const templateKnowledgeBase = buildKnowledgeBaseFromTemplate(template);
       const templateProducts = template.suggestedCategories.map((cat) => ({
         name: cat,
         price: "",
         description: "",
       }));
+      const templateBookingConfig = template.bookingConfig ?? "";
 
       if (mode === "replace") {
         await setBusinessProfile(
@@ -46,6 +52,9 @@ export async function POST(req: NextRequest) {
             description: template.botGoal,
             products: templateProducts,
             extra: templateExtra,
+            knowledge_base: templateKnowledgeBase,
+            booking_enabled: Boolean(templateBookingConfig),
+            booking_config: templateBookingConfig,
           },
           businessId
         );
@@ -69,6 +78,10 @@ export async function POST(req: NextRequest) {
         const newExtra = existingExtra
           ? `${existingExtra}\n\n---\nPlantilla: ${template.name}\n${templateExtra}`
           : templateExtra;
+        const existingKnowledgeBase = current.knowledge_base?.trim() ?? "";
+        const newKnowledgeBase = existingKnowledgeBase
+          ? `${existingKnowledgeBase}\n\n---\nBase sugerida: ${template.name}\n${templateKnowledgeBase}`
+          : templateKnowledgeBase;
 
         await setBusinessProfile(
           {
@@ -76,6 +89,11 @@ export async function POST(req: NextRequest) {
             description: newDescription,
             products: newProducts,
             extra: newExtra,
+            knowledge_base: newKnowledgeBase,
+            booking_enabled: current.booking_enabled || Boolean(templateBookingConfig),
+            booking_config: current.booking_config?.trim()
+              ? current.booking_config
+              : templateBookingConfig,
           },
           businessId
         );
