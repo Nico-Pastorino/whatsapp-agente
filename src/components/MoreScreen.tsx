@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Users, QR, ArrowLeft, Calendar, BarChart } from "./atende/Icons";
+import ThemeToggle from "./ThemeToggle";
 
 interface MenuItem {
   icon: React.ReactNode;
@@ -30,6 +31,18 @@ export default function MoreScreen() {
       </div>
 
       <div style={{ padding: "8px 20px 100px", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Apariencia */}
+        <div className="atd-card" style={{ padding: 16, background: "var(--surface)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 18 }}>🎨</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--ink)" }}>Apariencia</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 1 }}>Elegí cómo se ve la app</div>
+            </div>
+          </div>
+          <ThemeToggle />
+        </div>
+
         {items.map((item) => (
           <button
             key={item.href}

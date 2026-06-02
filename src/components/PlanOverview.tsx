@@ -529,17 +529,17 @@ export default function PlanOverview() {
           </div>
         )}
 
-        {/* Hero plan card (dark) */}
-        <div style={{ margin: "0 20px 14px", padding: 20, borderRadius: 22, background: "var(--ink)", color: "var(--bg)", position: "relative", overflow: "hidden" }}>
+        {/* Hero plan card (oscura en ambos temas) */}
+        <div style={{ margin: "0 20px 14px", padding: 20, borderRadius: 22, background: "var(--feature-bg)", color: "var(--feature-fg)", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "var(--accent)", opacity: 0.2, filter: "blur(20px)", pointerEvents: "none" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <span className="atd-pill" style={{ background: "rgba(255,255,255,0.1)", color: "var(--bg)", borderColor: "transparent" }}>Tu plan</span>
-            <span className="mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+            <span className="atd-pill" style={{ background: "var(--feature-bg-soft)", color: "var(--feature-fg)", borderColor: "transparent" }}>Tu plan</span>
+            <span className="mono" style={{ fontSize: 11, color: "var(--feature-fg-dim)" }}>
               {plan.status === "active" ? "activo" : plan.status} · vence {formatDate(plan.current_period_end)}
             </span>
           </div>
           <div className="serif" style={{ fontSize: 52, lineHeight: 1, marginBottom: 4 }}>{plan.plan_name}</div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: "var(--feature-fg-dim)", marginBottom: 16 }}>
             {PLAN_TAGLINE[currentCode] ?? ""}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -557,13 +557,13 @@ export default function PlanOverview() {
               <button
                 onClick={() => setShowCancelModal(true)}
                 className="atd-btn ghost sm"
-                style={{ color: "var(--bg)", borderColor: "rgba(255,255,255,0.25)" }}
+                style={{ color: "var(--feature-fg)", borderColor: "var(--feature-fg-dim)" }}
               >
                 Cancelar
               </button>
             )}
             {plan.cancel_at_period_end && (
-              <button onClick={handleReactivatePlan} disabled={reactivateLoading} className="atd-btn ghost sm" style={{ color: "var(--bg)", borderColor: "rgba(255,255,255,0.25)", flex: 1 }}>
+              <button onClick={handleReactivatePlan} disabled={reactivateLoading} className="atd-btn ghost sm" style={{ color: "var(--feature-fg)", borderColor: "var(--feature-fg-dim)", flex: 1 }}>
                 {reactivateLoading ? "..." : "Reactivar"}
               </button>
             )}

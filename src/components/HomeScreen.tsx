@@ -212,10 +212,10 @@ export default function HomeScreen() {
       </div>
 
       {/* Hero status card */}
-      <div style={{ margin: "0 20px 14px", padding: 18, borderRadius: 22, background: "var(--ink)", color: "var(--bg)", position: "relative", overflow: "hidden" }}>
+      <div style={{ margin: "0 20px 14px", padding: 18, borderRadius: 22, background: "var(--feature-bg)", color: "var(--feature-fg)", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "var(--accent)", opacity: 0.18, filter: "blur(20px)", pointerEvents: "none" }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>
-          <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "rgba(255,255,255,0.3)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--feature-fg-dim)", marginBottom: 8 }}>
+          <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "var(--feature-fg-dim)" }} />
           {data.waConnected ? `WhatsApp conectado · ${data.waPhone ?? ""}` : "WhatsApp sin conectar"}
         </div>
         <div className="serif" style={{ fontSize: 28, lineHeight: 1.1, marginBottom: 4 }}>
@@ -224,7 +224,7 @@ export default function HomeScreen() {
             {data.waConnected ? "está activo." : "esperando."}
           </span>
         </div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "var(--feature-fg-dim)", marginBottom: 16 }}>
           {data.waConnected
             ? `${data.todayConversations} ${data.todayConversations === 1 ? "conversación hoy" : "conversaciones hoy"}`
             : "Conectá WhatsApp para que empiece a responder."}
@@ -235,8 +235,8 @@ export default function HomeScreen() {
             ["Plan", data.plan?.plan_name ?? "—"],
             ["Entrenado", `${data.assistantPct}%`],
           ].map(([k, v]) => (
-            <div key={k} style={{ padding: 10, borderRadius: 12, background: "rgba(255,255,255,0.07)" }}>
-              <div className="mono" style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", textTransform: "uppercase" }}>{k}</div>
+            <div key={k} style={{ padding: 10, borderRadius: 12, background: "var(--feature-bg-soft)" }}>
+              <div className="mono" style={{ fontSize: 9, color: "var(--feature-fg-dim)", textTransform: "uppercase" }}>{k}</div>
               <div style={{ fontSize: 13, fontWeight: 500, marginTop: 3 }}>{v}</div>
             </div>
           ))}

@@ -36,6 +36,12 @@
   --accent-ink:   #2b0c04;
   --on-accent:    #2b0c04;
 
+  /* "Feature card" oscura (hero del inicio, etc.) — oscura en ambos temas */
+  --feature-bg:      #0c1410;
+  --feature-bg-soft: rgba(255,255,255,0.07);
+  --feature-fg:      #f3f0ea;
+  --feature-fg-dim:  rgba(255,255,255,0.65);
+
   --shadow-1: 0 1px 0 rgba(12,20,16,0.04), 0 1px 2px rgba(12,20,16,0.04);
   --shadow-2: 0 1px 0 rgba(12,20,16,0.04), 0 8px 24px -8px rgba(12,20,16,0.10);
   --shadow-3: 0 2px 0 rgba(12,20,16,0.04), 0 24px 48px -16px rgba(12,20,16,0.18);
@@ -50,6 +56,70 @@
   --font-serif: 'Instrument Serif', 'Times New Roman', serif;
   --font-mono:  'Geist Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
+
+/* ── Modo oscuro ───────────────────────────────────────────────
+   Sobrescribe las mismas variables semánticas: como casi todo el UI
+   usa var(--…), el tema oscuro se aplica solo. Activado por
+   data-theme="dark" en <html> (lo setea el ThemeProvider sin parpadeo). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:           #0f1411;
+  --bg-grain:     #131915;
+  --bg-elev:      #161c18;
+  --surface:      #171d19;
+  --surface-2:    #1f2620;
+  --ink:          #eef1ea;
+  --ink-2:        #d2d7cf;
+  --ink-3:        #a9afa6;
+  --muted:        #828981;
+  --hairline:     rgba(255, 255, 255, 0.09);
+  --hairline-2:   rgba(255, 255, 255, 0.16);
+  --hairline-3:   rgba(255, 255, 255, 0.26);
+
+  --green:        #3ddc97;
+  --green-2:      #34c285;
+  --green-soft:   #5ce3aa;
+  --green-tint:   rgba(61, 220, 151, 0.15);
+  --green-tint-2: rgba(61, 220, 151, 0.24);
+  --green-ink:    #9bf0c8;
+  --on-green:     #06251c;
+
+  --ia:           var(--green);
+  --human:        #e3b15f;
+  --human-tint:   rgba(227, 177, 95, 0.16);
+
+  --accent:       #ff7a5c;
+  --accent-2:     #ff9277;
+  --accent-soft:  rgba(255, 122, 92, 0.18);
+  --accent-ink:   #ffd7cb;
+  --on-accent:    #2b0c04;
+
+  --feature-bg:      #11201a;
+  --feature-bg-soft: rgba(255, 255, 255, 0.06);
+  --feature-fg:      #eef1ea;
+  --feature-fg-dim:  rgba(255, 255, 255, 0.62);
+
+  --shadow-1: 0 1px 0 rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.40);
+  --shadow-2: 0 1px 0 rgba(0,0,0,0.30), 0 8px 24px -8px rgba(0,0,0,0.55);
+  --shadow-3: 0 2px 0 rgba(0,0,0,0.30), 0 24px 48px -16px rgba(0,0,0,0.65);
+}
+
+/* Red de seguridad: clases utilitarias hardcodeadas que algunos componentes
+   usan (labels, inputs, loaders). Solo se remapean en modo oscuro para que no
+   queden ilegibles, sin tener que editar cada archivo. */
+:root[data-theme="dark"] .text-gray-900,
+:root[data-theme="dark"] .text-gray-800 { color: var(--ink) !important; }
+:root[data-theme="dark"] .text-gray-700,
+:root[data-theme="dark"] .text-gray-600 { color: var(--ink-2) !important; }
+:root[data-theme="dark"] .text-gray-500,
+:root[data-theme="dark"] .text-gray-400 { color: var(--muted) !important; }
+:root[data-theme="dark"] .bg-white      { background-color: var(--surface) !important; }
+:root[data-theme="dark"] .bg-gray-50,
+:root[data-theme="dark"] .bg-gray-100    { background-color: var(--surface-2) !important; }
+:root[data-theme="dark"] .border-gray-200,
+:root[data-theme="dark"] .border-gray-100 { border-color: var(--hairline) !important; }
+:root[data-theme="dark"] .border-gray-300 { border-color: var(--hairline-2) !important; }
 
 /* ── Base ──────────────────────────────────────────────────── */
 * { box-sizing: border-box; }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart, Calendar } from "./atende/Icons";
+import ThemeToggle from "./ThemeToggle";
 
 type DashboardView =
   | "conversations"
@@ -173,8 +174,14 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
       {/* Divider */}
       <div style={{ height: 1, background: "var(--hairline)", margin: "6px 14px 0" }} />
 
-      {/* Bottom: WhatsApp status + logout */}
+      {/* Bottom: appearance + WhatsApp status + logout */}
       <div style={{ padding: "12px 14px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* Apariencia */}
+        <div style={{ padding: "0 2px 4px" }}>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6, paddingLeft: 6 }}>Apariencia</div>
+          <ThemeToggle />
+        </div>
+
         {/* WA status */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8 }}>
           <span style={{

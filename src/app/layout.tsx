@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ThemeProvider, THEME_NO_FLASH_SCRIPT } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Atendé — Asistente comercial por WhatsApp",
@@ -20,8 +21,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
-      <body>{children}</body>
+    <html lang="es" suppressHydrationWarning>
+      <body>
+        {/* Fija el tema antes del primer pintado para evitar parpadeo. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_NO_FLASH_SCRIPT }} />
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }
