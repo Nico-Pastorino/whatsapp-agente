@@ -31,6 +31,12 @@ interface SessionState {
   handle: BotHandle | null;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   manualDisconnectInProgress: boolean;
+  /**
+   * Estado de conexión en memoria (lo conoce el propio worker via connection.update).
+   * Permite que los loops del worker (outbox, avisos) NO consulten whatsapp_sessions
+   * en Supabase cada pocos segundos — reduce egress de forma drástica.
+   */
+  connected: boolean;
 }
 
 // Map de businessId → estado de sesión
@@ -50,6 +56,7 @@ function getOrCreateSession(businessId: string): SessionState {
       handle: null,
       reconnectTimer: null,
       manualDisconnectInProgress: false,
+      connected: false,
     });
   }
   return sessions.get(businessId)!;
@@ -152,6 +159,8 @@ export async function startSession(businessId: string): Promise<void> {
     }
 
     if (connection === "open") {
+      const openSession = sessions.get(businessId);
+      if (openSession) openSession.connected = true;
       const rawId = sock.user?.id ?? "";
       const phone = rawId.split(":")[0];
       console.log(`[worker/${businessId}] Conectado como ${phone}`);
@@ -168,6 +177,7 @@ export async function startSession(businessId: string): Promise<void> {
       console.log(`[worker/${businessId}] Conexión cerrada, código: ${code}`);
 
       const currentSession = sessions.get(businessId);
+      if (currentSession) currentSession.connected = false;
       if (currentSession?.manualDisconnectInProgress) {
         console.log(`[worker/${businessId}] Cierre manual en progreso — no se reconecta`);
         await setConnectionState(
@@ -240,6 +250,14 @@ export async function stopSession(businessId: string): Promise<void> {
 
 export function getHandle(businessId: string): BotHandle | null {
   return sessions.get(businessId)?.handle ?? null;
+}
+
+/**
+ * Estado de conexión en memoria. Lo usa el worker para gatear sus loops sin
+ * consultar whatsapp_sessions en cada iteración (gran ahorro de egress).
+ */
+export function isSessionConnected(businessId: string): boolean {
+  return sessions.get(businessId)?.connected === true;
 }
 
 export function getAllSessionBusinessIds(): string[] {

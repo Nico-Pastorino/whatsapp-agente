@@ -6,6 +6,7 @@ import QRScreen from "./QRScreen";
 import DashboardSidebar from "./DashboardSidebar";
 import ConversationList from "./ConversationList";
 import ConversationPanel from "./ConversationPanel";
+import ConversationClientPanel from "./ConversationClientPanel";
 import BusinessConfig from "./BusinessConfig";
 import ItemCatalog from "./ItemCatalog";
 import AgendaScreen from "./AgendaScreen";
@@ -131,7 +132,9 @@ export default function ConnectionGate({ currentView }: Props) {
   const [trialPlan, setTrialPlan] = useState<TrialPlanState | null>(null);
 
   useEffect(() => {
-    const interval = setInterval(loadConnectionStatus, currentView === "connect" ? 3000 : 15000);
+    // No pollear cuando la pestaña no está visible (ahorra egress de Supabase).
+    const tick = () => { if (!document.hidden) loadConnectionStatus(); };
+    const interval = setInterval(tick, currentView === "connect" ? 3000 : 30_000);
     loadConnectionStatus().finally(() => setInitialChecked(true));
     return () => clearInterval(interval);
   }, [currentView]);
@@ -139,14 +142,16 @@ export default function ConnectionGate({ currentView }: Props) {
   useEffect(() => {
     if (currentView !== "conversations") return;
     loadConversations();
-    const interval = setInterval(loadConversations, 5000);
+    const tick = () => { if (!document.hidden) loadConversations(); };
+    const interval = setInterval(tick, 12_000);
     return () => clearInterval(interval);
   }, [currentView]);
 
   useEffect(() => {
     if (currentView === "plan") return;
     loadPlan();
-    const interval = setInterval(loadPlan, 60_000);
+    const tick = () => { if (!document.hidden) loadPlan(); };
+    const interval = setInterval(tick, 120_000);
     return () => clearInterval(interval);
   }, [currentView]);
 
@@ -259,10 +264,10 @@ export default function ConnectionGate({ currentView }: Props) {
           <p className="page-sub" style={{ textAlign: "center" }}>WhatsApp conectado</p>
           <p className="mono" style={{ fontSize: 18, fontWeight: 500, margin: "6px 0 8px" }}>{phone}</p>
           <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 16px" }}>
-            El worker está operativo y este negocio ya puede responder desde el dashboard.
+            Tu asistente ya está activo y respondiendo por WhatsApp. Podés tomar el control cuando quieras desde Conversaciones.
           </p>
           <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--green-tint)", color: "var(--green-ink)", fontSize: 12 }}>
-            Estado: {connectionStatus}
+            {connectionStatus === "connected" ? "Asistente activo" : "Sincronizando…"}
           </div>
         </div>
       </div>
@@ -286,7 +291,7 @@ export default function ConnectionGate({ currentView }: Props) {
               onSelect={setSelectedId}
             />
           </aside>
-          <main style={{ flex: 1, overflow: "hidden" }}>
+          <main style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
             {selectedConv ? (
               <ConversationPanel
                 key={selectedConv.id}
@@ -301,6 +306,12 @@ export default function ConnectionGate({ currentView }: Props) {
               </div>
             )}
           </main>
+          {/* Panel lateral de cliente — solo en pantallas anchas */}
+          {selectedConv && (
+            <div className="hidden lg:block" style={{ height: "100%" }}>
+              <ConversationClientPanel conversation={selectedConv} />
+            </div>
+          )}
         </div>
       );
       // Mobile: show list OR detail

@@ -95,7 +95,9 @@ export default function ConversationPanel({
   }, [messages]);
 
   useEffect(() => {
-    const interval = setInterval(loadMessages, 2000);
+    // Polling más espaciado y pausado si la pestaña no está visible (ahorra egress).
+    const tick = () => { if (!document.hidden) loadMessages(); };
+    const interval = setInterval(tick, 5000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation.id]);

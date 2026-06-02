@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
 export default function AppIndexPage() {
-  redirect("/app/conversations");
+  // Entrada por defecto al dashboard: el Centro de control (Inicio),
+  // no el inbox vacío. Guía al negocio recién creado hacia la activación.
+  redirect("/app/home");
 }

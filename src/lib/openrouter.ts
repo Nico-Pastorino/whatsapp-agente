@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { getBusinessProfile, listActiveItemsForPrompt, isPromotionActive } from "./db";
 import { SYSTEM_PROMPT } from "./system-prompt";
+import { toneHint } from "./onboarding";
 import type { Message, CatalogItem } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -176,6 +177,11 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
 
   if (profile.description) {
     lines.push("", sanitizeForPrompt(profile.description, 800));
+  }
+
+  const tone = toneHint(profile.response_tone);
+  if (tone) {
+    lines.push("", `TONO DE RESPUESTA: Respondé siempre con un estilo ${tone}.`);
   }
 
   if (items.length > 0) {

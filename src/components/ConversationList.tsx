@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, Spark } from "./atende/Icons";
 import { Avatar } from "./atende/Icons";
+import { deriveLeadSignal } from "@/lib/conversation-insights";
 
 interface Conversation {
   id: string;
@@ -149,6 +150,8 @@ export default function ConversationList({
             const isIA = conv.mode === "AI";
             const isSelected = selectedId === conv.id;
             const needsAttention = conv.needs_attention && !isIA;
+            const signal = deriveLeadSignal(conv);
+            const showSignalChip = signal && signal.key !== "attention";
 
             return (
               <button
@@ -215,6 +218,18 @@ export default function ConversationList({
                       <span style={{ marginLeft: 8, width: 8, height: 8, borderRadius: 999, background: "var(--human)", flexShrink: 0 }} />
                     )}
                   </div>
+                  {showSignalChip && (
+                    <div style={{ marginTop: 5 }}>
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        height: 19, padding: "0 8px", borderRadius: 999,
+                        fontSize: 10.5, fontWeight: 600, lineHeight: 1,
+                        background: signal!.bg, color: signal!.fg,
+                      }}>
+                        {signal!.label}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </button>
             );

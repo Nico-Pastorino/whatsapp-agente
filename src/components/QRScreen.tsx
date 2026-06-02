@@ -29,7 +29,8 @@ export default function QRScreen({ onConnected }: Props) {
   const [firstCheckAt] = useState(() => Date.now());
 
   useEffect(() => {
-    const interval = setInterval(poll, 2000);
+    const tick = () => { if (!document.hidden) poll(); };
+    const interval = setInterval(tick, 3000);
     poll();
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps

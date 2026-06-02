@@ -35,6 +35,8 @@ export interface BusinessProfile {
   notify_phone: string;
   /** Eventos a avisar: new_appointment, human_handoff, etc. */
   notify_events: string[];
+  /** Tono de respuesta del asistente (código corto: cercano | profesional | divertido | directo | ''). */
+  response_tone: string;
   updated_at: number;
 }
 
@@ -2177,7 +2179,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
       .single(),
     supabase
       .from("business_settings")
-      .select("description, extra, quick_replies, knowledge_base, booking_enabled, booking_config, notify_enabled, notify_phone, notify_events, updated_at")
+      .select("description, extra, quick_replies, knowledge_base, booking_enabled, booking_config, notify_enabled, notify_phone, notify_events, response_tone, updated_at")
       .eq("business_id", businessId)
       .single(),
     supabase
@@ -2203,6 +2205,7 @@ export async function getBusinessProfile(businessId = getBusinessId()): Promise<
     notify_enabled: settings?.notify_enabled ?? false,
     notify_phone: settings?.notify_phone ?? "",
     notify_events: Array.isArray(settings?.notify_events) ? (settings.notify_events as string[]) : [],
+    response_tone: settings?.response_tone ?? "",
     products: (products ?? []).map((product) => ({
       id: product.id,
       name: product.name,
@@ -2231,6 +2234,7 @@ export async function setBusinessProfile(patch: {
   notify_enabled?: boolean; // optional — if omitted, not touched
   notify_phone?: string; // optional — if omitted, not touched
   notify_events?: string[]; // optional — if omitted, not touched
+  response_tone?: string; // optional — if omitted, not touched
 }, businessId = getBusinessId()): Promise<void> {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
@@ -2265,6 +2269,9 @@ export async function setBusinessProfile(patch: {
   }
   if (patch.notify_events !== undefined) {
     settingsPatch.notify_events = patch.notify_events;
+  }
+  if (patch.response_tone !== undefined) {
+    settingsPatch.response_tone = patch.response_tone;
   }
   await supabase.from("business_settings").update(settingsPatch).eq("business_id", businessId);
   console.log(`[business/update] settings updated business_id=${businessId}`);

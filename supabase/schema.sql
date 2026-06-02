@@ -65,6 +65,7 @@ create table business_settings (
   notify_enabled boolean not null default false,
   notify_phone text not null default '',
   notify_events jsonb not null default '[]'::jsonb,
+  response_tone text not null default '',
   updated_at timestamptz not null default now()
 );
 

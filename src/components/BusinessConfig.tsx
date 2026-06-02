@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import DashboardContentShell from "./DashboardContentShell";
 import TemplateSelector from "./TemplateSelector";
+import AssistantTester from "./AssistantTester";
+import { TONE_PRESETS, buildAssistantChecklist, assistantProgress } from "@/lib/onboarding";
 
 interface Profile {
   name: string;
@@ -16,6 +18,7 @@ interface Profile {
   notify_enabled: boolean;
   notify_phone: string;
   notify_events: string[];
+  response_tone: string;
 }
 
 const NOTIFY_EVENT_OPTIONS: { key: string; label: string; icon: string }[] = [
@@ -82,8 +85,10 @@ export default function BusinessConfig() {
     notify_enabled: false,
     notify_phone: "",
     notify_events: [],
+    response_tone: "",
   });
   const [newReply, setNewReply] = useState("");
+  const [showTester, setShowTester] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -105,6 +110,7 @@ export default function BusinessConfig() {
           notify_enabled: Boolean(data.notify_enabled),
           notify_phone: data.notify_phone ?? "",
           notify_events: Array.isArray(data.notify_events) ? data.notify_events : [],
+          response_tone: typeof data.response_tone === "string" ? data.response_tone : "",
         });
         setLoading(false);
       });
@@ -119,17 +125,10 @@ export default function BusinessConfig() {
   }, [reloadProfile]);
 
   const profileIsEmpty = !profile.description && !profile.extra && !profile.knowledge_base;
-  const checklist = [
-    { label: "Datos del negocio", done: Boolean(profile.name.trim() && profile.description.trim()), href: "#datos-negocio" },
-    { label: "Productos o servicios", done: catalogCount > 0, href: "/app/catalog" },
-    { label: "Preguntas frecuentes", done: Boolean(profile.knowledge_base.trim()), href: "#preguntas-frecuentes" },
-    { label: "Horarios", done: /horario|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|hs|hora/i.test(profile.extra), href: "#info-clave" },
-    { label: "Tono de respuesta", done: /tono|responder|respuesta|cercano|formal|amable|rápido|rapido/i.test(`${profile.extra}\n${profile.knowledge_base}`), href: "#info-clave" },
-    { label: "Avisos al encargado", done: profile.notify_enabled && Boolean(profile.notify_phone.trim()), href: "#avisos-encargado" },
-    { label: "Prueba de respuesta", done: profile.quick_replies.length > 0, href: "#respuestas-rapidas" },
-  ];
-  const completedSteps = checklist.filter((item) => item.done).length;
-  const progress = Math.round((completedSteps / checklist.length) * 100);
+  // Checklist unificado — misma fuente de verdad que el Centro de control.
+  const checklist = buildAssistantChecklist(profile, catalogCount);
+  const doneByKey = Object.fromEntries(checklist.map((i) => [i.key, i.done])) as Record<string, boolean>;
+  const progress = assistantProgress(checklist);
   const nextStep = checklist.find((item) => !item.done);
 
   function updateField(field: keyof Profile, value: string) {
@@ -144,7 +143,7 @@ export default function BusinessConfig() {
       const res = await fetch("/api/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies, knowledge_base: profile.knowledge_base, booking_enabled: profile.booking_enabled, booking_config: profile.booking_config, notify_enabled: profile.notify_enabled, notify_phone: profile.notify_phone, notify_events: profile.notify_events }),
+        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies, knowledge_base: profile.knowledge_base, booking_enabled: profile.booking_enabled, booking_config: profile.booking_config, notify_enabled: profile.notify_enabled, notify_phone: profile.notify_phone, notify_events: profile.notify_events, response_tone: profile.response_tone }),
       });
       if (res.ok) {
         setSaved(true);
@@ -197,11 +196,16 @@ export default function BusinessConfig() {
               <div style={{ width: `${progress}%`, height: "100%", background: "var(--green)", borderRadius: 999 }} />
             </div>
             <p style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 14px" }}>
-              Próxima acción recomendada: <strong>{nextStep?.label ?? "Probar y guardar cambios"}</strong>
+              Próxima acción recomendada: <strong>{nextStep?.label ?? "Probá tu asistente"}</strong>
             </p>
-            <a href={nextStep?.href ?? "#respuestas-rapidas"} className="atd-btn primary" style={{ display: "inline-flex", textDecoration: "none" }}>
-              Continuar configuración
-            </a>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <a href={nextStep?.href ?? "#probar-asistente"} className="atd-btn primary" style={{ display: "inline-flex", textDecoration: "none" }}>
+                {nextStep ? "Continuar configuración" : "Revisar configuración"}
+              </a>
+              <button type="button" onClick={() => setShowTester(true)} className="atd-btn ghost" style={{ display: "inline-flex" }}>
+                Probar asistente
+              </button>
+            </div>
           </section>
 
           <section className="atd-card" style={{ padding: 20 }}>
@@ -252,7 +256,7 @@ export default function BusinessConfig() {
                 label: "Datos del negocio",
                 desc: "Nombre y descripción",
                 href: "#datos-negocio",
-                done: checklist.find((c) => c.label === "Datos del negocio")?.done ?? false,
+                done: doneByKey.business ?? false,
                 isLink: false,
               },
               {
@@ -260,7 +264,7 @@ export default function BusinessConfig() {
                 label: "Catálogo",
                 desc: "Productos y servicios",
                 href: "/app/catalog",
-                done: checklist.find((c) => c.label === "Productos o servicios")?.done ?? false,
+                done: doneByKey.catalog ?? false,
                 isLink: true,
               },
               {
@@ -268,7 +272,7 @@ export default function BusinessConfig() {
                 label: "Preguntas frecuentes",
                 desc: "Base de conocimiento",
                 href: "#preguntas-frecuentes",
-                done: checklist.find((c) => c.label === "Preguntas frecuentes")?.done ?? false,
+                done: doneByKey.faq ?? false,
                 isLink: false,
               },
               {
@@ -276,7 +280,15 @@ export default function BusinessConfig() {
                 label: "Instrucciones",
                 desc: "Horarios, pagos, reglas",
                 href: "#info-clave",
-                done: checklist.find((c) => c.label === "Horarios")?.done ?? false,
+                done: doneByKey.info ?? false,
+                isLink: false,
+              },
+              {
+                icon: "🎙️",
+                label: "Tono de respuesta",
+                desc: "Cómo habla tu asistente",
+                href: "#tono-respuesta",
+                done: doneByKey.tone ?? false,
                 isLink: false,
               },
               {
@@ -292,15 +304,15 @@ export default function BusinessConfig() {
                 label: "Avisos",
                 desc: "Notificar al encargado",
                 href: "#avisos-encargado",
-                done: checklist.find((c) => c.label === "Avisos al encargado")?.done ?? false,
+                done: doneByKey.notify ?? false,
                 isLink: false,
               },
               {
-                icon: "⚡",
-                label: "Respuestas rápidas",
-                desc: "Frases para el equipo",
-                href: "#respuestas-rapidas",
-                done: checklist.find((c) => c.label === "Prueba de respuesta")?.done ?? false,
+                icon: "🧪",
+                label: "Probar asistente",
+                desc: "Mirá cómo responde",
+                href: "#probar-asistente",
+                done: false,
                 isLink: false,
               },
             ] as { icon: string; label: string; desc: string; href: string; done: boolean; isLink: boolean }[]).map((action) => {
@@ -436,6 +448,68 @@ export default function BusinessConfig() {
             placeholder={`Ej:\n¿Hacen envíos? Sí, a todo el país por correo. CABA en el día.\n¿Tienen garantía? 6 meses por defectos de fábrica.\n¿Puedo devolver? Sí, dentro de los 30 días con el ticket.\n¿Aceptan cuotas? Hasta 3 sin interés con tarjeta de crédito.`}
             className={`${inputClass} resize-none`}
           />
+        </section>
+
+        {/* Sección: Tono de respuesta */}
+        <section id="tono-respuesta" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <SectionHeader
+            label="Estilo"
+            title="Tono de respuesta"
+            description="Elegí cómo querés que suene tu asistente al escribir. Podés cambiarlo cuando quieras."
+          />
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+            {TONE_PRESETS.map((tone) => {
+              const selected = profile.response_tone === tone.code;
+              return (
+                <button
+                  key={tone.code}
+                  type="button"
+                  onClick={() => {
+                    setProfile((p) => ({ ...p, response_tone: selected ? "" : tone.code }));
+                    setSaved(false);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "12px 14px", borderRadius: 12, cursor: "pointer", textAlign: "left",
+                    border: `1.5px solid ${selected ? "var(--green)" : "var(--hairline)"}`,
+                    background: selected ? "var(--green-tint)" : "var(--surface)",
+                    transition: "border-color 0.15s, background 0.15s",
+                  }}
+                >
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{tone.emoji}</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{tone.label}</span>
+                    <span style={{ display: "block", fontSize: 11.5, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.35 }}>{tone.hint}</span>
+                  </span>
+                  <span style={{
+                    width: 18, height: 18, borderRadius: 999, flexShrink: 0,
+                    background: selected ? "var(--green)" : "transparent",
+                    border: selected ? "none" : "1.5px solid var(--hairline-2)",
+                    color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700,
+                  }}>
+                    {selected ? "✓" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
+            Si no elegís ninguno, tu asistente usa un tono cálido y natural por defecto.
+          </p>
+        </section>
+
+        {/* Sección: Probar asistente */}
+        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <SectionHeader
+              label="Prueba"
+              title="Probá cómo responde tu asistente"
+              description="Escribí como si fueras un cliente y mirá la respuesta. Usa la configuración que ya guardaste (datos, catálogo, tono y preguntas frecuentes)."
+            />
+            <button type="button" onClick={() => setShowTester(true)} className="atd-btn primary" style={{ flexShrink: 0 }}>
+              🧪 Probar asistente
+            </button>
+          </div>
         </section>
 
         {/* Sección: Agenda de turnos */}
@@ -758,6 +832,8 @@ export default function BusinessConfig() {
             {saving ? "Guardando..." : "Guardar cambios"}
           </button>
         </div>
+
+        {showTester && <AssistantTester onClose={() => setShowTester(false)} />}
 
     </DashboardContentShell>
   );

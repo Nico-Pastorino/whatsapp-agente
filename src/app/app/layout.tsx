@@ -11,7 +11,9 @@ const OPERATIONAL_PREFIXES = [
   "/app/connect",
   "/app/business",
   "/app/catalog",
+  "/app/agenda",
   "/app/team",
+  "/app/stats",
   "/app/more",
 ];
 

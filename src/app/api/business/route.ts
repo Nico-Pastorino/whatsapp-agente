@@ -77,10 +77,17 @@ export async function POST(req: NextRequest) {
             .filter((e): e is string => typeof e === "string" && ALLOWED_EVENTS.includes(e))
         : undefined;
 
+      // Tono de respuesta (código corto controlado por la app).
+      const ALLOWED_TONES = ["cercano", "profesional", "divertido", "directo", ""];
+      const response_tone =
+        typeof body.response_tone === "string" && ALLOWED_TONES.includes(body.response_tone.trim())
+          ? body.response_tone.trim()
+          : undefined;
+
       await setBusinessProfile(
         {
           name, description, products, extra, quick_replies, knowledge_base, booking_enabled, booking_config,
-          notify_enabled, notify_phone, notify_events,
+          notify_enabled, notify_phone, notify_events, response_tone,
         },
         businessId
       );

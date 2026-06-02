@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
       }
 
-      const messages = await getMessages(id, 100, businessId);
+      const messages = await getMessages(id, 50, businessId);
       return NextResponse.json(messages);
     });
   } catch (error) {

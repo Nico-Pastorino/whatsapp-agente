@@ -27,7 +27,6 @@ import {
   clearRequestedSessionAction,
   checkAccountAccess,
   getBestOutgoingJidForConversation,
-  getConnectionState,
   getRequestedSessionAction,
   getPendingOutbox,
   markOutboxSent,
@@ -47,16 +46,20 @@ import {
   getHandle,
   getAuthDir,
   getAllSessionBusinessIds,
+  isSessionConnected,
 } from "../src/lib/baileys/client";
 import { getWorkerInstanceName, getBaileysAuthBasePath } from "../src/lib/env";
 
 const INSTANCE = getWorkerInstanceName();
 const AUTH_BASE = getBaileysAuthBasePath();
 const SCAN_INTERVAL_MS        = 60_000;      // re-escanear negocios nuevos cada 60s
-const OUTBOX_INTERVAL_MS      = 2_000;       // procesar outbox cada 2s
-const INTERNAL_NOTIF_INTERVAL_MS = 4_000;    // enviar avisos internos cada 4s
-const HEARTBEAT_INTERVAL_MS   = 10_000;      // heartbeat independiente cada 10s
-const DISCONNECT_CHECK_MS     = 2_000;       // polling de desconexión remota cada 2s
+// Intervalos ajustados para minimizar egress de Supabase (plan free).
+// El gateo por estado de conexión ahora es en memoria (isSessionConnected),
+// así que estos loops ya NO consultan whatsapp_sessions en cada iteración.
+const OUTBOX_INTERVAL_MS      = 5_000;       // procesar outbox cada 5s (antes 2s)
+const INTERNAL_NOTIF_INTERVAL_MS = 10_000;   // avisos internos cada 10s (antes 4s)
+const HEARTBEAT_INTERVAL_MS   = 15_000;      // heartbeat cada 15s (antes 10s; sigue < ventana de 30s)
+const DISCONNECT_CHECK_MS     = 20_000;      // desconexión remota cada 20s (antes 2s)
 const AUTO_RETURN_INTERVAL_MS = 5 * 60_000;  // auto-retorno a IA cada 5min
 
 console.log(`[worker] Iniciando worker multi-tenant`);
@@ -125,12 +128,8 @@ setInterval(async () => {
     const handle = getHandle(businessId);
     if (!handle) continue;
 
-    // Heartbeat
-    await updateWorkerHeartbeat(getAuthDir(businessId), businessId, INSTANCE)
-      .catch(() => undefined);
-
-    const state = await getConnectionState(businessId, INSTANCE).catch(() => null);
-    if (!state || state.status !== "connected") continue;
+    // Gateo en memoria — sin consultar whatsapp_sessions (ahorro de egress).
+    if (!isSessionConnected(businessId)) continue;
 
     const access = await checkAccountAccess(businessId).catch((err) => {
       console.error(`[worker/${businessId}] Error validando acceso:`, err);
@@ -193,8 +192,8 @@ setInterval(async () => {
     const handle = getHandle(businessId);
     if (!handle) continue;
 
-    const state = await getConnectionState(businessId, INSTANCE).catch(() => null);
-    if (!state || state.status !== "connected") continue;
+    // Gateo en memoria — sin consultar whatsapp_sessions (ahorro de egress).
+    if (!isSessionConnected(businessId)) continue;
 
     const access = await checkAccountAccess(businessId).catch(() => null);
     if (!access?.canUseApp) continue;
