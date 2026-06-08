@@ -189,12 +189,23 @@ export async function startSession(businessId: string): Promise<void> {
       }
 
       if (code === DisconnectReason.loggedOut) {
-        console.log(`[worker/${businessId}] Sesión cerrada (loggedOut). No se reconecta.`);
+        console.log(`[worker/${businessId}] Sesión cerrada (loggedOut). Limpiando auth y regenerando QR...`);
         await setConnectionState(
           { status: "disconnected", qr_string: null, phone: null, auth_path: authDir },
           businessId,
           instanceName
         );
+
+        // Limpiar archivos de auth invalidados por el logout
+        try {
+          fs.rmSync(authDir, { recursive: true, force: true });
+          console.log(`[worker/${businessId}] Auth limpiado: ${authDir}`);
+        } catch (err) {
+          console.error(`[worker/${businessId}] Error limpiando auth:`, err);
+        }
+
+        // Reconectar (sin auth → Baileys genera nuevo QR automáticamente)
+        scheduleReconnect(businessId, code);
         return;
       }
 

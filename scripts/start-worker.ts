@@ -47,6 +47,7 @@ import {
   getAuthDir,
   getAllSessionBusinessIds,
   isSessionConnected,
+  beginManualDisconnect,
 } from "../src/lib/baileys/client";
 import { getWorkerInstanceName, getBaileysAuthBasePath } from "../src/lib/env";
 
@@ -253,6 +254,9 @@ setInterval(async () => {
     if (action !== "disconnect") continue;
 
     console.log(`[worker/${businessId}] Solicitud de desconexión desde el dashboard`);
+
+    // Marcar manual ANTES del logout para que client.ts no dispare su propio reconnect
+    beginManualDisconnect(businessId);
 
     const handle = getHandle(businessId);
     if (handle) {
