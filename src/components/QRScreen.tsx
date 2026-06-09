@@ -104,12 +104,12 @@ export default function QRScreen({ onConnected }: Props) {
         />
       ) : data.status === "connecting" ? (
         <div style={{ width: 220, height: 220, borderRadius: 14, background: "var(--surface-2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+          <div className="atd-spinner lg" />
           <p className="mono" style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase" }}>Conectando...</p>
         </div>
       ) : (
         <div style={{ width: 220, height: 220, borderRadius: 14, background: "var(--surface-2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-          <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+          <div className="atd-spinner lg" />
           {showBotOfflineHint ? (
             <div style={{ padding: "0 16px" }}>
               <p style={{ fontSize: 12, color: "#c0392b", fontWeight: 500, marginBottom: 4 }}>Asistente iniciando</p>

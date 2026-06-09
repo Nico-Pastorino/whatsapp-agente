@@ -132,6 +132,12 @@ export default function ConnectionGate({ currentView }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [trialPlan, setTrialPlan] = useState<TrialPlanState | null>(null);
+  // Conversación pedida por URL (?c=<id>), p. ej. al venir desde Reservas / Turnos.
+  // Se lee una vez al montar y se consume en el primer load de conversaciones.
+  const [requestedConversationId, setRequestedConversationId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("c");
+  });
 
   useEffect(() => {
     // No pollear cuando la pestaña no está visible (ahorra egress de Supabase).
@@ -174,8 +180,16 @@ export default function ConnectionGate({ currentView }: Props) {
       const data: Conversation[] = await res.json();
       const deduped = dedupeConversationsByContact(data);
       setConversations(deduped);
+      // Si la URL pidió una conversación puntual (?c=...) y existe, seleccionarla una vez.
+      const requested =
+        requestedConversationId && deduped.some((c) => c.id === requestedConversationId)
+          ? requestedConversationId
+          : null;
+      if (requestedConversationId) setRequestedConversationId(null);
       setSelectedId((current) =>
-        current && deduped.some((c) => c.id === current)
+        requested
+          ? requested
+          : current && deduped.some((c) => c.id === current)
           ? current
           : deduped[0]?.id ?? null
       );
@@ -221,7 +235,7 @@ export default function ConnectionGate({ currentView }: Props) {
   if (!initialChecked) {
     return (
       <div style={{ minHeight: "100svh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+        <div className="atd-spinner" />
       </div>
     );
   }

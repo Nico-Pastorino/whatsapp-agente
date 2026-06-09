@@ -161,8 +161,8 @@ export default function BusinessConfig() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-full" style={{ background: "var(--bg)" }}>
+        <div className="w-8 h-8 rounded-full animate-spin" style={{ border: "4px solid var(--hairline-2)", borderTopColor: "var(--green)" }} />
       </div>
     );
   }
@@ -208,42 +208,6 @@ export default function BusinessConfig() {
             </div>
           </section>
 
-          <section className="atd-card" style={{ padding: 20 }}>
-            <div className="page-sub" style={{ marginBottom: 10 }}>checklist</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {checklist.map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    color: "var(--ink)",
-                    textDecoration: "none",
-                    fontSize: 13,
-                  }}
-                >
-                  <span style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 999,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    background: item.done ? "var(--green)" : "var(--surface-2)",
-                    color: item.done ? "#fff" : "var(--muted)",
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}>
-                    {item.done ? "✓" : "•"}
-                  </span>
-                  {item.label}
-                </a>
-              ))}
-            </div>
-          </section>
         </div>
 
         {/* Acciones rápidas: navegación directa a cada sección */}
@@ -359,7 +323,7 @@ export default function BusinessConfig() {
           />
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--ink-2)" }}>
                 Nombre del negocio
               </label>
               <input
@@ -371,7 +335,7 @@ export default function BusinessConfig() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--ink-2)" }}>
                 Descripción del negocio
               </label>
               <textarea

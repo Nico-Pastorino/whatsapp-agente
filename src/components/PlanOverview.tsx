@@ -195,41 +195,43 @@ function OnboardingGuide({
   const planOptions = buildPlanPickerOptions(plan);
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
+    <div className="h-full overflow-y-auto" style={{ background: "var(--bg)" }}>
       <div className="max-w-3xl mx-auto px-5 py-8 sm:py-10 space-y-7">
         <div>
-          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.24em] text-emerald-600">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.24em]" style={{ color: "var(--green-soft)" }}>
             {trialExpired ? "Prueba finalizada" : pendingPayment ? "Pago en proceso" : "Primeros pasos"}
           </p>
-          <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+          <h2 className="mt-2 text-2xl sm:text-3xl font-semibold" style={{ color: "var(--ink)" }}>
             {title}
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-gray-600 leading-relaxed">
+          <p className="mt-3 text-sm sm:text-base leading-relaxed" style={{ color: "var(--ink-2)" }}>
             {description}
           </p>
         </div>
 
         {checkoutError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="rounded-xl px-4 py-3 text-sm" style={{ border: "1px solid rgba(180,35,24,0.3)", background: "rgba(180,35,24,0.08)", color: "#b42318" }}>
             {checkoutError}
           </div>
         )}
 
         {showPlanPicker && planOptions.length > 0 && (
           <div className="flex justify-center">
-            <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-sm">
+            <div className="inline-flex items-center gap-1 rounded-full p-1" style={{ border: "1px solid var(--hairline)", background: "var(--surface)", boxShadow: "var(--shadow-1)" }}>
               <button
                 onClick={() => setAnnual(false)}
-                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${!annual ? "bg-gray-900 text-white" : "text-gray-500"}`}
+                className="rounded-full px-4 py-1.5 text-sm font-semibold transition"
+                style={!annual ? { background: "var(--ink)", color: "var(--bg)" } : { color: "var(--ink-3)" }}
               >
                 Mensual
               </button>
               <button
                 onClick={() => setAnnual(true)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition ${annual ? "bg-gray-900 text-white" : "text-gray-500"}`}
+                className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition"
+                style={annual ? { background: "var(--ink)", color: "var(--bg)" } : { color: "var(--ink-3)" }}
               >
                 Anual
-                <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">−20%</span>
+                <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ background: "var(--green)", color: "var(--on-green)" }}>−20%</span>
               </button>
             </div>
           </div>
@@ -247,31 +249,34 @@ function OnboardingGuide({
               return (
                 <div
                   key={opt.code}
-                  className={`flex flex-col rounded-2xl border bg-white p-5 ${
-                    isRecommended ? "border-emerald-400 shadow-md ring-1 ring-emerald-200" : "border-gray-200"
-                  }`}
+                  className="flex flex-col rounded-2xl p-5"
+                  style={{
+                    background: "var(--surface)",
+                    border: isRecommended ? "1.5px solid var(--green)" : "1px solid var(--hairline)",
+                    boxShadow: isRecommended ? "var(--shadow-2)" : "var(--shadow-1)",
+                  }}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-base font-semibold text-gray-900">{opt.name}</p>
+                    <p className="text-base font-semibold" style={{ color: "var(--ink)" }}>{opt.name}</p>
                     {isRecommended && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider rounded-full px-2 py-0.5" style={{ color: "var(--green-ink)", background: "var(--green-tint)" }}>
                         Recomendado
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 min-h-[2.5em] leading-snug">
+                  <p className="text-xs min-h-[2.5em] leading-snug" style={{ color: "var(--ink-3)" }}>
                     {PLAN_TAGLINE[opt.code] ?? ""}
                   </p>
-                  <p className="mt-3 text-2xl font-semibold text-gray-900">
+                  <p className="mt-3 text-2xl font-semibold" style={{ color: "var(--ink)" }}>
                     {formatMoney(monthlyShown, opt.currency)}
-                    <span className="text-sm font-normal text-gray-400"> / mes</span>
+                    <span className="text-sm font-normal" style={{ color: "var(--muted)" }}> / mes</span>
                   </p>
                   {annual && monthlyShown != null && opt.price_monthly != null ? (
                     <div className="min-h-[2.2em]">
-                      <p className="text-[11px] text-gray-400">
+                      <p className="text-[11px]" style={{ color: "var(--muted)" }}>
                         {formatMoney(monthlyShown * 12, opt.currency)} · facturado anualmente
                       </p>
-                      <p className="text-[11px] font-semibold text-emerald-600">
+                      <p className="text-[11px] font-semibold" style={{ color: "var(--green-soft)" }}>
                         Ahorrás {formatARS((opt.price_monthly - monthlyShown) * 12)} al año
                       </p>
                     </div>
@@ -280,8 +285,8 @@ function OnboardingGuide({
                   )}
                   <ul className="space-y-1.5 my-4 flex-1">
                     {included.slice(0, 4).map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-xs text-gray-600">
-                        <span className="mt-0.5 text-emerald-500 shrink-0">✓</span>
+                      <li key={f} className="flex items-start gap-2 text-xs" style={{ color: "var(--ink-2)" }}>
+                        <span className="mt-0.5 shrink-0" style={{ color: "var(--green)" }}>✓</span>
                         <span>{f}</span>
                       </li>
                     ))}
@@ -289,11 +294,12 @@ function OnboardingGuide({
                   <button
                     onClick={() => onPay(opt.code, opt.code === plan.plan_code ? "initial" : "upgrade", annual ? "annual" : "monthly")}
                     disabled={checkoutLoading}
-                    className={`w-full rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
+                    className="w-full rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50"
+                    style={
                       isRecommended
-                        ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                        : "bg-gray-900 text-white hover:bg-gray-800"
-                    }`}
+                        ? { background: "var(--green)", color: "var(--on-green)" }
+                        : { background: "var(--ink)", color: "var(--bg)" }
+                    }
                   >
                     {loading ? "Redirigiendo..." : `Elegir ${opt.name}`}
                   </button>
@@ -304,18 +310,19 @@ function OnboardingGuide({
         )}
 
         {pendingPayment && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-            <p className="text-sm text-amber-800">
+          <div className="rounded-2xl p-5" style={{ border: "1px solid rgba(212,154,58,0.35)", background: "var(--human-tint)" }}>
+            <p className="text-sm" style={{ color: "var(--human)" }}>
               Mercado Pago está procesando tu pago. Esta página se actualiza sola; podés cerrarla y volver más tarde.
             </p>
           </div>
         )}
 
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs" style={{ color: "var(--muted)" }}>
           ¿Ya pagaste y no se activó?{" "}
           <button
             onClick={() => window.location.reload()}
-            className="text-emerald-600 hover:underline"
+            className="hover:underline"
+            style={{ color: "var(--green-soft)" }}
           >
             Actualizá la página
           </button>
@@ -463,7 +470,7 @@ export default function PlanOverview() {
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)" }}>
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+        <div className="w-8 h-8 rounded-full animate-spin" style={{ border: "4px solid var(--hairline-2)", borderTopColor: "var(--green)" }} />
       </div>
     );
   }

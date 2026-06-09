@@ -1192,7 +1192,7 @@ export default function ItemCatalog() {
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)" }}>
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+        <div className="atd-spinner" />
       </div>
     );
   }
@@ -1442,7 +1442,7 @@ export default function ItemCatalog() {
                   Tu catálogo está vacío
                 </p>
                 <p style={{ marginTop: 6, fontSize: 13, color: "var(--ink-3)", maxWidth: 340, margin: "6px auto 0" }}>
-                  Agregá tus productos y servicios para que tu asistente pueda responder consultas y generar ventas.
+                  Cargá tus productos o servicios para que tu asistente pueda responder precios y detalles sin inventar.
                 </p>
                 <button
                   onClick={() => {

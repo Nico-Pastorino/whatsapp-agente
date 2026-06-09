@@ -33,7 +33,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         return NextResponse.json({ error: "Conversación no encontrada" }, { status: 404 });
       }
 
-      const messages = await getMessages(id, 50, businessId);
+      // Últimos 200 mensajes en orden cronológico (getMessages ya devuelve
+      // los más recientes; con 50 el historial quedaba corto en chats largos).
+      const messages = await getMessages(id, 200, businessId);
       return NextResponse.json(messages);
     });
   } catch (error) {

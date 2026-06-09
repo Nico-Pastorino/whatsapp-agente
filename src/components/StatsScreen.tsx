@@ -147,7 +147,7 @@ export default function StatsScreen() {
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)" }}>
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+        <div className="atd-spinner" />
       </div>
     );
   }

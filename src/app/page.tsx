@@ -54,12 +54,12 @@ const COMPARISON = [
 ] as const;
 
 const TEMPLATES = [
-  { emoji: "📱", name: "Tienda de celulares", desc: "Productos, financiación, modelos y gigas.", count: "8 de 32 plantillas" },
-  { emoji: "👗", name: "Indumentaria", desc: "Talla, colores, cuidados y envíos.", count: "7 de 14 plantillas" },
-  { emoji: "✂️", name: "Peluquería / estética", desc: "Turnos, servicios, promociones y el tono.", count: "12 de 26 plantillas" },
-  { emoji: "🍽️", name: "Restaurante / comida", desc: "Menú, horarios, delivery y más.", count: "5 de 18 plantillas" },
-  { emoji: "🎵", name: "Eventos / bolche", desc: "Programación, ubicación, lineup y fangs.", count: "9 de 13 plantillas" },
-  { emoji: "🔧", name: "Servicios", desc: "Cotizaciones, horarios y soluciones.", count: "4 de 11 plantillas" },
+  { emoji: "📱", name: "Tienda de celulares", desc: "Productos, financiación, modelos y gigas.", count: "lista en minutos" },
+  { emoji: "👗", name: "Indumentaria", desc: "Talles, colores, cuidados y envíos.", count: "lista en minutos" },
+  { emoji: "✂️", name: "Peluquería / estética", desc: "Turnos, servicios, promociones y el tono.", count: "con reservas incluidas" },
+  { emoji: "🍽️", name: "Restaurante / comida", desc: "Menú, horarios, delivery y reservas.", count: "con reservas incluidas" },
+  { emoji: "🎵", name: "Eventos / boliche", desc: "Programación, entradas, ubicación y line-up.", count: "lista en minutos" },
+  { emoji: "🔧", name: "Servicios y oficios", desc: "Cotizaciones, horarios y turnos de trabajo.", count: "lista en minutos" },
 ];
 
 // ── Iconos (line-style, premium) ───────────────────────────────────────────────

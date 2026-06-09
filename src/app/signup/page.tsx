@@ -73,7 +73,7 @@ function SignupForm() {
     <AuthShell
       eyebrow="Crear cuenta"
       title="Creá tu cuenta"
-      subtitle="Creá tu cuenta y probá Pro durante 14 días sin cargo. Después elegís el plan que mejor se adapte a tu negocio."
+      subtitle="Creá tu cuenta y probá el plan Growth durante 14 días sin cargo. Después elegís el plan que mejor se adapte a tu negocio."
       planBanner={planBanner}
       footer={
         <>

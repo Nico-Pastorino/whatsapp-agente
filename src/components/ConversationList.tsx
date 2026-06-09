@@ -77,7 +77,9 @@ export default function ConversationList({
       <div className="page-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div>
-            <div className="page-sub">inbox · {conversations.length} hoy</div>
+            <div className="page-sub">
+              inbox · {conversations.length} {conversations.length === 1 ? "conversación" : "conversaciones"}
+            </div>
             <h1 className="page-title">Conversaciones</h1>
           </div>
           {attentionCount > 0 && (
@@ -141,8 +143,10 @@ export default function ConversationList({
       {/* List */}
       <div style={{ flex: 1, overflow: "auto" }}>
         {filtered.length === 0 ? (
-          <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
-            Sin conversaciones
+          <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
+            {search.trim() || filter !== "all"
+              ? "No encontramos conversaciones con ese filtro."
+              : "Cuando un cliente escriba a tu WhatsApp, la conversación va a aparecer acá."}
           </div>
         ) : (
           filtered.map((conv, i) => {

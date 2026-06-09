@@ -57,6 +57,17 @@ function formatTime(ts: number): string {
   return new Date(ts * 1000).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 }
 
+// Etiqueta del divisor superior del historial: "hoy", "ayer" o la fecha.
+function formatDayLabel(ts: number): string {
+  const date = new Date(ts * 1000);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  if (date >= today) return "hoy";
+  if (date >= yesterday) return "ayer";
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
+}
+
 export default function ConversationPanel({
   conversation,
   onModeChange,
@@ -198,7 +209,7 @@ export default function ConversationPanel({
           <p className="mono" style={{ textAlign: "center", color: "var(--muted)", fontSize: 11, textTransform: "uppercase", padding: "20px 0" }}>Sin mensajes aún</p>
         ) : (
           <>
-            <div className="mono" style={{ fontSize: 10, color: "var(--muted)", textAlign: "center", margin: "4px 0 8px" }}>· hoy ·</div>
+            <div className="mono" style={{ fontSize: 10, color: "var(--muted)", textAlign: "center", margin: "4px 0 8px" }}>· {formatDayLabel(messages[0].created_at)} ·</div>
             {messages.map((m) => {
               const isOut = m.role === "assistant" || m.role === "human";
               const isHumanOut = m.role === "human";

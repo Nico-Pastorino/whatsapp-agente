@@ -335,9 +335,12 @@ function AppointmentCard({
             <span style={{ display: "inline-block", marginTop: 6, fontSize: 11, color: "var(--green-soft)", fontWeight: 600 }}>Tomado por el asistente</span>
           )}
           {a.conversation_id && (
-            <span style={{ display: "inline-block", marginTop: 6, marginLeft: a.source === "ai" ? 8 : 0, fontSize: 11, color: "var(--muted)" }}>
-              Viene de una conversación
-            </span>
+            <a
+              href={`/app/conversations?c=${a.conversation_id}`}
+              style={{ display: "inline-block", marginTop: 6, marginLeft: a.source === "ai" ? 8 : 0, fontSize: 11, color: "var(--green-soft)", textDecoration: "underline", textUnderlineOffset: 2 }}
+            >
+              Ver conversación →
+            </a>
           )}
         </div>
         <span style={{ flexShrink: 0, padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: meta.bg, color: meta.color }}>

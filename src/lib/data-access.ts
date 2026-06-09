@@ -2682,15 +2682,20 @@ export async function getMessages(
   businessId = getBusinessId()
 ): Promise<Message[]> {
   const supabase = getSupabaseAdminClient();
+  // IMPORTANTE: traer los ÚLTIMOS `limit` mensajes (desc) y luego revertir a
+  // orden cronológico. Con asc + limit se devolvían los PRIMEROS mensajes
+  // históricos, y en conversaciones largas los mensajes nuevos (cliente, IA,
+  // humano) nunca aparecían en el panel.
   const { data, error } = await supabase
     .from("messages")
     .select("id, conversation_id, role, content, created_at")
     .eq("business_id", businessId)
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []).map(mapMessageRow);
+  return (data ?? []).map(mapMessageRow).reverse();
 }
 
 export async function getRecentHistory(

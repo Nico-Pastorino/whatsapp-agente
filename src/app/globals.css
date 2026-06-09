@@ -412,3 +412,15 @@ body {
 .lp-acc-body > div { overflow: hidden; }
 .lp-acc-ic { transition: transform .3s ease; }
 .lp-acc-ic.open { transform: rotate(45deg); }
+
+/* Spinner de carga unificado (respeta tema claro/oscuro vía variables). */
+.atd-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 4px solid var(--hairline-2);
+  border-top-color: var(--green);
+  animation: spin 1s linear infinite;
+}
+.atd-spinner.lg { width: 40px; height: 40px; }
+@keyframes spin { to { transform: rotate(360deg); } }
