@@ -15,6 +15,7 @@ import StatsScreen from "./StatsScreen";
 import TeamManagement from "./TeamManagement";
 import HomeScreen from "./HomeScreen";
 import MoreScreen from "./MoreScreen";
+import SupportScreen from "./SupportScreen";
 import MobileTabBar from "./MobileTabBar";
 import { Spark } from "./atende/Icons";
 
@@ -57,7 +58,8 @@ type DashboardView =
   | "plan"
   | "team"
   | "connect"
-  | "stats";
+  | "stats"
+  | "support";
 
 type ConnectionStatus = "disconnected" | "qr" | "connecting" | "connected";
 
@@ -235,6 +237,9 @@ export default function ConnectionGate({ currentView }: Props) {
     mobileContent = content;
   } else if (currentView === "more") {
     content = <MoreScreen />;
+    mobileContent = content;
+  } else if (currentView === "support") {
+    content = <SupportScreen />;
     mobileContent = content;
   } else if (currentView === "business") {
     content = <BusinessConfig />;

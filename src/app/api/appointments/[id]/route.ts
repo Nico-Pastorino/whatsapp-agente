@@ -19,7 +19,7 @@ export async function PATCH(
       // Verificamos que el turno exista y pertenezca a ESTE negocio.
       const existing = await getAppointmentById(id, businessId);
       if (!existing) {
-        return NextResponse.json({ error: "Turno no encontrado." }, { status: 404 });
+        return NextResponse.json({ error: "Reserva no encontrada." }, { status: 404 });
       }
 
       const patch: AppointmentInput = {};

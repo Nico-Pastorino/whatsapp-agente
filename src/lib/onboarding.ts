@@ -99,15 +99,9 @@ export function buildAssistantChecklist(
       href: "/app/catalog",
     },
     {
-      key: "faq",
-      label: "Preguntas frecuentes",
-      done: Boolean(kb),
-      href: "#preguntas-frecuentes",
-    },
-    {
       key: "info",
-      label: "Horarios e información clave",
-      done: Boolean(extra),
+      label: "Info clave y preguntas frecuentes",
+      done: Boolean(extra || kb),
       href: "#info-clave",
     },
     {

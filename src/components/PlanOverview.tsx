@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { UpgradeOption } from "@/lib/db";
 import { ANNUAL_DISCOUNT, formatARS } from "@/lib/plan-display";
 import DashboardContentShell from "./DashboardContentShell";
+import SupportCard from "./SupportCard";
 
 interface PlanSummary {
   plan_code: string;
@@ -81,7 +82,7 @@ const PLAN_INCLUDED: Record<string, string[]> = {
     "Hasta 150 productos/servicios en catálogo",
     "Hasta 10 usuarios del equipo",
     "Avisos al encargado por WhatsApp",
-    "Agenda de turnos automática con IA",
+    "Reservas / Turnos automáticos con IA",
     "Base de conocimiento para la IA",
     "Métricas de conversaciones",
   ],
@@ -99,7 +100,7 @@ const PLAN_INCLUDED: Record<string, string[]> = {
 
 const PLAN_LOCKED: Record<string, string[]> = {
   starter: [
-    "Agenda de turnos automática con IA",
+    "Reservas / Turnos automáticos con IA",
     "Avisos al encargado por WhatsApp",
     "Plantillas comerciales y premium",
     "Base de conocimiento para la IA",
@@ -679,7 +680,8 @@ export default function PlanOverview() {
           </div>
         )}
 
-      
+        {/* Soporte */}
+        <SupportCard />
 
       {/* Cancel modal */}
       {showCancelModal && (

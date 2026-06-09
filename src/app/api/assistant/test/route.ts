@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateReply } from "@/lib/openrouter";
 import type { Message } from "@/lib/db";
 import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,15 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     return await withActiveDashboardBusinessContext(async ({ businessId }) => {
+      // Límite por negocio para controlar costo de IA (cada prueba llama al LLM).
+      const rl = rateLimit(`assistant-test:${businessId}`, 20, 5 * 60_000);
+      if (!rl.ok) {
+        return NextResponse.json(
+          { error: "Probaste muchas veces seguidas. Esperá un momento y reintentá." },
+          { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+        );
+      }
+
       const body = await req.json().catch(() => null);
       const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
 

@@ -3,6 +3,7 @@ import { MercadoPagoConfig, PreApproval } from "mercadopago";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
 import { canUpgradeTo, checkAccountAccess } from "@/lib/db";
+import { rateLimit } from "@/lib/rate-limit";
 // Descuento anual centralizado en plan-display.ts — fuente única para toda la app.
 import { ANNUAL_DISCOUNT } from "@/lib/plan-display";
 
@@ -30,6 +31,14 @@ function getAppUrl(): string {
 export async function POST(req: NextRequest) {
   try {
     return await withDashboardBusinessContext(async ({ businessId, user }) => {
+      const rl = rateLimit(`checkout:${businessId}`, 8, 5 * 60_000);
+      if (!rl.ok) {
+        return NextResponse.json(
+          { error: "Demasiados intentos de pago seguidos. Esperá un momento." },
+          { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+        );
+      }
+
       const body = await req.json().catch(() => ({})) as Record<string, unknown>;
       const requestedPlanCode =
         typeof body.plan_code === "string" ? body.plan_code.trim() : null;

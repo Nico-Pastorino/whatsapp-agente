@@ -13,7 +13,8 @@ type MobileView =
   | "team"
   | "connect"
   | "more"
-  | "stats";
+  | "stats"
+  | "support";
 
 interface Props {
   activeView: MobileView;
@@ -24,7 +25,7 @@ function activeTab(activeView: MobileView): string {
   if (activeView === "business" || activeView === "catalog") return "business";
   if (activeView === "home") return "home";
   if (activeView === "plan") return "plan";
-  if (activeView === "agenda" || activeView === "team" || activeView === "connect" || activeView === "more" || activeView === "stats") return "more";
+  if (activeView === "agenda" || activeView === "team" || activeView === "connect" || activeView === "more" || activeView === "stats" || activeView === "support") return "more";
   return "home";
 }
 

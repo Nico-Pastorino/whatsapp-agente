@@ -129,7 +129,7 @@ export default function AgendaScreen() {
           });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "No se pudo guardar el turno.");
+        setError(data.error ?? "No se pudo guardar la reserva.");
         return;
       }
       setShowForm(false);
@@ -172,7 +172,7 @@ export default function AgendaScreen() {
     <DashboardContentShell maxWidth={960}>
       <div style={{ padding: "20px 16px 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Turnos y reservas</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Reservas / Turnos</h1>
           <button onClick={openNew} className="atd-btn green" style={{ whiteSpace: "nowrap" }}>
             + Nueva reserva
           </button>
@@ -198,9 +198,9 @@ export default function AgendaScreen() {
         ) : appointments.length === 0 ? (
           <div className="atd-card" style={{ padding: 28, textAlign: "center" }}>
             <div style={{ fontSize: 34, marginBottom: 8 }}>🗓️</div>
-            <h3 style={{ fontSize: 17, fontWeight: 600, margin: "0 0 6px" }}>Todavía no hay turnos</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 600, margin: "0 0 6px" }}>Todavía no hay reservas</h3>
             <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 16px" }}>
-              Creá tu primer turno o dejá que tu asistente los tome por vos.
+              Creá tu primera reserva o dejá que tu asistente las tome por vos.
             </p>
             <button onClick={openNew} className="atd-btn green">+ Nueva reserva</button>
           </div>

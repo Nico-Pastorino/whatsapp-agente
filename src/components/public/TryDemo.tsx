@@ -8,7 +8,7 @@ type Msg = { id: number; from: "me" | "them"; text: string };
 const SUGGESTIONS = [
   "¿Tienen disponibilidad hoy?",
   "¿Cuánto cuesta el servicio?",
-  "Quiero reservar un turno",
+  "Quiero hacer una reserva",
   "¿Aceptan Mercado Pago?",
 ];
 

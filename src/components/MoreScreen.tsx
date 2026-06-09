@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Users, QR, ArrowLeft, Calendar, BarChart } from "./atende/Icons";
+import { Users, QR, ArrowLeft, Calendar, BarChart, LifeBuoy } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
 
 interface MenuItem {
@@ -16,9 +16,10 @@ export default function MoreScreen() {
 
   const items: MenuItem[] = [
     { icon: <QR size={18} />,   label: "Conectar WhatsApp", sub: "Vincular o reconectar el número",        href: "/app/connect" },
-    { icon: <Calendar size={18} />, label: "Turnos",        sub: "Agenda y reservas de tus clientes",       href: "/app/agenda" },
+    { icon: <Calendar size={18} />, label: "Reservas / Turnos", sub: "Solicitudes de reservas y turnos",    href: "/app/agenda" },
     { icon: <Users size={18} />, label: "Equipo",            sub: "Miembros, roles e invitaciones",        href: "/app/team" },
     { icon: <BarChart size={18} />, label: "Métricas",      sub: "Cómo viene respondiendo tu asistente",    href: "/app/stats" },
+    { icon: <LifeBuoy size={18} />, label: "Ayuda y soporte", sub: "Hablá con nosotros por WhatsApp o correo", href: "/app/support" },
   ];
 
   return (

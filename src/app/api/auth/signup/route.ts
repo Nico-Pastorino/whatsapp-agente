@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase";
 import { createAppSessionToken, getSessionCookieOptions } from "@/lib/app-session";
 import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
+import { rateLimit, clientIpFromRequest } from "@/lib/rate-limit";
 
 const VALID_PLANS = new Set(["starter", "growth", "pro"]);
 // El trial de 14 días usa el plan Growth para que el usuario experimente el valor
@@ -23,6 +24,15 @@ function slugify(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limit por IP para evitar alta masiva de cuentas/negocios.
+  const rl = rateLimit(`signup:${clientIpFromRequest(req)}`, 5, 10 * 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Demasiados intentos. Esperá unos minutos e intentá de nuevo." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
+
   const body = await req.json().catch(() => ({}));
 
   const fullName: string = typeof body.fullName === "string" ? body.fullName.trim() : "";

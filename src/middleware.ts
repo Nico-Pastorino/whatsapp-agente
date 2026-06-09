@@ -27,7 +27,15 @@ async function verifySessionCookie(token: string): Promise<boolean> {
   if (!payloadSegment || !signatureSegment) return false;
 
   try {
-    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+    // Mismo orden de resolución que lib/app-session.ts: si está definido
+    // APP_SESSION_SECRET se usa ese; si no, cae al service role key.
+    // (Antes el middleware solo leía el service role: si alguien definía
+    //  APP_SESSION_SECRET, el dashboard firmaba con uno y el middleware
+    //  verificaba con otro → rechazaba TODAS las sesiones.)
+    const secret =
+      process.env.APP_SESSION_SECRET?.trim() ||
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      "";
     if (!secret) return false;
 
     const encoder = new TextEncoder();

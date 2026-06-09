@@ -242,16 +242,17 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
     }
   }
 
-  if (profile.extra) {
-    lines.push("", "INFORMACIÓN ADICIONAL:", sanitizeForPrompt(profile.extra, 1000));
-  }
-
-  if (profile.knowledge_base) {
+  // Combine extra and knowledge_base into a single block (backwards compatible:
+  // old users who still have content in knowledge_base get it included too).
+  const combinedInfo = [profile.extra, profile.knowledge_base]
+    .filter(Boolean)
+    .join("\n\n");
+  if (combinedInfo) {
     lines.push(
       "",
-      "BASE DE CONOCIMIENTO (preguntas frecuentes y políticas del negocio):",
-      sanitizeForPrompt(profile.knowledge_base, 3000),
-      "Usá esta base como fuente principal para responder dudas sobre políticas, envíos, garantías, formas de pago, devoluciones y preguntas frecuentes."
+      "INFORMACIÓN CLAVE Y PREGUNTAS FRECUENTES:",
+      sanitizeForPrompt(combinedInfo, 4000),
+      "Usá esta información como fuente principal para responder dudas sobre políticas, envíos, garantías, formas de pago, devoluciones y preguntas frecuentes."
     );
   }
 

@@ -12,7 +12,7 @@ const SUGGESTIONS = [
   "Hola, ¿qué horarios tienen?",
   "¿Cuánto sale?",
   "¿Hacen envíos?",
-  "Quiero reservar un turno",
+  "Quiero hacer una reserva",
 ];
 
 export default function AssistantTester({ onClose }: { onClose: () => void }) {

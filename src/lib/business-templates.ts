@@ -690,57 +690,43 @@ export function getTemplateById(id: string): BusinessTemplate | undefined {
 export function buildExtraFromTemplate(template: BusinessTemplate): string {
   const lines: string[] = [];
 
-  lines.push(`Tono de respuesta: ${template.tone}`);
-  lines.push("");
-  lines.push(`Mensaje de bienvenida sugerido: ${template.welcomeMessage}`);
-  lines.push("");
-  lines.push(`Cuando no sabés responder: ${template.fallbackMessage}`);
-  lines.push("");
-  lines.push(`Para derivar a un humano: ${template.handoffMessage}`);
+  lines.push(`Mensaje de bienvenida: ${template.welcomeMessage}`);
+  lines.push(`Cuando no sabe responder: ${template.fallbackMessage}`);
+  lines.push(`Para derivar al equipo: ${template.handoffMessage}`);
 
   if (template.faqs.length > 0) {
     lines.push("");
-    lines.push("Preguntas frecuentes que puede hacer el cliente:");
+    lines.push("Preguntas frecuentes:");
     for (const faq of template.faqs) {
-      lines.push(`- ${faq}`);
+      lines.push(`- ${faq}: [completar respuesta real]`);
     }
   }
 
   if (template.commercialIntents.length > 0) {
     lines.push("");
     lines.push(
-      `Cuando el cliente mencione estas palabras, mostrar interés de compra: ${template.commercialIntents.join(", ")}.`
+      `Palabras clave de interés: ${template.commercialIntents.join(", ")}`
     );
   }
 
   if (template.responseRules.length > 0) {
     lines.push("");
-    lines.push("Reglas de respuesta para este rubro:");
+    lines.push("Reglas del asistente:");
     for (const rule of template.responseRules) {
       lines.push(`- ${rule}`);
-    }
-  }
-
-  if (template.responseExamples.length > 0) {
-    lines.push("");
-    lines.push("Ejemplos de respuestas:");
-    for (const example of template.responseExamples) {
-      lines.push(`- ${example}`);
     }
   }
 
   if (template.suggestedEmojis.length > 0) {
     lines.push("");
     lines.push(
-      `Emojis sugeridos para este rubro (usarlos con moderación, máximo 1 o 2 por respuesta): ${template.suggestedEmojis.join(" ")}`
+      `Emojis sugeridos: ${template.suggestedEmojis.join(" ")} (máximo 1-2 por respuesta)`
     );
   }
 
   if (template.recommendedFields.length > 0) {
     lines.push("");
-    lines.push(
-      "Completar estos datos para personalizar las respuestas (reemplazar [completar] con información real):"
-    );
+    lines.push("Datos a completar:");
     for (const field of template.recommendedFields) {
       lines.push(`- ${field}: [completar]`);
     }
@@ -749,29 +735,25 @@ export function buildExtraFromTemplate(template: BusinessTemplate): string {
   return lines.join("\n");
 }
 
-export function buildKnowledgeBaseFromTemplate(template: BusinessTemplate): string {
-  const lines: string[] = [];
+/**
+ * Kept for backwards compatibility — all template content now goes into `extra`.
+ * Returns empty string so new template applications don't duplicate content.
+ */
+export function buildKnowledgeBaseFromTemplate(_template: BusinessTemplate): string {
+  return "";
+}
 
-  if (template.faqs.length > 0) {
-    lines.push("Preguntas frecuentes sugeridas:");
-    for (const faq of template.faqs) {
-      lines.push(`- ${faq}: [completar respuesta real]`);
-    }
-  }
-
-  if (template.responseRules.length > 0) {
-    lines.push("", "Reglas para responder:");
-    for (const rule of template.responseRules) {
-      lines.push(`- ${rule}`);
-    }
-  }
-
-  if (template.responseExamples.length > 0) {
-    lines.push("", "Ejemplos de tono:");
-    for (const example of template.responseExamples) {
-      lines.push(`- ${example}`);
-    }
-  }
-
-  return lines.join("\n");
+/**
+ * Maps a template's free-text tone description to the closest TONE_PRESETS code.
+ * Falls back to "cercano" if no strong match is found.
+ */
+export function mapTemplateTone(template: BusinessTemplate): string {
+  const t = template.tone.toLowerCase();
+  if (t.includes("profesional") || t.includes("comercial") || t.includes("seguro") || t.includes("claro, moderno")) return "profesional";
+  if (t.includes("relajado") || t.includes("onda") || t.includes("energético") || t.includes("joven") || t.includes("divertido")) return "divertido";
+  if (t.includes("directo") || t.includes("concreto") || t.includes("breve") || t.includes("práctico")) return "directo";
+  if (t.includes("cálido") || t.includes("cercano") || t.includes("amigable") || t.includes("amable") || t.includes("cordial") || t.includes("empático") || t.includes("atento")) return "cercano";
+  // Motivational / encouraging tones map to cercano
+  if (t.includes("motivador") || t.includes("alentador")) return "cercano";
+  return "cercano";
 }

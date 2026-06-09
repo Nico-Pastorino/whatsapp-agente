@@ -3459,7 +3459,7 @@ export async function createAppointment(
     const used = await getAppointmentMonthlyCount(businessId);
     if (used >= limit) {
       throw new AppointmentLimitError(
-        `Alcanzaste el límite de ${limit} turnos este mes en tu plan. Mejorá tu plan para turnos ilimitados.`
+        `Alcanzaste el límite de ${limit} reservas este mes en tu plan. Mejorá tu plan para reservas ilimitadas.`
       );
     }
   }

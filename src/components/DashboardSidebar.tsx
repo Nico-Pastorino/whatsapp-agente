@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart, Calendar } from "./atende/Icons";
+import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart, Calendar, LifeBuoy } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
 
 type DashboardView =
@@ -15,7 +15,8 @@ type DashboardView =
   | "plan"
   | "team"
   | "connect"
-  | "stats";
+  | "stats"
+  | "support";
 
 interface Props {
   activeView: DashboardView;
@@ -43,11 +44,12 @@ const NAV_ITEMS: Array<{ key: DashboardView; label: string; Icon: React.Componen
   { key: "conversations", label: "Conversaciones",  Icon: Chat,   href: "/app/conversations" },
   { key: "business",      label: "Mi negocio",       Icon: Shop,   href: "/app/business" },
   { key: "catalog",       label: "Catálogo",         Icon: Bolt,   href: "/app/catalog" },
-  { key: "agenda",        label: "Turnos",           Icon: Calendar, href: "/app/agenda" },
+  { key: "agenda",        label: "Reservas / Turnos", Icon: Calendar, href: "/app/agenda" },
   { key: "plan",          label: "Mi plan",          Icon: Layers, href: "/app/plan" },
   { key: "team",          label: "Equipo",           Icon: Users,  href: "/app/team" },
   { key: "stats",         label: "Métricas",         Icon: BarChart, href: "/app/stats" },
   { key: "connect",       label: "Conectar",         Icon: QR,     href: "/app/connect" },
+  { key: "support",       label: "Ayuda y soporte",  Icon: LifeBuoy, href: "/app/support" },
 ];
 
 export default function DashboardSidebar({ activeView, phone, onDisconnect }: Props) {

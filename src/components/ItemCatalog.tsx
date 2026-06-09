@@ -416,7 +416,7 @@ function ItemCard({
         {item.item_type === "service" && (item.duration || item.requires_booking) && (
           <div style={{ display: "flex", gap: 10, fontSize: 11.5, color: "var(--muted)" }}>
             {item.duration && <span>⏱ {item.duration}</span>}
-            {item.requires_booking && <span>📅 Requiere turno</span>}
+            {item.requires_booking && <span>📅 Requiere reserva</span>}
           </div>
         )}
 

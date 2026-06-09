@@ -5,6 +5,7 @@ import {
   getTemplateById,
   buildExtraFromTemplate,
   buildKnowledgeBaseFromTemplate,
+  mapTemplateTone,
 } from "@/lib/business-templates";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,9 @@ export async function POST(req: NextRequest) {
 
       const current = await getBusinessProfile(businessId);
       const templateExtra = buildExtraFromTemplate(template);
-      const templateKnowledgeBase = buildKnowledgeBaseFromTemplate(template);
+      // All content now goes into `extra`; knowledge_base is kept empty for new applies
+      const _templateKnowledgeBase = buildKnowledgeBaseFromTemplate(template);
+      const templateToneCode = mapTemplateTone(template);
       const templateProducts = template.suggestedCategories.map((cat) => ({
         name: cat,
         price: "",
@@ -52,9 +55,10 @@ export async function POST(req: NextRequest) {
             description: template.botGoal,
             products: templateProducts,
             extra: templateExtra,
-            knowledge_base: templateKnowledgeBase,
+            knowledge_base: "",
             booking_enabled: Boolean(templateBookingConfig),
             booking_config: templateBookingConfig,
+            response_tone: templateToneCode,
           },
           businessId
         );
@@ -78,10 +82,9 @@ export async function POST(req: NextRequest) {
         const newExtra = existingExtra
           ? `${existingExtra}\n\n---\nPlantilla: ${template.name}\n${templateExtra}`
           : templateExtra;
+
+        // In merge mode, don't touch knowledge_base if it has content (backwards compat)
         const existingKnowledgeBase = current.knowledge_base?.trim() ?? "";
-        const newKnowledgeBase = existingKnowledgeBase
-          ? `${existingKnowledgeBase}\n\n---\nBase sugerida: ${template.name}\n${templateKnowledgeBase}`
-          : templateKnowledgeBase;
 
         await setBusinessProfile(
           {
@@ -89,11 +92,14 @@ export async function POST(req: NextRequest) {
             description: newDescription,
             products: newProducts,
             extra: newExtra,
-            knowledge_base: newKnowledgeBase,
+            knowledge_base: existingKnowledgeBase || "",
             booking_enabled: current.booking_enabled || Boolean(templateBookingConfig),
             booking_config: current.booking_config?.trim()
               ? current.booking_config
               : templateBookingConfig,
+            response_tone: current.response_tone?.trim()
+              ? current.response_tone
+              : templateToneCode,
           },
           businessId
         );

@@ -186,3 +186,12 @@ export const BarChart = make(
     <rect x="13.5" y="3" width="3.5" height="14" rx="1" />
   </>
 );
+
+// Salvavidas — usado para Soporte / Ayuda
+export const LifeBuoy = make(
+  <>
+    <circle cx="10" cy="10" r="7.5" />
+    <circle cx="10" cy="10" r="3" />
+    <path d="M4.7 4.7l2.7 2.7M12.6 12.6l2.7 2.7M15.3 4.7l-2.7 2.7M7.4 12.6l-2.7 2.7" />
+  </>
+);

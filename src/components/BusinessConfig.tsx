@@ -22,11 +22,11 @@ interface Profile {
 }
 
 const NOTIFY_EVENT_OPTIONS: { key: string; label: string; icon: string }[] = [
-  { key: "new_appointment", label: "Turno reservado", icon: "📅" },
-  { key: "appointment_cancelled", label: "Turno cancelado", icon: "❌" },
-  { key: "human_handoff", label: "Cliente solicita atención humana", icon: "🙋" },
-  { key: "hot_lead", label: "Cliente interesado / venta potencial", icon: "🔥" },
-  { key: "unanswered", label: "Asistente sin respuesta adecuada", icon: "🤔" },
+  { key: "new_appointment", label: "Nueva reserva / turno", icon: "📅" },
+  { key: "appointment_cancelled", label: "Reserva cancelada", icon: "❌" },
+  { key: "human_handoff", label: "Cliente pide hablar con una persona", icon: "🙋" },
+  { key: "hot_lead", label: "Cliente interesado en comprar o reservar", icon: "🔥" },
+  { key: "unanswered", label: "El asistente no supo qué responder", icon: "🤔" },
   { key: "daily_summary", label: "Resumen diario de actividad", icon: "📊" },
 ];
 
@@ -268,17 +268,9 @@ export default function BusinessConfig() {
                 isLink: true,
               },
               {
-                icon: "💬",
-                label: "Preguntas frecuentes",
-                desc: "Base de conocimiento",
-                href: "#preguntas-frecuentes",
-                done: doneByKey.faq ?? false,
-                isLink: false,
-              },
-              {
                 icon: "📋",
-                label: "Instrucciones",
-                desc: "Horarios, pagos, reglas",
+                label: "Info clave y FAQs",
+                desc: "Horarios, pagos, preguntas",
                 href: "#info-clave",
                 done: doneByKey.info ?? false,
                 isLink: false,
@@ -293,7 +285,7 @@ export default function BusinessConfig() {
               },
               {
                 icon: "📅",
-                label: "Turnos",
+                label: "Reservas / Turnos",
                 desc: "Agenda automática",
                 href: "#turnos-reservas",
                 done: profile.booking_enabled,
@@ -358,10 +350,10 @@ export default function BusinessConfig() {
           onApplied={reloadProfile}
         />
 
-        {/* Sección 1: Identidad del negocio */}
+        {/* Paso 1: Identidad del negocio */}
         <section id="datos-negocio" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
-            label="Sección 1"
+            label="Paso 1"
             title="Identidad del negocio"
             description="El nombre y la descripción definen quién sos y qué hacés."
           />
@@ -393,10 +385,10 @@ export default function BusinessConfig() {
           </div>
         </section>
 
-        {/* Sección 2: Catálogo → link al nuevo módulo */}
+        {/* Paso 2: Catálogo → link al nuevo módulo */}
         <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
-            label="Sección 2"
+            label="Paso 2"
             title="Catálogo de productos y servicios"
             description="Gestioná lo que vendés desde la sección dedicada. Tu asistente usa esa información para responder consultas sobre precios, stock y disponibilidad."
           />
@@ -418,42 +410,10 @@ export default function BusinessConfig() {
           </Link>
         </section>
 
-        {/* Sección 3: Instrucciones adicionales */}
-        <section id="info-clave" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-          <SectionHeader
-            label="Sección 3"
-            title="Instrucciones adicionales"
-            description="Horarios, ubicación, métodos de pago, cómo reservar, condiciones especiales. Todo lo que no entra en el catálogo pero el cliente puede preguntar."
-          />
-          <textarea
-            value={profile.extra}
-            onChange={(e) => updateField("extra", e.target.value)}
-            rows={5}
-            placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada`}
-            className={`${inputClass} resize-none`}
-          />
-        </section>
-
-        {/* Sección: Base de conocimiento */}
-        <section id="preguntas-frecuentes" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-          <SectionHeader
-            label="Entrenamiento"
-            title="Base de conocimiento"
-            description="Cargá preguntas frecuentes y políticas (envíos, garantías, devoluciones, formas de pago). Tu asistente responde mejor con esta base."
-          />
-          <textarea
-            value={profile.knowledge_base}
-            onChange={(e) => updateField("knowledge_base", e.target.value)}
-            rows={7}
-            placeholder={`Ej:\n¿Hacen envíos? Sí, a todo el país por correo. CABA en el día.\n¿Tienen garantía? 6 meses por defectos de fábrica.\n¿Puedo devolver? Sí, dentro de los 30 días con el ticket.\n¿Aceptan cuotas? Hasta 3 sin interés con tarjeta de crédito.`}
-            className={`${inputClass} resize-none`}
-          />
-        </section>
-
-        {/* Sección: Tono de respuesta */}
+        {/* Paso 3: Tono de respuesta */}
         <section id="tono-respuesta" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
-            label="Estilo"
+            label="Paso 3"
             title="Tono de respuesta"
             description="Elegí cómo querés que suene tu asistente al escribir. Podés cambiarlo cuando quieras."
           />
@@ -498,27 +458,29 @@ export default function BusinessConfig() {
           </p>
         </section>
 
-        {/* Sección: Probar asistente */}
-        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-            <SectionHeader
-              label="Prueba"
-              title="Probá cómo responde tu asistente"
-              description="Escribí como si fueras un cliente y mirá la respuesta. Usa la configuración que ya guardaste (datos, catálogo, tono y preguntas frecuentes)."
-            />
-            <button type="button" onClick={() => setShowTester(true)} className="atd-btn primary" style={{ flexShrink: 0 }}>
-              🧪 Probar asistente
-            </button>
-          </div>
+        {/* Paso 4: Información clave y preguntas frecuentes (merged) */}
+        <section id="info-clave" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <SectionHeader
+            label="Paso 4"
+            title="Información clave y preguntas frecuentes"
+            description="Cargá todo lo que tu asistente necesita saber: horarios, ubicación, formas de pago, envíos, preguntas frecuentes con sus respuestas, reglas y cualquier dato importante de tu negocio."
+          />
+          <textarea
+            value={profile.extra}
+            onChange={(e) => updateField("extra", e.target.value)}
+            rows={8}
+            placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada\n\n¿Hacen envíos? Sí, a todo el país por correo. CABA en el día.\n¿Tienen garantía? 6 meses por defectos de fábrica.\n¿Puedo devolver? Sí, dentro de los 30 días con el ticket.\n¿Aceptan cuotas? Hasta 3 sin interés con tarjeta de crédito.`}
+            className={`${inputClass} resize-none`}
+          />
         </section>
 
-        {/* Sección: Agenda de turnos */}
+        {/* Paso 5: Agenda de turnos */}
         <section id="turnos-reservas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
-              label="Agenda"
-              title="Agenda de turnos automática"
-              description="Activala y tu asistente toma solicitudes de reserva por WhatsApp siguiendo tus reglas: pide los datos y las deja pendientes de confirmación."
+              label="Paso 5"
+              title="Reservas / Turnos"
+              description="Activá esta función y tu asistente toma solicitudes de reserva o turno por WhatsApp: pide los datos y las deja pendientes de confirmación."
             />
             <button
               type="button"
@@ -556,13 +518,13 @@ export default function BusinessConfig() {
           )}
         </section>
 
-        {/* Sección: Avisos internos */}
+        {/* Paso 6: Avisos internos */}
         <section id="avisos-encargado" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
-              label="Avisos"
-              title="Avisar al encargado"
-              description="Cuando tu asistente necesite ayuda, vamos a avisar a este número por WhatsApp."
+              label="Paso 6"
+              title="Avisos al equipo"
+              description="Cuando tu asistente necesite ayuda o reciba una reserva, avisamos a este número por WhatsApp."
             />
             <button
               type="button"
@@ -596,7 +558,7 @@ export default function BusinessConfig() {
                 {/* Phone number */}
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>
-                    Número de WhatsApp del encargado
+                    Número de WhatsApp para avisos
                   </label>
                   <div style={{ position: "relative" }}>
                     <input
@@ -733,17 +695,31 @@ export default function BusinessConfig() {
                     lineHeight: 1.5,
                   }}
                 >
-                  Cuando tu asistente necesite ayuda, vamos a avisar a este número.
+                  Las alertas se envían por WhatsApp al número que configuraste.
                 </div>
               </>
             );
           })()}
         </section>
 
-        {/* Sección 4: Respuestas rápidas */}
+        {/* Paso 7: Probar asistente */}
+        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <SectionHeader
+              label="Paso 7"
+              title="Probá cómo responde tu asistente"
+              description="Escribí como si fueras un cliente y mirá la respuesta. Usa la configuración que ya guardaste (datos, catálogo, tono y preguntas frecuentes)."
+            />
+            <button type="button" onClick={() => setShowTester(true)} className="atd-btn primary" style={{ flexShrink: 0 }}>
+              Probar asistente
+            </button>
+          </div>
+        </section>
+
+        {/* Paso 8: Respuestas rápidas */}
         <section id="respuestas-rapidas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <SectionHeader
-            label="Sección 4"
+            label="Paso 8"
             title="Respuestas rápidas"
             description="Frases predefinidas que aparecen como chips cuando un integrante del equipo toma el control de una conversación. Clic para insertar en el mensaje."
           />
