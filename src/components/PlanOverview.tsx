@@ -506,7 +506,7 @@ export default function PlanOverview() {
 
         <div className="page-header">
           <div>
-            <div className="page-sub">04 · uso &amp; upgrade</div>
+            <div className="page-sub">uso &amp; upgrade</div>
             <h1 className="page-title">Mi plan</h1>
           </div>
         </div>

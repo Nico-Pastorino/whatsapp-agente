@@ -172,7 +172,7 @@ export default function BusinessConfig() {
 
         <div className="page-header">
           <div>
-            <div className="page-sub">01 · configuración</div>
+            <div className="page-sub">configuración</div>
             <h1 className="page-title">Entrená tu asistente</h1>
             <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
               Completá la información clave para que tu asistente responda mejor por WhatsApp.

@@ -47,8 +47,11 @@ function formatWhen(iso: string | null): string {
   return d.toLocaleString("es-AR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+type StatusFilter = "all" | AppointmentStatus;
+
 export default function AgendaScreen() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
@@ -162,11 +165,13 @@ export default function AgendaScreen() {
     });
   }, [appointments]);
 
-  const upcoming = sorted.filter((a) => a.status !== "cancelled" && a.status !== "done");
-  const past = sorted.filter((a) => a.status === "cancelled" || a.status === "done");
+  const filtered = statusFilter === "all" ? sorted : sorted.filter((a) => a.status === statusFilter);
+  const upcoming = filtered.filter((a) => a.status !== "cancelled" && a.status !== "done");
+  const past = filtered.filter((a) => a.status === "cancelled" || a.status === "done");
   const pendingCount = appointments.filter((a) => a.status === "pending").length;
   const confirmedCount = appointments.filter((a) => a.status === "confirmed").length;
   const assistantCount = appointments.filter((a) => a.source === "ai").length;
+  const countByStatus = (s: AppointmentStatus) => appointments.filter((a) => a.status === s).length;
 
   return (
     <DashboardContentShell maxWidth={960}>
@@ -187,6 +192,33 @@ export default function AgendaScreen() {
           <Summary label="Tomadas por el asistente" value={assistantCount} />
         </div>
 
+        {/* Filtros por estado */}
+        {appointments.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+            {([
+              ["all", `Todas · ${appointments.length}`],
+              ["pending", `Pendientes · ${countByStatus("pending")}`],
+              ["confirmed", `Confirmadas · ${countByStatus("confirmed")}`],
+              ["done", `Completadas · ${countByStatus("done")}`],
+              ["cancelled", `Canceladas · ${countByStatus("cancelled")}`],
+            ] as [StatusFilter, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                className="atd-pill"
+                style={{
+                  background: statusFilter === key ? "var(--ink)" : "var(--surface)",
+                  color: statusFilter === key ? "var(--bg)" : "var(--ink-2)",
+                  borderColor: statusFilter === key ? "transparent" : "var(--hairline-2)",
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loadError && (
           <div className="atd-card" style={{ padding: 14, marginBottom: 14, color: "#b42318", borderColor: "#fca5a5" }}>
             {loadError}
@@ -203,6 +235,10 @@ export default function AgendaScreen() {
               Creá tu primera reserva o dejá que tu asistente las tome por vos.
             </p>
             <button onClick={openNew} className="atd-btn green">+ Nueva reserva</button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13 }}>
+            No hay reservas con este estado.
           </div>
         ) : (
           <>

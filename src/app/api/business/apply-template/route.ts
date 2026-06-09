@@ -79,9 +79,17 @@ export async function POST(req: NextRequest) {
         ];
 
         const existingExtra = current.extra?.trim() ?? "";
-        const newExtra = existingExtra
-          ? `${existingExtra}\n\n---\nPlantilla: ${template.name}\n${templateExtra}`
-          : templateExtra;
+        // Evitar duplicación: si esta plantilla ya fue aplicada (el bloque ya
+        // está en `extra`), no volver a anexar el mismo contenido. Instrucciones
+        // repetidas inflan el prompt de la IA y degradan las respuestas.
+        const templateAlreadyApplied =
+          existingExtra.includes(`Plantilla: ${template.name}`) ||
+          existingExtra.includes(templateExtra.trim());
+        const newExtra = !existingExtra
+          ? templateExtra
+          : templateAlreadyApplied
+          ? existingExtra
+          : `${existingExtra}\n\n---\nPlantilla: ${template.name}\n${templateExtra}`;
 
         // In merge mode, don't touch knowledge_base if it has content (backwards compat)
         const existingKnowledgeBase = current.knowledge_base?.trim() ?? "";

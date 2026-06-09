@@ -1202,7 +1202,7 @@ export default function ItemCatalog() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div>
-          <div className="page-sub">02 · catálogo</div>
+          <div className="page-sub">catálogo</div>
           <h1 className="page-title">Lo que vendés</h1>
           <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 2 }}>
             Todo lo que cargues acá lo usa tu asistente para responder y vender por WhatsApp.

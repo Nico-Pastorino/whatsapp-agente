@@ -279,7 +279,7 @@ export default function TeamManagement() {
     <DashboardContentShell maxWidth={1180}>
         <div className="page-header">
           <div>
-            <div className="page-sub">05 · {data.used_total} de {data.limit ?? "∞"} usuarios</div>
+            <div className="page-sub">{data.used_total} de {data.limit ?? "∞"} usuarios</div>
             <h1 className="page-title">Equipo</h1>
           </div>
           {canManageTeam && !isLimitReached && (

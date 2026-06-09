@@ -170,7 +170,7 @@ export default function StatsScreen() {
     <DashboardContentShell maxWidth={1180}>
       <div className="page-header">
         <div>
-          <div className="page-sub">05 · métricas</div>
+          <div className="page-sub">métricas</div>
           <h1 className="page-title">Actividad</h1>
         </div>
       </div>
