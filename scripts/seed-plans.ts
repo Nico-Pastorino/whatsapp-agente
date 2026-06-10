@@ -20,7 +20,7 @@ const plans = [
   {
     code: "starter",
     name: "Starter",
-    price_monthly: 29000,
+    price_monthly: 49000,
     currency: "ARS",
     conversation_limit: null,
     ai_reply_limit: null,
@@ -32,7 +32,7 @@ const plans = [
   {
     code: "growth",
     name: "Growth",
-    price_monthly: 59000,
+    price_monthly: 89000,
     currency: "ARS",
     conversation_limit: null,
     ai_reply_limit: null,
@@ -52,7 +52,7 @@ const plans = [
   {
     code: "pro",
     name: "Pro",
-    price_monthly: 99000,
+    price_monthly: 149000,
     currency: "ARS",
     conversation_limit: null,
     ai_reply_limit: null,

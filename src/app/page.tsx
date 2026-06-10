@@ -44,7 +44,7 @@ const SOCIAL_PROOF = [
 ] as const;
 
 const COMPARISON = [
-  { label: "Precio de entrada", atende: "$29.000/mes", others: "USD 49+ (~$70k)", agency: "$200k+ inicial" },
+  { label: "Precio de entrada", atende: "$49.000/mes", others: "USD 49+ (~$70k)", agency: "$200k+ inicial" },
   { label: "Tu mismo número", atende: "Sí", others: "API nueva", agency: "Depende" },
   { label: "Listo en minutos", atende: "Sí", others: "Días", agency: "Semanas" },
   { label: "Agenda de turnos", atende: "Incluida", others: "Extra", agency: "A medida" },
@@ -54,13 +54,51 @@ const COMPARISON = [
 ] as const;
 
 const TEMPLATES = [
-  { emoji: "📱", name: "Tienda de celulares", desc: "Productos, financiación, modelos y gigas.", count: "lista en minutos" },
-  { emoji: "👗", name: "Indumentaria", desc: "Talles, colores, cuidados y envíos.", count: "lista en minutos" },
-  { emoji: "✂️", name: "Peluquería / estética", desc: "Turnos, servicios, promociones y el tono.", count: "con reservas incluidas" },
-  { emoji: "🍽️", name: "Restaurante / comida", desc: "Menú, horarios, delivery y reservas.", count: "con reservas incluidas" },
-  { emoji: "🎵", name: "Eventos / boliche", desc: "Programación, entradas, ubicación y line-up.", count: "lista en minutos" },
-  { emoji: "🔧", name: "Servicios y oficios", desc: "Cotizaciones, horarios y turnos de trabajo.", count: "lista en minutos" },
+  { emoji: "📱", name: "Tienda de celulares", desc: "Responde por precios, stock, cuotas, garantía y envíos.", count: "lista en minutos" },
+  { emoji: "👗", name: "Indumentaria", desc: "Responde por talles, colores, cambios y envíos.", count: "lista en minutos" },
+  { emoji: "✂️", name: "Peluquería / estética", desc: "Toma turnos, informa precios y servicios.", count: "con reservas incluidas" },
+  { emoji: "🍽️", name: "Restaurante / comida", desc: "Toma reservas, pasa el menú, horarios y delivery.", count: "con reservas incluidas" },
+  { emoji: "🎵", name: "Eventos / boliche", desc: "Responde por entradas, edad mínima, cumpleaños y VIP.", count: "con reservas incluidas" },
+  { emoji: "🔧", name: "Servicios y oficios", desc: "Cotiza, agenda visitas y responde horarios.", count: "lista en minutos" },
 ];
+
+// Antes / Después — contraste directo del valor.
+const BEFORE_AFTER = {
+  before: [
+    "Chats desordenados, todo mezclado",
+    "Respuestas lentas o que nunca llegan",
+    "Las mismas preguntas, todo el día",
+    "Clientes que se enfrían y compran en otro lado",
+    "Todo depende de que vos estés con el celular",
+  ],
+  after: [
+    "Cada consulta respondida en segundos",
+    "IA + modo humano: vos tomás el control cuando querés",
+    "Precios, horarios y stock respondidos solos",
+    "Reservas y clientes interesados avisados al equipo",
+    "Tu negocio responde aunque vos no estés",
+  ],
+};
+
+// Casos de uso — el visitante se imagina el producto en su negocio.
+const USE_CASES = [
+  { icon: "bolt", title: "Preguntan el precio", desc: "La IA responde con tu catálogo real, sin inventar." },
+  { icon: "clock", title: "Escriben a las 2 AM", desc: "El asistente contesta y deja el dato listo para vos." },
+  { icon: "calendar", title: "Quieren reservar", desc: "Pide nombre, fecha y cantidad, y avisa a tu equipo." },
+  { icon: "hand", title: "Piden hablar con alguien", desc: "Pasa a modo humano y tu equipo sigue el chat." },
+  { icon: "star", title: "Hay un cliente caliente", desc: "Detecta interés de compra y te avisa por WhatsApp." },
+  { icon: "team", title: "Tu equipo está ocupado", desc: "La IA atiende mientras tanto, sin perder ventas." },
+] as const;
+
+// Confianza — el control siempre es del negocio.
+const TRUST_ITEMS = [
+  { title: "Vos controlás cuándo responde la IA.", desc: "La activás o pausás por conversación." },
+  { title: "Modo humano en un toque.", desc: "Tomás el control y la IA se corre." },
+  { title: "Responde solo con tu información.", desc: "Lo que no cargaste, lo consulta — no lo inventa." },
+  { title: "Tus datos son tuyos.", desc: "Productos, precios y chats se editan desde tu panel." },
+  { title: "Cancelás cuando quieras.", desc: "Sin permanencia ni letra chica." },
+  { title: "14 días de prueba gratis.", desc: "Sin tarjeta para empezar." },
+] as const;
 
 // ── Iconos (line-style, premium) ───────────────────────────────────────────────
 
@@ -161,24 +199,25 @@ export default function HomePage() {
 
             {/* Heading */}
             <h1 style={{ fontSize: "clamp(40px, 6.4vw, 70px)", fontWeight: 700, lineHeight: 1.02, letterSpacing: "-0.03em", margin: "0 0 18px", maxWidth: 540 }}>
-              Respondé a tus clientes{" "}
+              Tu vendedor{" "}
               <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontWeight: 500, color: "var(--accent)" }}>
-                hasta cuando dormís.
-              </span>
+                automático
+              </span>{" "}
+              por WhatsApp.
             </h1>
 
             {/* Body */}
             <p style={{ fontSize: "clamp(15px, 2.4vw, 17px)", lineHeight: 1.6, color: "var(--ink-2)", margin: "0 0 28px", maxWidth: 440 }}>
-              Tu asistente con IA atiende tu WhatsApp las 24 horas: responde consultas, recomienda y agenda turnos solo. Vos decidís cuándo intervenir.
+              Respondé consultas, captá clientes y vendé más sin estar todo el día pendiente del celular. Con IA, y con vos al control cuando querés.
             </p>
 
             {/* CTAs */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
               <Link href="/signup" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 26px", fontSize: 15.5, fontWeight: 600, background: "var(--ink)", color: "#fff", borderRadius: 12, textDecoration: "none", boxShadow: "var(--shadow-2)" }}>
-                Probar gratis 14 días <span className="arrow">→</span>
+                Empezar prueba gratis <span className="arrow">→</span>
               </Link>
-              <a href="#demo" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 24px", fontSize: 15.5, fontWeight: 500, background: "var(--surface)", color: "var(--ink)", borderRadius: 12, textDecoration: "none", border: "1px solid var(--hairline-2)" }}>
-                Ver demo
+              <a href="#como-funciona" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 24px", fontSize: 15.5, fontWeight: 500, background: "var(--surface)", color: "var(--ink)", borderRadius: 12, textDecoration: "none", border: "1px solid var(--hairline-2)" }}>
+                Ver cómo funciona
               </a>
             </div>
 
@@ -235,6 +274,37 @@ export default function HomePage() {
               <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>{p.desc}</p>
             </div>
           ))}
+        </Reveal>
+      </section>
+
+      {/* ── Antes / Después ────────────────────────────────────────── */}
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
+        <Reveal style={{ marginBottom: 36, textAlign: "center" }}>
+          <h2 style={{ fontSize: "clamp(30px, 4vw, 48px)", fontWeight: 700, lineHeight: 1.06, letterSpacing: "-0.03em", margin: 0 }}>
+            Tu WhatsApp, <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--accent)" }}>antes y después.</span>
+          </h2>
+        </Reveal>
+        <Reveal className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14, alignItems: "stretch" }}>
+          <div className="lp-card" style={{ padding: "24px 26px", borderRadius: 20, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+            <p className="mono" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--muted)", margin: "0 0 16px" }}>
+              hoy, sin ayuda
+            </p>
+            {BEFORE_AFTER.before.map((item) => (
+              <p key={item} style={{ display: "flex", gap: 10, fontSize: 14, color: "var(--ink-3)", margin: "0 0 12px", lineHeight: 1.5 }}>
+                <span style={{ color: "var(--muted)", flexShrink: 0 }}>✕</span> {item}
+              </p>
+            ))}
+          </div>
+          <div className="lp-card on-dark" style={{ padding: "24px 26px", borderRadius: 20, background: "linear-gradient(165deg, var(--green-2) 0%, var(--green) 70%)", border: "1px solid transparent" }}>
+            <p className="mono" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.14em", color: "rgba(255,255,255,0.55)", margin: "0 0 16px" }}>
+              con atendé
+            </p>
+            {BEFORE_AFTER.after.map((item) => (
+              <p key={item} style={{ display: "flex", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.92)", margin: "0 0 12px", lineHeight: 1.5 }}>
+                <span style={{ color: "var(--accent)", fontWeight: 700, flexShrink: 0 }}>✓</span> {item}
+              </p>
+            ))}
+          </div>
         </Reveal>
       </section>
 
@@ -366,6 +436,32 @@ export default function HomePage() {
         </Reveal>
       </section>
 
+      {/* ── Casos de uso ───────────────────────────────────────────── */}
+      <section id="casos" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
+        <Reveal style={{ marginBottom: 36 }}>
+          <h2 style={{ fontSize: "clamp(30px, 4vw, 48px)", fontWeight: 700, lineHeight: 1.06, letterSpacing: "-0.03em", margin: 0 }}>
+            Así se ve{" "}
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>en tu negocio.</span>
+          </h2>
+          <p style={{ maxWidth: 520, margin: "12px 0 0", fontSize: 15, lineHeight: 1.7, color: "var(--ink-3)" }}>
+            Situaciones de todos los días que tu asistente resuelve solo — y las que te pasa a vos.
+          </p>
+        </Reveal>
+        <Reveal className="grid grid-cols-1 min-[430px]:grid-cols-2 md:grid-cols-3" style={{ gap: 12 }}>
+          {USE_CASES.map((c) => (
+            <div key={c.title} className="lp-card" style={{ padding: 20, borderRadius: 18, background: "var(--surface)", border: "1px solid var(--hairline)", display: "flex", flexDirection: "column", gap: 12 }}>
+              <span style={{ width: 38, height: 38, borderRadius: 11, background: "var(--green-tint)", color: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name={c.icon} size={19} />
+              </span>
+              <div>
+                <h3 style={{ fontSize: 14.5, fontWeight: 600, color: "var(--ink)", margin: "0 0 5px" }}>“{c.title}”</h3>
+                <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, lineHeight: 1.55 }}>{c.desc}</p>
+              </div>
+            </div>
+          ))}
+        </Reveal>
+      </section>
+
       {/* ── Planes ─────────────────────────────────────────────────── */}
       <section id="planes" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
         <Reveal style={{ textAlign: "center", marginBottom: 14 }}>
@@ -449,12 +545,7 @@ export default function HomePage() {
             </p>
           </Reveal>
           <Reveal delay={100} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[
-              { title: "Ves todo cuando querés, cuando hace falta.", desc: "El inbox muestra el historial completo en tiempo real." },
-              { title: "Tu información, tus respuestas.", desc: "Nada se va a donde no te importa." },
-              { title: "Conversaciones a destino.", desc: "Derivación segura y controlada." },
-              { title: "Estás donde querés.", desc: "Decidís cuándo entrar a la conversación." },
-            ].map((f) => (
+            {TRUST_ITEMS.map((f) => (
               <div key={f.title} className="lp-card" style={{ padding: 18, borderRadius: 16, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: "0 0 6px", lineHeight: 1.4 }}>{f.title}</h4>
                 <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>{f.desc}</p>

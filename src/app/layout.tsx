@@ -3,8 +3,12 @@ import "./globals.css";
 import { ThemeProvider, THEME_NO_FLASH_SCRIPT } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "Atendé — Asistente comercial por WhatsApp",
-  description: "Automatizá WhatsApp con IA. Respondé consultas, recomendá productos y vendé más sin estar pegado al teléfono.",
+  title: "Atendé — Tu vendedor automático por WhatsApp",
+  description: "Respondé consultas, captá clientes y vendé más sin estar todo el día pendiente del celular. IA + modo humano en tu mismo WhatsApp.",
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
