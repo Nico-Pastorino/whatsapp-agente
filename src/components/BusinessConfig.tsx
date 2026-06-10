@@ -218,37 +218,33 @@ export default function BusinessConfig() {
         <div className="page-header">
           <div>
             <div className="page-sub">configuración</div>
-            <h1 className="page-title">Entrená tu asistente</h1>
-            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
-              Completá la información clave para que tu asistente responda mejor por WhatsApp.
+            <h1 style={{ fontSize: 24, lineHeight: 1.12, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Entrená tu asistente</h1>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "5px 0 0" }}>
+              Solo completá lo básico. Podés ajustar detalles después.
             </p>
           </div>
         </div>
 
-        <div style={{ padding: "0 20px 6px", display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-          <section className="atd-card" style={{ padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 14 }}>
+        <div style={{ padding: "0 20px 6px" }}>
+          <section className="atd-card" style={{ padding: 16 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
               <div>
-                <div className="page-sub" style={{ marginBottom: 4 }}>estado del asistente</div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Configuración del asistente</h2>
-                <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
-                  Tu asistente está configurado al {progress}%.
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Estado del asistente</h2>
+                <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "4px 0 0" }}>
+                  {nextStep ? `Próximo: ${nextStep.label}` : "Listo para probar y mejorar con uso real."}
                 </p>
               </div>
-              <strong style={{ fontSize: 28, color: "var(--green)", lineHeight: 1 }}>{progress}%</strong>
+              <strong style={{ fontSize: 22, color: "var(--green)", lineHeight: 1 }}>{progress}%</strong>
             </div>
-            <div style={{ height: 8, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", marginBottom: 14 }}>
+            <div style={{ height: 7, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", marginBottom: 12 }}>
               <div style={{ width: `${progress}%`, height: "100%", background: "var(--green)", borderRadius: 999 }} />
             </div>
-            <p style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 14px" }}>
-              Próxima acción recomendada: <strong>{nextStep?.label ?? "Probá tu asistente"}</strong>
-            </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <a href={nextStep?.href ?? "#probar-asistente"} className="atd-btn primary" style={{ display: "inline-flex", textDecoration: "none" }}>
-                {nextStep ? "Continuar configuración" : "Revisar configuración"}
+              <a href={nextStep?.href ?? "#probar-asistente"} className="atd-btn primary sm" style={{ display: "inline-flex", textDecoration: "none" }}>
+                {nextStep ? "Continuar" : "Revisar"}
               </a>
-              <button type="button" onClick={() => setShowTester(true)} className="atd-btn ghost" style={{ display: "inline-flex" }}>
-                Probar asistente
+              <button type="button" onClick={() => setShowTester(true)} className="atd-btn ghost sm" style={{ display: "inline-flex" }}>
+                Probar
               </button>
             </div>
           </section>
@@ -257,8 +253,8 @@ export default function BusinessConfig() {
 
         {/* Acciones rápidas: navegación directa a cada sección */}
         <div style={{ padding: "4px 20px 0" }}>
-          <p className="page-sub" style={{ marginBottom: 10 }}>qué podés configurar</p>
-          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))" }}>
+          <p className="page-sub" style={{ marginBottom: 8 }}>secciones</p>
+          <div className="atd-card" style={{ overflow: "hidden", background: "var(--surface)" }}>
             {([
               {
                 icon: "🏪",
@@ -316,34 +312,27 @@ export default function BusinessConfig() {
                 done: false,
                 isLink: false,
               },
-            ] as { icon: string; label: string; desc: string; href: string; done: boolean; isLink: boolean }[]).map((action) => {
+            ] as { icon: string; label: string; desc: string; href: string; done: boolean; isLink: boolean }[]).map((action, index) => {
               const cardStyle = {
                 display: "flex" as const,
-                flexDirection: "column" as const,
-                padding: "14px",
-                borderRadius: 14,
-                border: `1.5px solid ${action.done ? "var(--green)" : "var(--hairline)"}`,
-                background: action.done ? "var(--green-tint)" : "var(--surface)",
+                alignItems: "center" as const,
+                gap: 12,
+                padding: "13px 14px",
+                borderTop: index ? "1px solid var(--hairline)" : "none",
+                background: "transparent",
                 textDecoration: "none",
                 cursor: "pointer" as const,
-                minHeight: 88,
-                justifyContent: "space-between" as const,
-                transition: "border-color 0.15s",
+                minHeight: 0,
+                color: "inherit",
               };
               const inner = (
                 <>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
-                    <span style={{ fontSize: 20 }}>{action.icon}</span>
-                    {action.done && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--green)", background: "rgba(16,185,129,0.12)", padding: "2px 7px", borderRadius: 999 }}>
-                        ✓
-                      </span>
-                    )}
+                  <span style={{ width: 36, height: 36, borderRadius: 12, background: action.done ? "var(--green-tint)" : "var(--surface-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{action.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13.5, fontWeight: 650, color: "var(--ink)", margin: "0 0 2px" }}>{action.label}</p>
+                    <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.35, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{action.desc}</p>
                   </div>
-                  <div style={{ marginTop: 10 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: "0 0 3px" }}>{action.label}</p>
-                    <p style={{ fontSize: 11, color: "var(--ink-3)", margin: 0, lineHeight: 1.4 }}>{action.desc}</p>
-                  </div>
+                  <span style={{ color: action.done ? "var(--green)" : "var(--muted)", fontSize: 16, flexShrink: 0 }}>{action.done ? "✓" : "→"}</span>
                 </>
               );
               return action.isLink

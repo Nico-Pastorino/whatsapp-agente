@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Spark, Arrow, Chat, Shop, Bolt, QR, Layers } from "./atende/Icons";
+import { Bell, Spark, Arrow, Chat, Bolt, QR, Layers } from "./atende/Icons";
 import { Avatar } from "./atende/Icons";
 import {
   buildAssistantChecklist,
@@ -57,14 +57,29 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    async function readJson(url: string) {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 4500);
+      try {
+        const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+        return res.ok ? await res.json() : null;
+      } catch {
+        return null;
+      } finally {
+        window.clearTimeout(timer);
+      }
+    }
+
     Promise.all([
-      fetch("/api/plan").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/business").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/connection/status").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/business/items").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/conversations").then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch("/api/team").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      readJson("/api/plan"),
+      readJson("/api/business"),
+      readJson("/api/connection/status"),
+      readJson("/api/business/items"),
+      readJson("/api/conversations"),
+      readJson("/api/team"),
     ]).then(([plan, biz, conn, items, convs, team]) => {
+      if (!mounted) return;
       const conversations: Array<{ last_message_at?: number; needs_attention?: boolean; mode?: string }> =
         Array.isArray(convs) ? convs : [];
 
@@ -124,8 +139,10 @@ export default function HomeScreen() {
         totalConversations: conversations.length,
         teamCount,
       });
-      setLoading(false);
+    }).finally(() => {
+      if (mounted) setLoading(false);
     });
+    return () => { mounted = false; };
   }, []);
 
   if (loading) {
@@ -143,7 +160,6 @@ export default function HomeScreen() {
   const doneCount = steps.filter((s) => s.done).length;
   const totalSteps = steps.length;
   const pct = totalSteps ? Math.round((doneCount / totalSteps) * 100) : 0;
-  const circumference = 2 * Math.PI * 15;
   const nextStep = steps.find((s) => !s.done) ?? null;
   const allDone = doneCount === totalSteps;
 
@@ -173,19 +189,18 @@ export default function HomeScreen() {
   const quickActions: Array<{ key: string; label: string; Icon: React.ComponentType<{ size?: number }>; href: string }> = [
     { key: "connect", label: data.waConnected ? "WhatsApp" : "Conectar", Icon: QR, href: "/app/connect" },
     { key: "train", label: "Entrenar", Icon: Spark, href: "/app/business" },
-    { key: "catalog", label: "Productos", Icon: Bolt, href: "/app/catalog" },
     { key: "chats", label: "Chats", Icon: Chat, href: "/app/conversations" },
-    { key: "plan", label: "Mejorar plan", Icon: Layers, href: "/app/plan" },
+    { key: "catalog", label: "Catálogo", Icon: Bolt, href: "/app/catalog" },
   ];
 
   return (
     <div className="flex-1 overflow-y-auto pb-4" style={{ background: "var(--bg)" }}>
       {/* Top bar */}
-      <div style={{ padding: "14px 20px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ padding: "12px 20px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>centro de control</div>
-          <div className="serif" style={{ fontSize: 22, lineHeight: 1 }}>
-            {data.businessName} 👋
+          <div className="mono" style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" }}>inicio</div>
+          <div style={{ fontSize: 20, lineHeight: 1.15, fontWeight: 650, color: "var(--ink)" }}>
+            {data.businessName}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -212,74 +227,90 @@ export default function HomeScreen() {
       </div>
 
       {/* Hero status card */}
-      <div style={{ margin: "0 20px 14px", padding: 18, borderRadius: 22, background: "var(--feature-bg)", color: "var(--feature-fg)", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "var(--accent)", opacity: 0.18, filter: "blur(20px)", pointerEvents: "none" }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--feature-fg-dim)", marginBottom: 8 }}>
-          <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "var(--feature-fg-dim)" }} />
-          {data.waConnected ? `WhatsApp conectado · ${data.waPhone ?? ""}` : "WhatsApp sin conectar"}
+      <section style={{ margin: "0 20px 12px", padding: 18, borderRadius: 20, background: data.waConnected ? "var(--green-tint)" : "var(--accent-soft)", color: data.waConnected ? "var(--green-ink)" : "var(--accent-ink)", border: "1px solid transparent" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, marginBottom: 10 }}>
+          <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "currentColor" }} />
+          {data.waConnected ? "WhatsApp conectado" : "WhatsApp sin conectar"}
         </div>
-        <div className="serif" style={{ fontSize: 28, lineHeight: 1.1, marginBottom: 4 }}>
-          Tu asistente{" "}
-          <span className="italic" style={{ color: "var(--accent)" }}>
-            {data.waConnected ? "está activo." : "esperando."}
-          </span>
+        <div style={{ fontSize: 25, lineHeight: 1.08, fontWeight: 700, letterSpacing: 0, marginBottom: 6 }}>
+          {data.waConnected ? "Tu asistente está atendiendo." : "Conectá WhatsApp para empezar."}
         </div>
-        <div style={{ fontSize: 13, color: "var(--feature-fg-dim)", marginBottom: 16 }}>
+        <p style={{ fontSize: 13.5, lineHeight: 1.45, margin: "0 0 16px", opacity: 0.78 }}>
           {data.waConnected
-            ? `${data.todayConversations} ${data.todayConversations === 1 ? "conversación hoy" : "conversaciones hoy"}`
-            : "Conectá WhatsApp para que empiece a responder."}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
-          {[
-            ["IA", data.waConnected ? "activa" : "en pausa"],
-            ["Plan", data.plan?.plan_name ?? "—"],
-            ["Entrenado", `${data.assistantPct}%`],
-          ].map(([k, v]) => (
-            <div key={k} style={{ padding: 10, borderRadius: 12, background: "var(--feature-bg-soft)" }}>
-              <div className="mono" style={{ fontSize: 9, color: "var(--feature-fg-dim)", textTransform: "uppercase" }}>{k}</div>
-              <div style={{ fontSize: 13, fontWeight: 500, marginTop: 3 }}>{v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+            ? data.needsAttention > 0
+              ? "Hay conversaciones esperando una respuesta humana."
+              : `${data.todayConversations} ${data.todayConversations === 1 ? "conversación nueva" : "conversaciones nuevas"} hoy.`
+            : "Vinculá el número del negocio y el asistente queda listo para responder."}
+        </p>
+        <button
+          onClick={() => router.push(data.waConnected ? "/app/conversations" : "/app/connect")}
+          className="atd-btn primary"
+          style={{ height: 42, background: data.waConnected ? "var(--green-ink)" : "var(--accent-ink)", color: "var(--bg)" }}
+        >
+          {data.waConnected ? "Ver chats" : "Conectar ahora"}
+        </button>
+      </section>
 
       {/* Próxima acción recomendada */}
       <button
         onClick={() => router.push(recommended.href)}
         style={{
-          margin: "0 20px 14px", padding: 16, borderRadius: 18, width: "calc(100% - 40px)",
+          margin: "0 20px 12px", padding: 14, borderRadius: 18, width: "calc(100% - 40px)",
           textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
-          background: data.needsAttention > 0 ? "var(--human-tint)" : "var(--accent-soft)",
-          border: "1px solid transparent",
+          background: "var(--surface)", border: "1px solid var(--hairline)",
         }}
       >
         <span style={{
-          width: 38, height: 38, borderRadius: 12, flexShrink: 0,
-          background: data.needsAttention > 0 ? "var(--human)" : "var(--accent)",
-          color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+          background: data.needsAttention > 0 ? "var(--human-tint)" : "var(--surface-2)",
+          color: data.needsAttention > 0 ? "var(--human)" : "var(--ink-2)",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
         }}>
           {data.needsAttention > 0 ? <Chat size={18} /> : <Spark size={18} />}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", marginBottom: 2 }}>
-            próxima acción
-          </div>
-          <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--ink)" }}>{recommended.title}</div>
-          <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{recommended.desc}</div>
+          <div style={{ fontSize: 14.5, fontWeight: 650, color: "var(--ink)" }}>{recommended.title}</div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 2 }}>{recommended.desc}</div>
         </div>
-        <Arrow size={18} style={{ color: "var(--ink-3)", flexShrink: 0 }} />
+        <Arrow size={18} style={{ color: "var(--muted)", flexShrink: 0 }} />
       </button>
 
+      {/* Progreso simple */}
+      <section style={{ margin: "0 20px 12px", padding: 16, borderRadius: 18, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>Configuración</div>
+            <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>
+              {allDone ? "Todo listo" : `${doneCount} de ${totalSteps} pasos completos`}
+            </div>
+          </div>
+          <strong style={{ fontSize: 18, color: "var(--green)" }}>{pct}%</strong>
+        </div>
+        <div style={{ height: 7, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
+          <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "var(--green)" }} />
+        </div>
+        {!allDone && nextStep && (
+          <button
+            onClick={() => router.push(nextStep.href)}
+            style={{ marginTop: 12, width: "100%", padding: "11px 0 0", border: 0, borderTop: "1px dashed var(--hairline-2)", background: "transparent", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}
+          >
+            <span style={{ width: 20, height: 20, borderRadius: 999, border: "1.5px solid var(--hairline-3)", flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: 13.5, color: "var(--ink-2)" }}>{nextStep.label}</span>
+            <Arrow size={16} style={{ color: "var(--muted)" }} />
+          </button>
+        )}
+      </section>
+
       {/* Accesos rápidos */}
-      <div style={{ padding: "0 20px 14px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+      <div style={{ padding: "0 20px 12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
           {quickActions.map(({ key, label, Icon, href }) => (
             <button
               key={key}
               onClick={() => router.push(href)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-                padding: "12px 4px", borderRadius: 14, cursor: "pointer",
+                padding: "11px 4px", borderRadius: 14, cursor: "pointer",
                 background: "var(--surface)", border: "1px solid var(--hairline)",
               }}
             >
@@ -290,61 +321,6 @@ export default function HomeScreen() {
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Checklist de activación */}
-      <div style={{ margin: "0 20px 14px", padding: 16, borderRadius: 18, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Dejá tu asistente listo</div>
-            <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
-              {allDone ? "todo listo 🎉" : `${doneCount} de ${totalSteps} completados`}
-            </div>
-          </div>
-          <div style={{ position: "relative", width: 40, height: 40 }}>
-            <svg viewBox="0 0 36 36" width="40" height="40" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--hairline-2)" strokeWidth="3" />
-              <circle
-                cx="18" cy="18" r="15" fill="none"
-                stroke="var(--green)" strokeWidth="3"
-                strokeDasharray={`${(pct / 100) * circumference} ${circumference}`}
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className="mono" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>
-              {pct}%
-            </span>
-          </div>
-        </div>
-        {steps.map((step, i) => (
-          <button
-            key={step.key}
-            onClick={() => router.push(step.href)}
-            style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "9px 0", width: "100%",
-              textAlign: "left", background: "none", border: "none", cursor: "pointer",
-              borderTop: i ? "1px dashed var(--hairline-2)" : "none",
-            }}
-          >
-            <span style={{
-              width: 18, height: 18, borderRadius: 999, flexShrink: 0,
-              background: step.done ? "var(--green)" : "transparent",
-              border: step.done ? "none" : "1.5px solid var(--hairline-3)",
-              color: "var(--on-green)",
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-            }}>
-              {step.done && (
-                <svg width="10" height="10" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                  <path d="M4 10.5L8 14l8-8" />
-                </svg>
-              )}
-            </span>
-            <span style={{ fontSize: 13.5, flex: 1, color: step.done ? "var(--muted)" : "var(--ink)", textDecoration: step.done ? "line-through" : "none" }}>
-              {step.label}
-            </span>
-            {!step.done && <Arrow size={16} style={{ color: "var(--muted)" }} />}
-          </button>
-        ))}
       </div>
 
       {/* Resumen de actividad */}
@@ -374,23 +350,15 @@ export default function HomeScreen() {
         </button>
       </div>
 
-      {/* Promo conectar si está desconectado */}
-      {!data.waConnected && (
-        <button
-          onClick={() => router.push("/app/connect")}
-          style={{ margin: "14px 20px 0", padding: 16, borderRadius: 18, width: "calc(100% - 40px)", textAlign: "left", cursor: "pointer", background: "var(--green-tint)", border: "1px solid transparent", display: "flex", alignItems: "flex-start", gap: 10 }}
-        >
-          <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--green)", color: "var(--on-green)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Shop size={16} />
-          </span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--green-ink)" }}>Conectá WhatsApp</div>
-            <div style={{ fontSize: 12, color: "var(--green-ink)", opacity: 0.8, marginTop: 2 }}>
-              Tu asistente está listo — solo falta vincular el número del negocio.
-            </div>
-          </div>
-        </button>
-      )}
+      <button
+        onClick={() => router.push("/app/plan")}
+        style={{ margin: "12px 20px 0", width: "calc(100% - 40px)", padding: "12px 14px", borderRadius: 16, background: "transparent", border: "1px solid var(--hairline)", color: "var(--ink-3)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", textAlign: "left" }}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+          <Layers size={15} /> Plan {data.plan?.plan_name ?? ""}
+        </span>
+        <Arrow size={15} />
+      </button>
     </div>
   );
 }

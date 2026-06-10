@@ -78,7 +78,7 @@ export default function ConversationList({
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div>
             <div className="page-sub">
-              inbox · {conversations.length} {conversations.length === 1 ? "conversación" : "conversaciones"}
+              chats
             </div>
             <h1 className="page-title">Conversaciones</h1>
           </div>
@@ -102,8 +102,36 @@ export default function ConversationList({
         </button>
       </div>
 
+      {attentionCount > 0 && (
+        <button
+          onClick={() => setFilter("human")}
+          style={{
+            margin: "0 20px 10px",
+            padding: 14,
+            borderRadius: 14,
+            border: "1px solid transparent",
+            background: "var(--human-tint)",
+            color: "var(--human)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          <span>
+            <strong style={{ display: "block", fontSize: 14 }}>{attentionCount} para atender</strong>
+            <span style={{ display: "block", fontSize: 12.5, opacity: 0.82, marginTop: 2 }}>
+              Clientes esperando respuesta humana.
+            </span>
+          </span>
+          <span style={{ fontSize: 18 }}>→</span>
+        </button>
+      )}
+
       {/* Search */}
-      <div style={{ padding: "4px 20px 8px" }}>
+      <div style={{ padding: "0 20px 8px" }}>
         <div style={{ height: 38, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--hairline-2)", display: "flex", alignItems: "center", padding: "0 12px", gap: 8 }}>
           <Search size={16} style={{ color: "var(--muted)", flexShrink: 0 }} />
           <input
@@ -120,9 +148,9 @@ export default function ConversationList({
       {/* Filter pills */}
       <div style={{ padding: "0 20px 10px", display: "flex", gap: 6 }}>
         {([
-          ["all",   `Todas · ${conversations.length}`],
-          ["ia",    `IA · ${iaCount}`],
-          ["human", `Humano · ${humanCount}`],
+          ["all",   `Todas ${conversations.length}`],
+          ["ia",    `IA ${iaCount}`],
+          ["human", `Humano ${humanCount}`],
         ] as [Filter, string][]).map(([key, label]) => (
           <button
             key={key}

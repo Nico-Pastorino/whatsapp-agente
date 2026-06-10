@@ -116,28 +116,26 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
   }
 
   return (
-    <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+    <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
         <div style={{ minWidth: 220, flex: 1 }}>
-          <div className="page-sub" style={{ marginBottom: 4 }}>plantillas por rubro</div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
-            Empezá más rápido con una plantilla
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+            Usar plantilla por rubro
           </h3>
-          <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)", maxWidth: 560 }}>
-            Elegí un rubro y cargamos una base inicial para tu asistente. Después podés editar todo.
+          <p style={{ marginTop: 3, fontSize: 12.5, color: "var(--ink-3)", maxWidth: 560 }}>
+            Cargá una base inicial y editá solo lo necesario.
           </p>
         </div>
-        <button onClick={() => setIsOpen(true)} className="atd-btn primary">
+        <button onClick={() => setIsOpen(true)} className="atd-btn ghost sm">
           Ver plantillas
         </button>
       </div>
 
-      <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <span className="atd-pill green">{availableTemplates} disponibles</span>
-        <span className="atd-pill">{planCode.toUpperCase()}</span>
+      <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>{availableTemplates} disponibles · plan {planCode.toUpperCase()}</span>
         {appliedId && (
           <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
-            Listo. Ahora completá los datos marcados como [completar] en “Información clave” y probá tu asistente.
+            Plantilla aplicada.
           </span>
         )}
         {error && (
@@ -218,14 +216,14 @@ function TemplateSheet({
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.42)", zIndex: 80, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 12 }}>
-      <div className="atd-card" style={{ width: "100%", maxWidth: 920, maxHeight: "90svh", padding: 0, overflow: "hidden", borderRadius: "22px 22px 14px 14px" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.42)", zIndex: 80, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 10 }}>
+      <div className="atd-card" style={{ width: "100%", maxWidth: 760, maxHeight: "88svh", padding: 0, overflow: "hidden", borderRadius: "20px 20px 14px 14px" }}>
         {/* Header */}
-        <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--hairline)", display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--hairline)", display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Elegí un rubro</h3>
-            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>
-              Cargamos una base inicial que después podés editar.
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Elegí una plantilla</h3>
+            <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "4px 0 0" }}>
+              Después podés ajustar textos, tono y preguntas.
             </p>
           </div>
           <button onClick={onClose} aria-label="Cerrar" style={{ width: 36, height: 36, borderRadius: 999, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink)", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>
@@ -234,15 +232,15 @@ function TemplateSheet({
         </div>
 
         {/* Search + Category filters */}
-        <div style={{ padding: "12px 18px 0", borderBottom: "1px solid var(--hairline)", paddingBottom: 12 }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--hairline)" }}>
           <input
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             className="atd-input"
-            placeholder="Buscar rubro, categoría o pregunta frecuente…"
+            placeholder="Buscar rubro..."
             style={{ marginBottom: 10 }}
           />
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
             {TEMPLATE_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
@@ -260,6 +258,7 @@ function TemplateSheet({
                   display: "flex",
                   alignItems: "center",
                   gap: 4,
+                  whiteSpace: "nowrap",
                 }}
               >
                 <span>{cat.emoji}</span>
@@ -270,8 +269,8 @@ function TemplateSheet({
         </div>
 
         {/* Templates grid */}
-        <div style={{ padding: 18, overflowY: "auto", maxHeight: "calc(90svh - 175px)" }}>
-          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+        <div style={{ padding: 12, overflowY: "auto", maxHeight: "calc(88svh - 162px)" }}>
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr" }}>
             {filtered.map((template) => {
               const locked = isTemplateLocked(template.tier, planCode);
               return (
@@ -313,64 +312,41 @@ function TemplateRow({
       onClick={onSelect}
       disabled={isApplied}
       style={{
-        padding: 16,
-        borderRadius: 16,
+        padding: 14,
+        borderRadius: 14,
         border: `1.5px solid ${isApplied ? "var(--green)" : "var(--hairline)"}`,
         background: isApplied ? "var(--green-tint)" : "var(--surface)",
         textAlign: "left",
         cursor: isApplied ? "default" : "pointer",
         opacity: isLocked ? 0.72 : 1,
         display: "flex",
-        flexDirection: "column",
+        alignItems: "center",
         gap: 12,
       }}
     >
       {/* Header: emoji + nombre + badge */}
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{template.emoji}</span>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{template.name}</p>
-            {isLocked && (
-              <span style={{ background: "#fff3cd", color: "#7a5800", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
-                {requiredPlanLabel()}
-              </span>
-            )}
-            {isApplied && (
-              <span style={{ background: "var(--green)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
-                Aplicada
-              </span>
-            )}
-          </div>
-          <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "3px 0 0", lineHeight: 1.45 }}>
-            {template.description}
-          </p>
+      <span style={{ fontSize: 23, lineHeight: 1, flexShrink: 0 }}>{template.emoji}</span>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{template.name}</p>
+          {isLocked && (
+            <span style={{ background: "#fff3cd", color: "#7a5800", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+              {requiredPlanLabel()}
+            </span>
+          )}
+          {isApplied && (
+            <span style={{ background: "var(--green)", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+              Aplicada
+            </span>
+          )}
         </div>
+        <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "3px 0 0", lineHeight: 1.35 }}>
+          {template.description}
+        </p>
       </div>
-
-      {/* Tono */}
-      <div style={{ fontSize: 11, color: "var(--ink-3)", background: "var(--surface-2)", borderRadius: 8, padding: "5px 8px", lineHeight: 1.4 }}>
-        <span style={{ fontWeight: 600, color: "var(--ink-2)" }}>Tono: </span>{template.tone}
-      </div>
-
-      {/* Categorías sugeridas */}
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-        {template.suggestedCategories.slice(0, 4).map((cat) => (
-          <span key={cat} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 999, background: "var(--surface-2)", color: "var(--ink-3)", border: "1px solid var(--hairline)" }}>
-            {cat}
-          </span>
-        ))}
-        {template.suggestedCategories.length > 4 && (
-          <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 999, background: "var(--surface-2)", color: "var(--ink-3)" }}>
-            +{template.suggestedCategories.length - 4} más
-          </span>
-        )}
-      </div>
-
-      {/* CTA */}
-      <div style={{ fontSize: 12, fontWeight: 700, color: isApplied ? "var(--green)" : isLocked ? "#7a5800" : "var(--green)", marginTop: "auto" }}>
-        {isApplied ? "✓ Plantilla aplicada" : isLocked ? `Mejorar a ${requiredPlanLabel()} para usar` : "→ Usar esta plantilla"}
-      </div>
+      <span style={{ fontSize: 18, color: isApplied ? "var(--green)" : isLocked ? "#7a5800" : "var(--muted)", flexShrink: 0 }}>
+        {isApplied ? "✓" : isLocked ? "Pro" : "→"}
+      </span>
     </button>
   );
 }

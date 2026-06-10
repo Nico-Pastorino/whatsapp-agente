@@ -247,7 +247,7 @@ body {
 
 /* ── Page header ───────────────────────────────────────────── */
 .page-header {
-  padding: 14px 20px 10px;
+  padding: 18px 20px 12px;
   display: flex; justify-content: space-between; align-items: flex-end;
 }
 .page-sub {
@@ -255,8 +255,9 @@ body {
   color: var(--muted); text-transform: uppercase; margin-bottom: 3px;
 }
 .page-title {
-  font-family: var(--font-serif); font-size: 30px;
-  line-height: 1; letter-spacing: -0.02em; margin: 0;
+  font-family: var(--font-sans); font-size: 24px;
+  font-weight: 750;
+  line-height: 1.12; letter-spacing: 0; margin: 0;
 }
 
 /* ── Avatar ────────────────────────────────────────────────── */
@@ -279,24 +280,25 @@ body {
 /* ── Mobile tab bar ────────────────────────────────────────── */
 .atd-tabbar {
   display: grid; grid-template-columns: repeat(5, 1fr);
-  padding: 10px 8px max(18px, env(safe-area-inset-bottom));
-  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  padding: 8px 8px max(14px, env(safe-area-inset-bottom));
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
   backdrop-filter: blur(16px);
   border-top: 1px solid var(--hairline);
 }
 .atd-tab {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
   font-size: 10px; font-family: var(--font-sans); color: var(--muted);
   cursor: pointer; transition: color .15s;
 }
 .atd-tab.active { color: var(--ink); }
 .atd-tab .tab-ic {
-  width: 28px; height: 28px; border-radius: 9px;
+  width: 28px; height: 28px; border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
   transition: background .15s, color .15s;
 }
-.atd-tab.active .tab-ic { background: var(--ink); color: var(--bg); }
-.atd-tab.center .tab-ic { background: var(--accent); color: var(--on-accent); }
+.atd-tab.active .tab-ic { background: var(--surface); color: var(--ink); border: 1px solid var(--hairline-2); }
+.atd-tab.center .tab-ic { background: transparent; color: inherit; }
+.atd-tab.center.active .tab-ic { background: var(--accent); color: var(--on-accent); border-color: transparent; }
 
 /* ── Landing: animaciones y microinteracciones ─────────────── */
 

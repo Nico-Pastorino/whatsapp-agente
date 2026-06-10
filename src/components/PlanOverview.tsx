@@ -506,8 +506,8 @@ export default function PlanOverview() {
 
         <div className="page-header">
           <div>
-            <div className="page-sub">uso &amp; upgrade</div>
-            <h1 className="page-title">Mi plan</h1>
+            <div className="page-sub">plan</div>
+            <h1 className="page-title">Suscripción</h1>
           </div>
         </div>
 
@@ -537,25 +537,23 @@ export default function PlanOverview() {
           </div>
         )}
 
-        {/* Hero plan card (oscura en ambos temas) */}
-        <div style={{ margin: "0 20px 14px", padding: 20, borderRadius: 22, background: "var(--feature-bg)", color: "var(--feature-fg)", position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "var(--accent)", opacity: 0.2, filter: "blur(20px)", pointerEvents: "none" }} />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <span className="atd-pill" style={{ background: "var(--feature-bg-soft)", color: "var(--feature-fg)", borderColor: "transparent" }}>Tu plan</span>
-            <span className="mono" style={{ fontSize: 11, color: "var(--feature-fg-dim)" }}>
+        <div style={{ margin: "0 20px 12px", padding: 16, borderRadius: 14, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+            <div>
+              <div className="page-sub" style={{ marginBottom: 3 }}>plan actual</div>
+              <div style={{ fontSize: 24, fontWeight: 750, lineHeight: 1, color: "var(--ink)" }}>{plan.plan_name}</div>
+              <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "7px 0 0" }}>{PLAN_TAGLINE[currentCode] ?? ""}</p>
+            </div>
+            <span className="mono" style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>
               {plan.status === "active" ? "activo" : plan.status} · vence {formatDate(plan.current_period_end)}
             </span>
-          </div>
-          <div className="serif" style={{ fontSize: 52, lineHeight: 1, marginBottom: 4 }}>{plan.plan_name}</div>
-          <div style={{ fontSize: 13, color: "var(--feature-fg-dim)", marginBottom: 16 }}>
-            {PLAN_TAGLINE[currentCode] ?? ""}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {plan.upgrade_options.length > 0 && (
               <button
                 onClick={() => startCheckout(plan.upgrade_options[0].code, "upgrade")}
                 disabled={checkoutLoading}
-                className="atd-btn accent sm"
+                className="atd-btn primary sm"
                 style={{ flex: 1 }}
               >
                 {checkoutLoading ? "..." : `Mejorar a ${plan.upgrade_options[0].name}`}
@@ -565,22 +563,21 @@ export default function PlanOverview() {
               <button
                 onClick={() => setShowCancelModal(true)}
                 className="atd-btn ghost sm"
-                style={{ color: "var(--feature-fg)", borderColor: "var(--feature-fg-dim)" }}
               >
                 Cancelar
               </button>
             )}
             {plan.cancel_at_period_end && (
-              <button onClick={handleReactivatePlan} disabled={reactivateLoading} className="atd-btn ghost sm" style={{ color: "var(--feature-fg)", borderColor: "var(--feature-fg-dim)", flex: 1 }}>
+              <button onClick={handleReactivatePlan} disabled={reactivateLoading} className="atd-btn ghost sm" style={{ flex: 1 }}>
                 {reactivateLoading ? "..." : "Reactivar"}
               </button>
             )}
           </div>
           {plan.cancel_at_period_end && (
-            <p style={{ fontSize: 12, color: "rgba(255,200,100,0.9)", marginTop: 10 }}>
-              Cancelación programada al {formatDate(plan.current_period_end)}.
-            </p>
-          )}
+              <p style={{ fontSize: 12, color: "var(--human)", marginTop: 10 }}>
+                Cancelación programada al {formatDate(plan.current_period_end)}.
+              </p>
+            )}
         </div>
 
         {checkoutError && (

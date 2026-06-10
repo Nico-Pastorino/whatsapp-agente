@@ -279,7 +279,7 @@ export default function TeamManagement() {
     <DashboardContentShell maxWidth={1180}>
         <div className="page-header">
           <div>
-            <div className="page-sub">{data.used_total} de {data.limit ?? "∞"} usuarios</div>
+            <div className="page-sub">equipo</div>
             <h1 className="page-title">Equipo</h1>
           </div>
           {canManageTeam && !isLimitReached && (
@@ -344,13 +344,18 @@ export default function TeamManagement() {
           </div>
         )}
 
-        <div className="lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-3">
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-          <div className="page-sub" style={{ marginBottom: 4 }}>Invitar persona</div>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Crear invitación</h3>
-          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
-            Invitá a una persona por email para que se sume al equipo.
-          </p>
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Invitar persona</h3>
+              <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "3px 0 0" }}>
+                {data.used_total} de {data.limit ?? "∞"} usuarios · {data.plan.name}
+              </p>
+            </div>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>
+              {typeof data.limit === "number" ? Math.max(0, data.limit - data.used_total) : "∞"} libres
+            </span>
+          </div>
 
           {canManageTeam ? (
             <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -390,19 +395,7 @@ export default function TeamManagement() {
               Tu rol actual es {ROLE_LABELS[data.current_role]}. Podés ver el equipo, pero no crear invitaciones.
             </div>
           )}
-        </section>
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-          <div className="page-sub" style={{ marginBottom: 4 }}>Capacidad del plan</div>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Usuarios disponibles</h3>
-          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
-            El owner cuenta como usuario y las invitaciones pendientes también reservan lugar.
-          </p>
-          <div style={{ borderRadius: 16, background: "var(--surface-2)", padding: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 10, fontSize: 13, color: "var(--ink-2)" }}>
-              <span>Usuarios: <strong style={{ color: "var(--ink)" }}>{data.used_total} / {data.limit ?? "∞"}</strong></span>
-              <span>{data.plan.name}</span>
-            </div>
-            <div style={{ height: 8, borderRadius: 999, background: "var(--surface)", overflow: "hidden" }}>
+          <div style={{ marginTop: 12, height: 6, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
               <div
                 style={{
                   width: typeof data.limit === "number" && data.limit > 0 ? `${Math.min(100, (data.used_total / data.limit) * 100)}%` : "0%",
@@ -411,34 +404,12 @@ export default function TeamManagement() {
                   background: isLimitReached ? "#c0392b" : "var(--green-soft)",
                 }}
               />
-            </div>
-            <div style={{ display: "grid", gap: 8, marginTop: 14 }} className="min-[430px]:grid-cols-3">
-              <div style={{ borderRadius: 12, background: "var(--surface)", padding: 12 }}>
-                <div className="page-sub" style={{ marginBottom: 4 }}>activos</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{data.used_active}</div>
-              </div>
-              <div style={{ borderRadius: 12, background: "var(--surface)", padding: 12 }}>
-                <div className="page-sub" style={{ marginBottom: 4 }}>pendientes</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{data.used_pending}</div>
-              </div>
-              <div style={{ borderRadius: 12, background: "var(--surface)", padding: 12 }}>
-                <div className="page-sub" style={{ marginBottom: 4 }}>disponibles</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>
-                  {typeof data.limit === "number" ? Math.max(0, data.limit - data.used_total) : "∞"}
-                </div>
-              </div>
-            </div>
           </div>
         </section>
-        </div>
 
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-          <div className="page-sub" style={{ marginBottom: 4 }}>Miembros activos</div>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Equipo</h3>
-          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
-            Personas que ya pueden entrar al dashboard de este negocio.
-          </p>
-          <div style={{ display: "grid", gap: 10 }} className="lg:grid-cols-2">
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 12px" }}>Miembros</h3>
+          <div style={{ display: "grid", gap: 8 }}>
             {data.members.length === 0 ? (
               <div style={{ padding: "28px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 14, fontSize: 13, color: "var(--muted)" }}>
                 No hay miembros cargados en este negocio.
@@ -455,7 +426,7 @@ export default function TeamManagement() {
                 return (
                   <article
                     key={member.id}
-                    style={{ borderRadius: 14, border: "1px solid var(--hairline)", background: "var(--surface-2)", padding: 14 }}
+                    style={{ borderRadius: 12, border: "1px solid var(--hairline)", background: "var(--surface-2)", padding: 12 }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <div style={{ minWidth: 0 }}>
@@ -524,14 +495,10 @@ export default function TeamManagement() {
           </div>
         </section>
 
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
-          <div className="page-sub" style={{ marginBottom: 4 }}>Invitaciones pendientes</div>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Invitaciones</h3>
-          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
-            Invitaciones creadas para sumar personas al equipo.
-          </p>
+        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 12px" }}>Invitaciones</h3>
 
-          <div style={{ display: "grid", gap: 10 }} className="lg:grid-cols-2">
+          <div style={{ display: "grid", gap: 8 }}>
             {visibleInvitations.length === 0 ? (
               <div style={{ padding: "28px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 14, fontSize: 13, color: "var(--muted)" }}>
                 No hay invitaciones creadas todavía.
@@ -544,7 +511,7 @@ export default function TeamManagement() {
                 return (
                   <article
                     key={invitation.id}
-                    style={{ borderRadius: 14, border: "1px solid var(--hairline)", background: "var(--surface-2)", padding: 14 }}
+                    style={{ borderRadius: 12, border: "1px solid var(--hairline)", background: "var(--surface-2)", padding: 12 }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       <div style={{ minWidth: 0 }}>

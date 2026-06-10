@@ -381,12 +381,14 @@ export default function ConnectionGate({ currentView }: Props) {
     </div>
   ) : null;
 
+  // Banner de trial COMPACTO: una sola línea. Antes ocupaba ~20% de la
+  // pantalla en mobile, repetido en todas las vistas.
   const trialBanner = showTrialBanner ? (
-    <div style={{ padding: "10px 16px", background: "rgba(31,107,74,0.09)", borderBottom: "1px solid rgba(31,107,74,0.16)", color: "var(--green-ink)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-      <span style={{ fontSize: 13 }}>
-        Estás usando tu prueba gratuita de 14 días. Te quedan {trialPlan.days_left_trial ?? 0} días.
+    <div style={{ padding: "7px 16px", background: "rgba(31,107,74,0.09)", borderBottom: "1px solid rgba(31,107,74,0.16)", color: "var(--green-ink)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        Prueba gratis · te quedan {trialPlan.days_left_trial ?? 0} días
       </span>
-      <Link href="/app/plan" className="atd-btn green sm">
+      <Link href="/app/plan" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--green-ink)", textDecoration: "underline", textUnderlineOffset: 3, whiteSpace: "nowrap", flexShrink: 0 }}>
         Ver planes
       </Link>
     </div>

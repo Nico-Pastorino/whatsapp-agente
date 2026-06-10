@@ -59,14 +59,14 @@ function StatCard({
 }) {
   return (
     <div className="atd-card" style={{
-      padding: "16px 18px", display: "flex", flexDirection: "column", gap: 4,
+      padding: "14px", display: "flex", flexDirection: "column", gap: 3,
       ...(accent ? { border: "1px solid var(--green)", background: "var(--green-tint)" } : {}),
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--muted)", fontSize: 11 }}>
         {icon}
         <span className="mono" style={{ textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</span>
       </div>
-      <div className="serif" style={{ fontSize: 34, lineHeight: 1.1, color: "var(--ink)", marginTop: 4 }}>
+      <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.1, color: "var(--ink)", marginTop: 4 }}>
         {typeof value === "number" ? value.toLocaleString("es-AR") : value}
       </div>
       {sub && <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{sub}</div>}
@@ -175,54 +175,38 @@ export default function StatsScreen() {
         </div>
       </div>
 
-      {/* ── Fila 1: KPIs principales ── */}
-      <div className="lg:grid lg:grid-cols-4 lg:gap-3" style={{ margin: "0 20px 12px" }}>
+      <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16, background: stats.active_today > 0 ? "var(--green-tint)" : "var(--surface)" }}>
+        <div className="page-sub" style={{ marginBottom: 4 }}>hoy</div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 750, lineHeight: 1, color: "var(--ink)" }}>{stats.active_today}</div>
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--ink-3)" }}>
+              {stats.active_today === 1 ? "conversación activa" : "conversaciones activas"}
+            </p>
+          </div>
+          <TrendBadge pct={stats.weekly_trend_pct} />
+        </div>
+      </div>
+
+      {/* ── KPIs principales ── */}
+      <div className="lg:grid lg:grid-cols-3 lg:gap-3" style={{ margin: "0 20px 12px", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <StatCard
-          label="Conversaciones totales"
+          label="Total"
           value={stats.total_conversations}
-          sub={<TrendBadge pct={stats.weekly_trend_pct} />}
           icon={<Spark size={11} />}
         />
         <StatCard
-          label="Esta semana"
+          label="Semana"
           value={stats.this_week_conversations}
-          sub={`${stats.last_week_conversations} la semana anterior`}
         />
         <StatCard
-          label="Activas hoy"
-          value={stats.active_today}
-          sub="con actividad en las últimas 24h"
-          accent={stats.active_today > 0}
-        />
-        <StatCard
-          label="Tasa de handoff"
+          label="Derivación"
           value={`${stats.handoff_rate}%`}
-          sub="conversaciones derivadas a humano"
         />
+        <StatCard label="Resp. IA" value={formatResponseTime(stats.avg_ai_response_sec)} />
       </div>
 
-      {/* ── Fila 2: Mensajes del mes ── */}
-      <div className="lg:grid lg:grid-cols-3 lg:gap-3" style={{ margin: "0 20px 12px" }}>
-        <StatCard
-          label="Mensajes recibidos"
-          value={stats.inbound_messages_this_month}
-          sub="este mes"
-        />
-        <StatCard
-          label="Respuestas IA"
-          value={stats.ai_replies_this_month}
-          sub="este mes"
-          icon={<Spark size={11} />}
-        />
-        <StatCard
-          label="Tiempo respuesta IA"
-          value={formatResponseTime(stats.avg_ai_response_sec)}
-          sub="promedio primera respuesta"
-          icon={<Spark size={11} />}
-        />
-      </div>
-
-      {/* ── Fila 3: Modo + gráfico ── */}
+      {/* ── Modo + gráfico ── */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-3" style={{ margin: "0 20px 12px" }}>
 
         {/* Modo de atención */}

@@ -51,45 +51,43 @@ export default function SupportScreen() {
         <div>
           <div className="page-sub">ayuda y soporte</div>
           <h1 className="page-title">Soporte</h1>
-          <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "6px 0 0" }}>
-            Estamos para ayudarte a dejar tu asistente funcionando.
-          </p>
         </div>
       </div>
 
       <div
         style={{
-          padding: "8px 20px 0",
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          padding: "4px 20px 0",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
         }}
       >
         {options.map((opt) => (
           <section
             key={opt.title}
             className="atd-card"
-            style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
+            style={{ padding: 14, display: "flex", alignItems: "center", gap: 12 }}
           >
             <span
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
+                width: 38,
+                height: 38,
+                borderRadius: 12,
                 background: "var(--surface-2)",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 22,
+                fontSize: 19,
+                flexShrink: 0,
               }}
             >
               {opt.emoji}
             </span>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: "0 0 6px" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2 style={{ fontSize: 14.5, fontWeight: 700, color: "var(--ink)", margin: "0 0 3px" }}>
                 {opt.title}
               </h2>
-              <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, lineHeight: 1.55 }}>
+              <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.4 }}>
                 {opt.description}
               </p>
             </div>
@@ -98,14 +96,14 @@ export default function SupportScreen() {
               <a
                 href={opt.href}
                 {...(opt.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                className={`atd-btn ${opt.variant}`}
-                style={{ textDecoration: "none", width: "100%" }}
+                className={`atd-btn ${opt.variant} sm`}
+                style={{ textDecoration: "none", flexShrink: 0 }}
               >
-                {opt.cta}
+                Abrir
               </a>
             ) : (
-              <button className={`atd-btn ${opt.variant}`} disabled style={{ width: "100%" }}>
-                {opt.cta}
+              <button className={`atd-btn ${opt.variant} sm`} disabled style={{ flexShrink: 0 }}>
+                Abrir
               </button>
             )}
           </section>
@@ -114,7 +112,7 @@ export default function SupportScreen() {
 
       <p
         style={{
-          padding: "14px 20px 0",
+          padding: "12px 20px 0",
           fontSize: 12.5,
           color: "var(--muted)",
           lineHeight: 1.6,

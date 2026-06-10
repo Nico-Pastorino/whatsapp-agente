@@ -116,133 +116,6 @@ const STOCK_LABELS: Record<StockStatus, string> = {
 
 // ── Summary Cards ─────────────────────────────────────────────────────────────
 
-function SummaryCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string;
-  value: number | string;
-  icon: string;
-  color?: string;
-}) {
-  return (
-    <div
-      className="atd-card"
-      style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 120 }}
-    >
-      <span style={{ fontSize: 22 }}>{icon}</span>
-      <div>
-        <p style={{ fontSize: 18, fontWeight: 700, color: color ?? "var(--ink)", margin: 0 }}>
-          {value}
-        </p>
-        <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>{label}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── Assistant Preview ─────────────────────────────────────────────────────────
-
-function AiPreview({ items }: { items: CatalogItem[] }) {
-  const active = items.filter((i) => i.is_active);
-  const featured = items.filter((i) => i.is_featured && i.is_active);
-  const promos = items.filter(isPromoActive);
-
-  if (active.length === 0) return null;
-
-  const firstItem = featured[0] ?? active[0];
-  const secondItem = active.find((i) => i !== firstItem);
-
-  let assistantReply = "";
-  if (firstItem) {
-    assistantReply = `Sí, tenemos disponible ${firstItem.name}`;
-    if (firstItem.price) assistantReply += ` a ${firstItem.price}`;
-    if (firstItem.promo_price) assistantReply += ` (precio especial: ${firstItem.promo_price})`;
-    if (promos.length > 0) assistantReply += `. Además tenemos una promo activa: ${promos[0]!.promotion_label}`;
-    if (firstItem.financing_options) assistantReply += `. Financiación: ${firstItem.financing_options}`;
-    if (secondItem) assistantReply += `. También contamos con ${secondItem.name}`;
-    assistantReply += `. ¿Te cuento más detalles?`;
-  }
-
-  const clientQuestion = `¿Tienen ${firstItem?.name ?? "algo disponible"}?`;
-
-  return (
-    <div
-      className="atd-card"
-      style={{ margin: "12px 20px 0", padding: 0, overflow: "hidden", border: "1px solid var(--hairline)" }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--hairline)",
-          background: "var(--surface-2)",
-        }}
-      >
-        <span style={{ fontSize: 16 }}>🤖</span>
-        <div>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
-            Así responderá tu asistente
-          </p>
-          <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
-            Ejemplo generado con tu catálogo real
-          </p>
-        </div>
-        <span
-          style={{
-            marginLeft: "auto",
-            fontSize: 10,
-            fontWeight: 600,
-            padding: "3px 8px",
-            borderRadius: 99,
-            background: "var(--green-tint)",
-            color: "var(--green)",
-          }}
-        >
-          🟢 Sincronizado
-        </span>
-      </div>
-      <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* Cliente */}
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <div
-            style={{
-              maxWidth: "80%",
-              background: "#dcf8c6",
-              borderRadius: "12px 12px 2px 12px",
-              padding: "8px 12px",
-              fontSize: 13,
-              color: "#111",
-            }}
-          >
-            {clientQuestion}
-          </div>
-        </div>
-        {/* Asistente */}
-        <div style={{ display: "flex", justifyContent: "flex-start" }}>
-          <div
-            style={{
-              maxWidth: "80%",
-              background: "var(--surface)",
-              border: "1px solid var(--hairline)",
-              borderRadius: "12px 12px 12px 2px",
-              padding: "8px 12px",
-              fontSize: 13,
-              color: "var(--ink)",
-            }}
-          >
-            {assistantReply}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Item Card ─────────────────────────────────────────────────────────────────
 
 function ItemCard({
@@ -315,12 +188,12 @@ function ItemCard({
       )}
 
       {/* Body */}
-      <div style={{ padding: 16, flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: 18, flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+              <p style={{ fontSize: 15, fontWeight: 750, color: "var(--ink)", margin: 0, lineHeight: 1.25 }}>
                 {item.name}
               </p>
               <span
@@ -344,7 +217,7 @@ function ItemCard({
               )}
             </div>
             {item.category && (
-              <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{item.category}</p>
+              <p style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 4 }}>{item.category}</p>
             )}
           </div>
 
@@ -399,7 +272,7 @@ function ItemCard({
         {item.description && (
           <p
             style={{
-              fontSize: 12,
+              fontSize: 13,
               color: "var(--ink-3)",
               overflow: "hidden",
               display: "-webkit-box",
@@ -442,7 +315,7 @@ function ItemCard({
             display: "flex",
             alignItems: "center",
             gap: 5,
-            fontSize: 11,
+              fontSize: 12,
             color: item.is_active ? "var(--green)" : "var(--muted)",
             background: item.is_active ? "var(--green-tint)" : "var(--surface-2)",
             padding: "4px 8px",
@@ -455,13 +328,7 @@ function ItemCard({
       </div>
 
       {/* Action row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          borderTop: "1px solid var(--hairline)",
-        }}
-      >
+      <div style={{ display: "flex", borderTop: "1px solid var(--hairline)", flexWrap: "wrap" }}>
         {[
           { label: "Editar", onClick: onEdit, color: "var(--ink-2)" },
           { label: "Duplicar", onClick: onDuplicate, color: "var(--muted)" },
@@ -478,9 +345,11 @@ function ItemCard({
             onClick={action.onClick}
             disabled={"disabled" in action && action.disabled}
             style={{
-              padding: "10px 4px",
-              fontSize: 11.5,
-              fontWeight: 500,
+              flex: 1,
+              minWidth: 78,
+              padding: "12px 6px",
+              fontSize: 12,
+              fontWeight: 600,
               color: action.color,
               background: "none",
               border: "none",
@@ -1186,7 +1055,7 @@ export default function ItemCatalog() {
     { key: "product", label: "Productos", count: state.items.filter((i) => i.item_type === "product").length },
     { key: "service", label: "Servicios", count: state.items.filter((i) => i.item_type === "service").length },
     { key: "promotion", label: "Promociones", count: activePromos },
-    { key: "featured", label: "⭐ Destacados", count: featuredCount },
+    { key: "featured", label: "Destacados", count: featuredCount },
   ];
 
   if (loading) {
@@ -1203,10 +1072,7 @@ export default function ItemCatalog() {
       <div className="page-header">
         <div>
           <div className="page-sub">catálogo</div>
-          <h1 className="page-title">Lo que vendés</h1>
-          <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 2 }}>
-            Todo lo que cargues acá lo usa tu asistente para responder y vender por WhatsApp.
-          </p>
+          <h1 className="page-title">Catálogo</h1>
         </div>
         <button
           onClick={() => {
@@ -1219,7 +1085,7 @@ export default function ItemCatalog() {
           disabled={atLimit}
           className="atd-btn primary sm"
         >
-          + Agregar
+          Agregar
         </button>
       </div>
 
@@ -1294,35 +1160,30 @@ export default function ItemCatalog() {
         </div>
       )}
 
-      {/* ── Summary cards ─────────────────────────────────────────────────── */}
-      <div style={{ padding: "12px 20px 0", display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <SummaryCard label="Productos activos" value={activeProducts} icon="📦" />
-        <SummaryCard label="Servicios activos" value={activeServices} icon="🛠️" />
-        <SummaryCard label="Promociones activas" value={activePromos} icon="🏷️" color="#10b981" />
-        <SummaryCard label="Destacados" value={featuredCount} icon="⭐" color="#f59e0b" />
-        <div
-          className="atd-card"
-          style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 140 }}
-        >
-          <span style={{ fontSize: 22 }}>{loadError ? "🔴" : "🟢"}</span>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: loadError ? "#c0392b" : "var(--green)", margin: 0 }}>
-              {loadError ? "No sincronizado" : "Listo para el asistente"}
-            </p>
-            {lastUpdated && !loadError && (
-              <p style={{ fontSize: 11, color: "var(--muted)", margin: 0 }}>
-                Actualizado {lastUpdated.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            )}
-          </div>
+      <div className="atd-card" style={{ margin: "4px 20px 0", padding: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+          {[
+            ["Productos", activeProducts],
+            ["Servicios", activeServices],
+            ["Promos", activePromos],
+            ["Dest.", featuredCount],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <p style={{ fontSize: 22, fontWeight: 750, margin: 0, color: "var(--ink)", lineHeight: 1 }}>{value}</p>
+              <p style={{ fontSize: 12.5, margin: "4px 0 0", color: "var(--muted)" }}>{label}</p>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--hairline-2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <span style={{ fontSize: 12.5, color: loadError ? "#c0392b" : "var(--ink-3)" }}>
+            {loadError ? "No sincronizado" : lastUpdated ? `Actualizado ${lastUpdated.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}` : "Listo para el asistente"}
+          </span>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{state.count}/{state.limit === 9999 ? "∞" : state.limit}</span>
         </div>
       </div>
 
-      {/* ── Assistant Preview ─────────────────────────────────────────────── */}
-      {state.items.some((i) => i.is_active) && <AiPreview items={state.items} />}
-
       {/* ── Usage bar ─────────────────────────────────────────────────────── */}
-      <div className="atd-card" style={{ margin: "12px 20px 0", padding: "12px 16px" }}>
+      <div className="atd-card" style={{ margin: "12px 20px 0", padding: "14px 16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>
           <span>
             Capacidad del plan:{" "}
@@ -1368,14 +1229,14 @@ export default function ItemCatalog() {
       </div>
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <div style={{ padding: "12px 20px 0", overflowX: "auto" }}>
+      <div style={{ padding: "14px 20px 0", overflowX: "auto" }}>
         <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--hairline)", paddingBottom: 0 }}>
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               style={{
-                padding: "8px 14px",
+                padding: "10px 14px",
                 fontSize: 13,
                 fontWeight: activeTab === tab.key ? 600 : 400,
                 color: activeTab === tab.key ? "var(--green)" : "var(--ink-3)",
@@ -1500,8 +1361,8 @@ export default function ItemCatalog() {
           <div
             style={{
               display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 14,
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
               alignItems: "start",
             }}
           >

@@ -175,32 +175,32 @@ export default function AgendaScreen() {
 
   return (
     <DashboardContentShell maxWidth={960}>
-      <div style={{ padding: "20px 16px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 4 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Reservas / Turnos</h1>
-          <button onClick={openNew} className="atd-btn green" style={{ whiteSpace: "nowrap" }}>
-            + Nueva reserva
+      <div style={{ padding: "14px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+          <div>
+            <div className="page-sub">agenda</div>
+            <h1 className="page-title">Reservas</h1>
+          </div>
+          <button onClick={openNew} className="atd-btn primary sm" style={{ whiteSpace: "nowrap" }}>
+            Nueva
           </button>
         </div>
-        <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 18px" }}>
-          Gestioná las reservas de tus clientes y confirmá las solicitudes que toma tu asistente por WhatsApp.
-        </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 14 }}>
+        <div className="atd-card" style={{ padding: 14, marginBottom: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
           <Summary label="Pendientes" value={pendingCount} />
           <Summary label="Confirmadas" value={confirmedCount} />
-          <Summary label="Tomadas por el asistente" value={assistantCount} />
+          <Summary label="IA" value={assistantCount} />
         </div>
 
         {/* Filtros por estado */}
         {appointments.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
             {([
-              ["all", `Todas · ${appointments.length}`],
-              ["pending", `Pendientes · ${countByStatus("pending")}`],
-              ["confirmed", `Confirmadas · ${countByStatus("confirmed")}`],
-              ["done", `Completadas · ${countByStatus("done")}`],
-              ["cancelled", `Canceladas · ${countByStatus("cancelled")}`],
+              ["all", `Todas ${appointments.length}`],
+              ["pending", `Pendientes ${countByStatus("pending")}`],
+              ["confirmed", `Confirmadas ${countByStatus("confirmed")}`],
+              ["done", `Completadas ${countByStatus("done")}`],
+              ["cancelled", `Canceladas ${countByStatus("cancelled")}`],
             ] as [StatusFilter, string][]).map(([key, label]) => (
               <button
                 key={key}
@@ -332,9 +332,9 @@ export default function AgendaScreen() {
 
 function Summary({ label, value }: { label: string; value: number }) {
   return (
-    <div className="atd-card" style={{ padding: "12px 14px" }}>
-      <p style={{ fontSize: 20, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{value}</p>
-      <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>{label}</p>
+    <div>
+      <p style={{ fontSize: 19, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{value}</p>
+      <p style={{ fontSize: 11.5, color: "var(--muted)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</p>
     </div>
   );
 }
@@ -359,7 +359,7 @@ function AppointmentCard({
 }) {
   const meta = STATUS_META[a.status];
   return (
-    <div className="atd-card" style={{ padding: 16 }}>
+    <div className="atd-card" style={{ padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ minWidth: 0 }}>
           <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 2px", color: "var(--ink)" }}>{a.customer_name || "Sin nombre"}</p>

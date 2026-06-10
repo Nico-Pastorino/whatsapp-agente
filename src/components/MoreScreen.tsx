@@ -26,41 +26,53 @@ export default function MoreScreen() {
     <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
       <div className="page-header">
         <div>
-          <div className="page-sub">Más opciones</div>
-          <h1 className="page-title">Más</h1>
+          <div className="page-sub">ajustes</div>
+          <h1 style={{ fontSize: 24, lineHeight: 1.1, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Más</h1>
         </div>
       </div>
 
-      <div style={{ padding: "8px 20px 100px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ padding: "4px 20px 100px", display: "flex", flexDirection: "column", gap: 12 }}>
         {/* Apariencia */}
-        <div className="atd-card" style={{ padding: 16, background: "var(--surface)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 18 }}>🎨</span>
+        <section className="atd-card" style={{ padding: 14, background: "var(--surface)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ width: 34, height: 34, borderRadius: 11, background: "var(--surface-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🎨</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--ink)" }}>Apariencia</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 1 }}>Elegí cómo se ve la app</div>
+              <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>Apariencia</div>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 1 }}>Tema de la app</div>
             </div>
           </div>
           <ThemeToggle />
-        </div>
+        </section>
 
-        {items.map((item) => (
-          <button
-            key={item.href}
-            onClick={() => router.push(item.href)}
-            className="atd-card"
-            style={{ padding: "16px", display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", cursor: "pointer", background: "var(--surface)" }}
-          >
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-2)", flexShrink: 0 }}>
-              {item.icon}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--ink)" }}>{item.label}</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{item.sub}</div>
-            </div>
-            <ArrowLeft size={16} style={{ color: "var(--muted)", transform: "rotate(180deg)" }} />
-          </button>
-        ))}
+        <section className="atd-card" style={{ background: "var(--surface)", overflow: "hidden" }}>
+          {items.map((item, index) => (
+            <button
+              key={item.href}
+              onClick={() => router.push(item.href)}
+              style={{
+                padding: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                width: "100%",
+                textAlign: "left",
+                cursor: "pointer",
+                background: "transparent",
+                border: 0,
+                borderTop: index ? "1px solid var(--hairline)" : "none",
+              }}
+            >
+              <div style={{ width: 38, height: 38, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-2)", flexShrink: 0 }}>
+                {item.icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.sub}</div>
+              </div>
+              <ArrowLeft size={16} style={{ color: "var(--muted)", transform: "rotate(180deg)" }} />
+            </button>
+          ))}
+        </section>
 
         {/* Cerrar sesión — única vía de logout en mobile (el sidebar es desktop-only) */}
         <button
@@ -70,13 +82,13 @@ export default function MoreScreen() {
             router.refresh();
           }}
           className="atd-card"
-          style={{ marginTop: 8, padding: "16px", display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", cursor: "pointer", background: "var(--surface)" }}
+          style={{ padding: "14px", display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", cursor: "pointer", background: "var(--surface)" }}
         >
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)", flexShrink: 0, fontSize: 17 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)", flexShrink: 0, fontSize: 17 }}>
             ↩︎
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>Cerrar sesión</div>
+            <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink-2)" }}>Cerrar sesión</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Salir de tu cuenta en este dispositivo</div>
           </div>
         </button>

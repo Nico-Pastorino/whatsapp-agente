@@ -43,7 +43,10 @@ export default function QRScreen({ onConnected }: Props) {
   // Detectar pantallas chicas (celular). Reacciona a rotación / cambios de tamaño.
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 768px)");
-    const update = () => setIsMobile(mq.matches);
+    const update = () => {
+      setIsMobile(mq.matches);
+      if (mq.matches) setMethod("code");
+    };
     update();
     mq.addEventListener?.("change", update);
     return () => mq.removeEventListener?.("change", update);
@@ -269,11 +272,11 @@ export default function QRScreen({ onConnected }: Props) {
         <div className="page-header">
           <div>
             <div className="page-sub">conectar whatsapp</div>
-            <h1 className="page-title">Conectá tu WhatsApp</h1>
+            <h1 className="page-title">Conectar</h1>
           </div>
         </div>
 
-        <div style={{ padding: "8px 20px 110px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ padding: "4px 20px 110px", display: "flex", flexDirection: "column", gap: 12 }}>
           {methodToggle}
 
           {method === "code" && (
@@ -297,29 +300,20 @@ export default function QRScreen({ onConnected }: Props) {
 
           {method === "qr" && (
           <>
-          {/* Explicación principal */}
-          <div className="atd-card" style={{ padding: 18, display: "flex", gap: 12, alignItems: "flex-start", background: "var(--surface)" }}>
-            <span style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: "var(--green-tint)", color: "var(--green-ink)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-              📲
-            </span>
-            <div>
-              <h2 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 6px" }}>
-                Conectá desde otra pantalla
-              </h2>
-              <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, lineHeight: 1.55 }}>
-                Para vincular tu WhatsApp hay que escanear un código QR. Como estás en el
-                mismo teléfono, abrí este panel en una <strong>computadora u otro celular</strong> y
-                escaneá el código desde WhatsApp.
-              </p>
-            </div>
-          </div>
-
           {/* Acciones */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="atd-card" style={{ padding: 14 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 4px" }}>
+                Usá QR si tenés otro dispositivo
+              </h2>
+              <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.45 }}>
+                Desde este mismo celular es más simple vincular con código.
+              </p>
+            </div>
             <button onClick={copyLink} className="atd-btn primary lg" style={{ width: "100%" }}>
               {copied ? "✓ Link copiado" : "Copiar link de conexión"}
             </button>
-            <button onClick={shareViaWhatsApp} className="atd-btn green lg" style={{ width: "100%" }}>
+            <button onClick={shareViaWhatsApp} className="atd-btn ghost lg" style={{ width: "100%" }}>
               Enviar link por WhatsApp
             </button>
             <div style={{ display: "flex", gap: 10 }}>
@@ -386,15 +380,11 @@ export default function QRScreen({ onConnected }: Props) {
         </div>
       </div>
 
-      <div style={{ padding: "8px 20px 100px", textAlign: "center" }}>
+      <div style={{ padding: "4px 20px 100px", textAlign: "center" }}>
         {methodToggle}
 
         {method === "qr" ? (
           <>
-            <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 auto 20px", maxWidth: 280 }}>
-              Escaneá este código desde WhatsApp en tu celular para vincular tu asistente.
-            </p>
-
             {qrCard}
 
             {data.qrPng && (
