@@ -19,31 +19,46 @@ import {
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
 
-// Frases que indican que la IA está derivando al cliente a un asesor humano.
+// ── Dos niveles de escalamiento, con efectos distintos ──────────────────────
+//
+// 1. DERIVACIÓN REAL (HANDOFF): la IA le dijo al cliente que lo pasa con una
+//    persona. Cambia el modo a HUMAN (la IA deja de responder), marca
+//    needs_attention y avisa al encargado. Solo frases de transferencia
+//    explícita — derivar de más destruye el valor del producto.
 const HANDOFF_PATTERNS = [
   /te paso con (un|una) asesor/i,
   /te comunico con (un|una) asesor/i,
   /paso con (un|una) persona/i,
   /derivarte con (un|una)/i,
+  /te paso con alguien/i,
   /en breve te contact/i,
-  /alguien de nuestro equipo/i,
   /un asesor se (va a |va )poner en contacto/i,
+  /alguien del? (nuestro )?equipo (se pone|se va a poner|te va a (escribir|contactar|responder))/i,
   /mi colega/i,
+];
+
+// 2. CONSULTA PENDIENTE: la IA dijo que va a chequear un dato con el equipo
+//    ("lo consulto y te confirmo"). NO cambia el modo — la IA sigue activa y
+//    el cliente puede seguir preguntando. Solo marca needs_attention y avisa
+//    al encargado (evento "unanswered") para que cargue la info o responda.
+const CONSULT_PATTERNS = [
   /dame un momento y lo consulto/i,
   /dejame confirmar/i,
   /lo reviso con el equipo/i,
   /consulto para no decirte algo incorrecto/i,
-  // Frases del estilo humano/rioplatense del prompt actual — deben derivar
-  // a HUMAN + needs_attention para que alguien del negocio dé seguimiento.
-  /te paso con alguien/i,
   /lo (paso|consulto) (al|con el) equipo/i,
-  /para no (decirte|pasarte) (cualquier cosa|mal la info)/i,
-  /no quiero pasarte mal la info/i,
+  /para no (decirte|pasarte) (cualquier cosa|mal (la info|el precio))/i,
+  /no quiero pasarte mal (la info|el precio)/i,
   /te confirmamos por ac[áa]/i,
+  /ahora te averiguo/i,
 ];
 
 function isHandoffReply(text: string): boolean {
   return HANDOFF_PATTERNS.some((p) => p.test(text));
+}
+
+function isConsultReply(text: string): boolean {
+  return CONSULT_PATTERNS.some((p) => p.test(text));
 }
 import { extractPhoneFromJid } from "../whatsapp-jid";
 import { getConnectionState } from "../db";
@@ -342,6 +357,34 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   const shouldHandoff =
     isHandoffReply(reply) ||
     (action?.event === "human_handoff" && action.confidence >= 0.62);
+
+  // Consulta pendiente: la IA quedó debiendo un dato pero la conversación
+  // sigue en modo AI. Aviso interno + needs_attention, sin silenciar al bot.
+  const consultPending = !shouldHandoff && isConsultReply(reply);
+
+  if (consultPending) {
+    console.log(`[bot/${businessId}] Consulta pendiente — aviso al equipo SIN pasar a HUMAN`);
+    await setNeedsAttention(convo.id, true, businessId).catch(() => undefined);
+
+    const day = new Date().toISOString().slice(0, 10);
+    const customerPhone = fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
+    const who = fresh.name || customerPhone || "Un cliente";
+    await enqueueInternalNotification(
+      {
+        event_type: "unanswered",
+        dedup_key: `consult:${convo.id}:${day}`,
+        content: [
+          "🤔 *El asistente quedó debiendo una respuesta*",
+          `Cliente: ${who}`,
+          customerPhone ? `WhatsApp: ${customerPhone}` : null,
+          `Preguntó: ${text.trim()}`,
+          `El asistente respondió: "${reply}"`,
+          "El asistente sigue atendiendo el chat. Cargá la info que falta o respondé desde el panel.",
+        ].filter(Boolean).join("\n"),
+      },
+      businessId
+    ).catch((err) => console.error(`[notify/${businessId}] consult enqueue falló:`, err));
+  }
 
   if (shouldHandoff) {
     console.log(`[bot/${businessId}] Handoff detectado — cambiando a HUMAN + needs_attention`);
