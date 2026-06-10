@@ -5,6 +5,7 @@ import {
   requireDashboardSession,
   type DashboardBusinessContext,
 } from "./dashboard-auth";
+import { requireVerifiedEmail } from "./email-verification";
 import { checkAccountAccess } from "./db";
 
 export async function withDashboardSession<T>(
@@ -33,6 +34,20 @@ export async function withActiveDashboardBusinessContext<T>(
     );
   }
   return handler(context);
+}
+
+/**
+ * Contexto activo + email verificado. Para acciones OPERATIVAS que un email
+ * inventado no debe poder ejecutar: obtener el QR de WhatsApp, enviar
+ * mensajes, probar el asistente, invitar equipo. El bloqueo es de backend.
+ */
+export async function withVerifiedActiveDashboardBusinessContext<T>(
+  handler: (context: DashboardBusinessContext) => Promise<T>
+): Promise<T> {
+  return withActiveDashboardBusinessContext(async (context) => {
+    await requireVerifiedEmail(context.user.sub);
+    return handler(context);
+  });
 }
 
 export function toDashboardAuthResponse(error: unknown): NextResponse {

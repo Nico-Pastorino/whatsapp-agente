@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdminClient } from "@/lib/supabase";
+import { getSupabaseAdminClient, getSupabaseAuthClient } from "@/lib/supabase";
 import { createAppSessionToken, getSessionCookieOptions } from "@/lib/app-session";
 import { ACTIVE_BUSINESS_COOKIE, APP_SESSION_COOKIE } from "@/lib/app-session-shared";
 import { rateLimit, clientIpFromRequest } from "@/lib/rate-limit";
@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
   if (!fullName || !email || !password || !businessName) {
     return NextResponse.json({ error: "Todos los campos son obligatorios." }, { status: 400 });
   }
+  // Validación de formato de email (corta emails obviamente inválidos).
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    return NextResponse.json({ error: "Ingresá un email válido." }, { status: 400 });
+  }
   if (password.length < 8) {
     return NextResponse.json({ error: "La contraseña debe tener al menos 8 caracteres." }, { status: 400 });
   }
@@ -64,23 +68,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Plan no encontrado." }, { status: 400 });
   }
 
-  // Create Supabase Auth user (email confirmed immediately, no verification email)
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  // Crear usuario vía signUp (cliente anon): si "Confirm email" está activado
+  // en el panel de Supabase, esto envía el correo de verificación con el
+  // mailer integrado y el usuario queda con email_confirmed_at = null hasta
+  // confirmar. Si está desactivado, queda confirmado al instante (idéntico al
+  // comportamiento histórico). El gate operativo lee email_confirmed_at.
+  const authClient = getSupabaseAuthClient();
+  const { data: authData, error: authError } = await authClient.auth.signUp({
     email,
     password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
+    options: { data: { full_name: fullName } },
   });
 
   if (authError || !authData.user) {
-    if (authError?.message?.includes("already registered") || authError?.code === "email_exists") {
+    if (authError?.message?.includes("already registered") || authError?.code === "user_already_exists") {
       return NextResponse.json({ error: "Este email ya tiene una cuenta. Iniciá sesión." }, { status: 409 });
     }
-    console.error("[signup] auth error:", authError);
+    console.error("[signup] auth error:", authError?.code ?? authError?.message);
     return NextResponse.json({ error: "No se pudo crear la cuenta." }, { status: 500 });
   }
 
+  // Con confirmación activada, Supabase no falla ante emails repetidos:
+  // devuelve un usuario "fantasma" sin identities. Detectarlo y avisar.
+  if (Array.isArray(authData.user.identities) && authData.user.identities.length === 0) {
+    return NextResponse.json({ error: "Este email ya tiene una cuenta. Iniciá sesión." }, { status: 409 });
+  }
+
   const userId = authData.user.id;
+  const emailVerified = Boolean(authData.user.email_confirmed_at);
   const businessId = randomUUID();
   const slug = `${slugify(businessName)}-${businessId.slice(0, 8)}`;
   const nowDate = new Date();
@@ -150,9 +165,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error al configurar la cuenta. Intentá de nuevo." }, { status: 500 });
   }
 
-  // Issue session cookie immediately so the user lands on /app/plan logged in
+  // Issue session cookie immediately so the user lands logged in.
+  // needsEmailVerification le indica al frontend si debe pasar por la
+  // pantalla de verificación antes de las funciones operativas.
   const token = createAppSessionToken({ sub: userId, email, fullName });
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true, needsEmailVerification: !emailVerified });
   response.cookies.set(APP_SESSION_COOKIE, token, getSessionCookieOptions());
   response.cookies.set(ACTIVE_BUSINESS_COOKIE, businessId, getSessionCookieOptions());
   return response;

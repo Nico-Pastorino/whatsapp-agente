@@ -10,7 +10,7 @@ import {
   setNeedsAttention,
   updateHumanActivity,
 } from "@/lib/db";
-import { toDashboardAuthResponse, withActiveDashboardBusinessContext, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withDashboardBusinessContext, withVerifiedActiveDashboardBusinessContext } from "@/lib/route-auth";
 
 interface Ctx {
   params: Promise<{ conversationId: string }>;
@@ -45,7 +45,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   try {
-    return await withActiveDashboardBusinessContext(async ({ businessId, user }) => {
+    return await withVerifiedActiveDashboardBusinessContext(async ({ businessId, user }) => {
       const { conversationId } = await params;
       const id = conversationId?.trim();
 

@@ -43,7 +43,9 @@ function SignupForm() {
       });
 
       if (res.ok) {
-        router.push("/app/plan");
+        const data = await res.json().catch(() => ({}));
+        // Si el email requiere confirmación, guiar a la pantalla de verificación.
+        router.push(data.needsEmailVerification ? "/app/verify-email" : "/app/plan");
         router.refresh();
         return;
       }

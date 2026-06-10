@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { getConnectionState } from "@/lib/db";
-import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withVerifiedActiveDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
+    // Verificado: el QR de conexión es la puerta al consumo operativo (IA/WhatsApp).
+    return await withVerifiedActiveDashboardBusinessContext(async ({ businessId }) => {
       const state = await getConnectionState(businessId);
 
       const shouldShowQr =
