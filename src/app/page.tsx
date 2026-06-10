@@ -44,7 +44,7 @@ const SOCIAL_PROOF = [
 ] as const;
 
 const COMPARISON = [
-  { label: "Precio de entrada", atende: "$49.000/mes", others: "USD 49+ (~$70k)", agency: "$200k+ inicial" },
+  { label: "Precio de entrada", atende: "$29.000/mes", others: "USD 49+ (~$70k)", agency: "$200k+ inicial" },
   { label: "Tu mismo número", atende: "Sí", others: "API nueva", agency: "Depende" },
   { label: "Listo en minutos", atende: "Sí", others: "Días", agency: "Semanas" },
   { label: "Agenda de turnos", atende: "Incluida", others: "Extra", agency: "A medida" },
@@ -214,7 +214,7 @@ export default function HomePage() {
             {/* CTAs */}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
               <Link href="/signup" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 26px", fontSize: 15.5, fontWeight: 600, background: "var(--ink)", color: "#fff", borderRadius: 12, textDecoration: "none", boxShadow: "var(--shadow-2)" }}>
-                Empezar prueba gratis <span className="arrow">→</span>
+                Probar gratis 14 días <span className="arrow">→</span>
               </Link>
               <a href="#como-funciona" className="lp-btn" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "14px 24px", fontSize: 15.5, fontWeight: 500, background: "var(--surface)", color: "var(--ink)", borderRadius: 12, textDecoration: "none", border: "1px solid var(--hairline-2)" }}>
                 Ver cómo funciona
@@ -592,6 +592,10 @@ export default function HomePage() {
             Sin tarjeta · cancelá cuando quieras · sin compromiso
           </p>
           <BrandWordmark size={20} color="rgba(255,255,255,0.5)" />
+          <p style={{ marginTop: 18, fontSize: 12, color: "rgba(255,255,255,0.35)", display: "flex", gap: 16, justifyContent: "center" }}>
+            <Link href="/terminos" style={{ color: "inherit", textDecoration: "none" }}>Términos y Condiciones</Link>
+            <Link href="/privacidad" style={{ color: "inherit", textDecoration: "none" }}>Política de Privacidad</Link>
+          </p>
         </Reveal>
       </section>
 

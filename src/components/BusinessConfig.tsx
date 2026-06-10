@@ -55,6 +55,41 @@ function validateNotifyPhone(raw: string): { valid: boolean; normalized: string;
 
 const inputClass = "atd-input";
 
+// ── Preguntas frecuentes estructuradas ───────────────────────────────────────
+// Se guardan como texto plano "P:/R:" en el campo knowledge_base existente,
+// que la IA ya lee junto con la info clave. Sin cambios de esquema.
+
+interface FaqItem {
+  q: string;
+  a: string;
+}
+
+function serializeFaqs(faqs: FaqItem[]): string {
+  return faqs
+    .filter((f) => f.q.trim() && f.a.trim())
+    .map((f) => `P: ${f.q.trim()}\nR: ${f.a.trim()}`)
+    .join("\n\n");
+}
+
+/**
+ * Parser tolerante: interpreta bloques "P:/R:" (también "Pregunta:/Respuesta:").
+ * Lo que no matchea se conserva como texto legacy para no perder contenido de
+ * usuarios que ya tenían texto libre en knowledge_base.
+ */
+function parseFaqs(text: string): { faqs: FaqItem[]; legacy: string } {
+  const faqs: FaqItem[] = [];
+  const legacyParts: string[] = [];
+  for (const block of (text ?? "").split(/\n\s*\n/)) {
+    const m = block.match(/^\s*(?:P|Pregunta)\s*:\s*([\s\S]*?)\n\s*(?:R|Respuesta)\s*:\s*([\s\S]*)$/i);
+    if (m && m[1].trim() && m[2].trim()) {
+      faqs.push({ q: m[1].trim(), a: m[2].trim() });
+    } else if (block.trim()) {
+      legacyParts.push(block.trim());
+    }
+  }
+  return { faqs, legacy: legacyParts.join("\n\n") };
+}
+
 function SectionHeader({
   label,
   title,
@@ -94,6 +129,11 @@ export default function BusinessConfig() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [catalogCount, setCatalogCount] = useState(0);
+  // FAQs estructuradas (se serializan a knowledge_base al guardar).
+  const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [faqLegacy, setFaqLegacy] = useState("");
+  const [newFaqQ, setNewFaqQ] = useState("");
+  const [newFaqA, setNewFaqA] = useState("");
 
   const reloadProfile = useCallback(() => {
     fetch("/api/business")
@@ -112,6 +152,9 @@ export default function BusinessConfig() {
           notify_events: Array.isArray(data.notify_events) ? data.notify_events : [],
           response_tone: typeof data.response_tone === "string" ? data.response_tone : "",
         });
+        const parsedFaqs = parseFaqs(data.knowledge_base ?? "");
+        setFaqs(parsedFaqs.faqs);
+        setFaqLegacy(parsedFaqs.legacy);
         setLoading(false);
       });
     fetch("/api/business/items", { cache: "no-store" })
@@ -139,11 +182,13 @@ export default function BusinessConfig() {
   async function handleSave() {
     setSaving(true);
     setSaveError(null);
+    // FAQs estructuradas + texto previo (legacy) componen knowledge_base.
+    const knowledgeBase = [faqLegacy.trim(), serializeFaqs(faqs)].filter(Boolean).join("\n\n");
     try {
       const res = await fetch("/api/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies, knowledge_base: profile.knowledge_base, booking_enabled: profile.booking_enabled, booking_config: profile.booking_config, notify_enabled: profile.notify_enabled, notify_phone: profile.notify_phone, notify_events: profile.notify_events, response_tone: profile.response_tone }),
+        body: JSON.stringify({ name: profile.name, description: profile.description, extra: profile.extra, quick_replies: profile.quick_replies, knowledge_base: knowledgeBase, booking_enabled: profile.booking_enabled, booking_config: profile.booking_config, notify_enabled: profile.notify_enabled, notify_phone: profile.notify_phone, notify_events: profile.notify_events, response_tone: profile.response_tone }),
       });
       if (res.ok) {
         setSaved(true);
@@ -433,9 +478,107 @@ export default function BusinessConfig() {
             value={profile.extra}
             onChange={(e) => updateField("extra", e.target.value)}
             rows={8}
-            placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada\n\n¿Hacen envíos? Sí, a todo el país por correo. CABA en el día.\n¿Tienen garantía? 6 meses por defectos de fábrica.\n¿Puedo devolver? Sí, dentro de los 30 días con el ticket.\n¿Aceptan cuotas? Hasta 3 sin interés con tarjeta de crédito.`}
+            placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada`}
             className={`${inputClass} resize-none`}
           />
+
+          {/* ── Preguntas frecuentes estructuradas ── */}
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px dashed var(--hairline-2)" }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>
+              Preguntas frecuentes
+            </p>
+            <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "0 0 12px" }}>
+              Cargá la pregunta tal como la hacen tus clientes y la respuesta real. Tu asistente las usa
+              para responder directo, sin inventar.
+            </p>
+
+            {faqs.map((faq, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10, padding: 12, borderRadius: 12, background: "var(--surface-2)" }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <input
+                    value={faq.q}
+                    onChange={(e) => {
+                      setFaqs((prev) => prev.map((f, j) => (j === i ? { ...f, q: e.target.value } : f)));
+                      setSaved(false);
+                    }}
+                    placeholder="Pregunta"
+                    className={inputClass}
+                    style={{ fontWeight: 600 }}
+                  />
+                  <textarea
+                    value={faq.a}
+                    onChange={(e) => {
+                      setFaqs((prev) => prev.map((f, j) => (j === i ? { ...f, a: e.target.value } : f)));
+                      setSaved(false);
+                    }}
+                    placeholder="Respuesta real"
+                    rows={2}
+                    className={`${inputClass} resize-none`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFaqs((prev) => prev.filter((_, j) => j !== i));
+                    setSaved(false);
+                  }}
+                  aria-label="Eliminar pregunta"
+                  style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--muted)", cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+
+            {/* Alta de nueva FAQ */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 12, borderRadius: 12, border: "1px dashed var(--hairline-2)" }}>
+              <input
+                value={newFaqQ}
+                onChange={(e) => setNewFaqQ(e.target.value)}
+                placeholder='Ej: "¿Hacen envíos?"'
+                className={inputClass}
+              />
+              <textarea
+                value={newFaqA}
+                onChange={(e) => setNewFaqA(e.target.value)}
+                placeholder='Ej: "Sí, a todo el país por correo. CABA en el día."'
+                rows={2}
+                className={`${inputClass} resize-none`}
+              />
+              <button
+                type="button"
+                disabled={!newFaqQ.trim() || !newFaqA.trim()}
+                onClick={() => {
+                  setFaqs((prev) => [...prev, { q: newFaqQ.trim(), a: newFaqA.trim() }]);
+                  setNewFaqQ("");
+                  setNewFaqA("");
+                  setSaved(false);
+                }}
+                className="atd-btn green sm"
+                style={{ alignSelf: "flex-start", opacity: !newFaqQ.trim() || !newFaqA.trim() ? 0.5 : 1 }}
+              >
+                + Agregar pregunta
+              </button>
+            </div>
+
+            {/* Contenido previo no estructurado (legacy) */}
+            {faqLegacy && (
+              <div style={{ marginTop: 12 }}>
+                <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "0 0 6px" }}>
+                  Contenido anterior (también lo usa tu asistente; podés moverlo a preguntas o borrarlo):
+                </p>
+                <textarea
+                  value={faqLegacy}
+                  onChange={(e) => {
+                    setFaqLegacy(e.target.value);
+                    setSaved(false);
+                  }}
+                  rows={4}
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Paso 5: Agenda de turnos */}

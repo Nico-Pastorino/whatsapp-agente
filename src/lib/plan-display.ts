@@ -42,7 +42,7 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
   starter: buildPlan({
     code: "starter",
     name: "Starter",
-    priceMonthly: 49000,
+    priceMonthly: 29000,
     description: "Para empezar a responder consultas con IA.",
     // Todos los planes llevan al mismo trial Growth de 14 días.
     // El CTA del Starter explica el acceso inmediato.
@@ -59,7 +59,7 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
   growth: buildPlan({
     code: "growth",
     name: "Growth",
-    priceMonthly: 89000,
+    priceMonthly: 59000,
     description: "Para negocios que ya venden y quieren escalar.",
     badge: "Más popular",
     // CTA diferenciado: Growth es el plan del trial, así el usuario sabe qué prueba.
@@ -78,7 +78,7 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
   pro: buildPlan({
     code: "pro",
     name: "Pro",
-    priceMonthly: 149000,
+    priceMonthly: 99000,
     description: "Para equipos que viven de WhatsApp.",
     cta: "Empezar con Pro",
     features: [

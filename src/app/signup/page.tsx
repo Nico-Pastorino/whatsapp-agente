@@ -81,6 +81,11 @@ function SignupForm() {
           <Link href="/login" className="font-medium text-[var(--green-soft)] underline-offset-4 hover:underline">
             Iniciá sesión
           </Link>
+          <span className="mt-2 block text-xs text-[var(--muted)]">
+            Al crear tu cuenta aceptás los{" "}
+            <Link href="/terminos" className="underline underline-offset-2">Términos</Link> y la{" "}
+            <Link href="/privacidad" className="underline underline-offset-2">Política de Privacidad</Link>.
+          </span>
         </>
       }
     >
