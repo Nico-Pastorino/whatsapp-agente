@@ -33,6 +33,13 @@ const HANDOFF_PATTERNS = [
   /dejame confirmar/i,
   /lo reviso con el equipo/i,
   /consulto para no decirte algo incorrecto/i,
+  // Frases del estilo humano/rioplatense del prompt actual — deben derivar
+  // a HUMAN + needs_attention para que alguien del negocio dé seguimiento.
+  /te paso con alguien/i,
+  /lo (paso|consulto) (al|con el) equipo/i,
+  /para no (decirte|pasarte) (cualquier cosa|mal la info)/i,
+  /no quiero pasarte mal la info/i,
+  /te confirmamos por ac[áa]/i,
 ];
 
 function isHandoffReply(text: string): boolean {
