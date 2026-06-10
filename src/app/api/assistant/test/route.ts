@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateReply } from "@/lib/openrouter";
 import type { Message } from "@/lib/db";
-import { toDashboardAuthResponse, withVerifiedActiveDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withVerifiedActiveRoleDashboardBusinessContext } from "@/lib/route-auth";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // pero NO envía nada por WhatsApp ni guarda mensajes. Es un sandbox de prueba.
 export async function POST(req: NextRequest) {
   try {
-    return await withVerifiedActiveDashboardBusinessContext(async ({ businessId }) => {
+    return await withVerifiedActiveRoleDashboardBusinessContext(["owner", "admin"], async ({ businessId }) => {
       // Límite por negocio para controlar costo de IA (cada prueba llama al LLM).
       const rl = rateLimit(`assistant-test:${businessId}`, 20, 5 * 60_000);
       if (!rl.ok) {

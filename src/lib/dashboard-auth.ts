@@ -58,6 +58,12 @@ export async function requireDashboardBusinessContext(): Promise<DashboardBusine
     throw new DashboardAuthError("Tu usuario no tiene un negocio asignado.", 403);
   }
 
+  await supabase
+    .from("business_members")
+    .update({ last_active_at: new Date().toISOString() })
+    .eq("user_id", session.sub)
+    .eq("business_id", selectedMembership.business_id);
+
   return {
     user: session,
     businessId: selectedMembership.business_id,

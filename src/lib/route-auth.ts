@@ -20,6 +20,26 @@ export async function withDashboardBusinessContext<T>(
   return handler(await requireDashboardBusinessContext());
 }
 
+export function assertDashboardRole(
+  role: DashboardBusinessContext["role"],
+  allowed: Array<DashboardBusinessContext["role"]>,
+  message = "No tenés permisos para realizar esta acción."
+): void {
+  if (!allowed.includes(role)) {
+    throw new DashboardAuthError(message, 403);
+  }
+}
+
+export async function withRoleDashboardBusinessContext<T>(
+  allowed: Array<DashboardBusinessContext["role"]>,
+  handler: (context: DashboardBusinessContext) => Promise<T>,
+  message?: string
+): Promise<T> {
+  const context = await requireDashboardBusinessContext();
+  assertDashboardRole(context.role, allowed, message);
+  return handler(context);
+}
+
 export async function withActiveDashboardBusinessContext<T>(
   handler: (context: DashboardBusinessContext) => Promise<T>
 ): Promise<T> {
@@ -36,6 +56,17 @@ export async function withActiveDashboardBusinessContext<T>(
   return handler(context);
 }
 
+export async function withActiveRoleDashboardBusinessContext<T>(
+  allowed: Array<DashboardBusinessContext["role"]>,
+  handler: (context: DashboardBusinessContext) => Promise<T>,
+  message?: string
+): Promise<T> {
+  return withActiveDashboardBusinessContext(async (context) => {
+    assertDashboardRole(context.role, allowed, message);
+    return handler(context);
+  });
+}
+
 /**
  * Contexto activo + email verificado. Para acciones OPERATIVAS que un email
  * inventado no debe poder ejecutar: obtener el QR de WhatsApp, enviar
@@ -46,6 +77,17 @@ export async function withVerifiedActiveDashboardBusinessContext<T>(
 ): Promise<T> {
   return withActiveDashboardBusinessContext(async (context) => {
     await requireVerifiedEmail(context.user.sub);
+    return handler(context);
+  });
+}
+
+export async function withVerifiedActiveRoleDashboardBusinessContext<T>(
+  allowed: Array<DashboardBusinessContext["role"]>,
+  handler: (context: DashboardBusinessContext) => Promise<T>,
+  message?: string
+): Promise<T> {
+  return withVerifiedActiveDashboardBusinessContext(async (context) => {
+    assertDashboardRole(context.role, allowed, message);
     return handler(context);
   });
 }

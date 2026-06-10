@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Spark, Arrow, Chat, Bolt, QR, Layers } from "./atende/Icons";
+import { Bell, Arrow } from "./atende/Icons";
 import { Avatar } from "./atende/Icons";
 import {
   buildAssistantChecklist,
@@ -163,36 +163,6 @@ export default function HomeScreen() {
   const nextStep = steps.find((s) => !s.done) ?? null;
   const allDone = doneCount === totalSteps;
 
-  // Próxima acción recomendada: priorizar conversaciones que esperan respuesta.
-  const recommended =
-    data.needsAttention > 0
-      ? {
-          title: `${data.needsAttention} ${data.needsAttention === 1 ? "conversación necesita" : "conversaciones necesitan"} atención`,
-          desc: "Un cliente quedó esperando respuesta de una persona.",
-          cta: "Ver conversaciones",
-          href: "/app/conversations",
-        }
-      : nextStep
-      ? {
-          title: nextStep.label,
-          desc: "Es el próximo paso para dejar tu asistente listo para vender.",
-          cta: "Continuar",
-          href: nextStep.href,
-        }
-      : {
-          title: "Tu asistente está listo",
-          desc: "Revisá tus conversaciones y ajustá el entrenamiento cuando quieras.",
-          cta: "Ver conversaciones",
-          href: "/app/conversations",
-        };
-
-  const quickActions: Array<{ key: string; label: string; Icon: React.ComponentType<{ size?: number }>; href: string }> = [
-    { key: "connect", label: data.waConnected ? "WhatsApp" : "Conectar", Icon: QR, href: "/app/connect" },
-    { key: "train", label: "Entrenar", Icon: Spark, href: "/app/business" },
-    { key: "chats", label: "Chats", Icon: Chat, href: "/app/conversations" },
-    { key: "catalog", label: "Catálogo", Icon: Bolt, href: "/app/catalog" },
-  ];
-
   return (
     <div className="flex-1 overflow-y-auto pb-4" style={{ background: "var(--bg)" }}>
       {/* Top bar */}
@@ -251,30 +221,6 @@ export default function HomeScreen() {
         </button>
       </section>
 
-      {/* Próxima acción recomendada */}
-      <button
-        onClick={() => router.push(recommended.href)}
-        style={{
-          margin: "0 20px 12px", padding: 14, borderRadius: 18, width: "calc(100% - 40px)",
-          textAlign: "left", cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
-          background: "var(--surface)", border: "1px solid var(--hairline)",
-        }}
-      >
-        <span style={{
-          width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-          background: data.needsAttention > 0 ? "var(--human-tint)" : "var(--surface-2)",
-          color: data.needsAttention > 0 ? "var(--human)" : "var(--ink-2)",
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-        }}>
-          {data.needsAttention > 0 ? <Chat size={18} /> : <Spark size={18} />}
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 650, color: "var(--ink)" }}>{recommended.title}</div>
-          <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 2 }}>{recommended.desc}</div>
-        </div>
-        <Arrow size={18} style={{ color: "var(--muted)", flexShrink: 0 }} />
-      </button>
-
       {/* Progreso simple */}
       <section style={{ margin: "0 20px 12px", padding: 16, borderRadius: 18, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
@@ -300,28 +246,6 @@ export default function HomeScreen() {
           </button>
         )}
       </section>
-
-      {/* Accesos rápidos */}
-      <div style={{ padding: "0 20px 12px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          {quickActions.map(({ key, label, Icon, href }) => (
-            <button
-              key={key}
-              onClick={() => router.push(href)}
-              style={{
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-                padding: "11px 4px", borderRadius: 14, cursor: "pointer",
-                background: "var(--surface)", border: "1px solid var(--hairline)",
-              }}
-            >
-              <span style={{ width: 34, height: 34, borderRadius: 10, background: "var(--surface-2)", color: "var(--ink-2)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon size={16} />
-              </span>
-              <span style={{ fontSize: 10.5, color: "var(--ink-2)", textAlign: "center", lineHeight: 1.2 }}>{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Resumen de actividad */}
       <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -350,15 +274,6 @@ export default function HomeScreen() {
         </button>
       </div>
 
-      <button
-        onClick={() => router.push("/app/plan")}
-        style={{ margin: "12px 20px 0", width: "calc(100% - 40px)", padding: "12px 14px", borderRadius: 16, background: "transparent", border: "1px solid var(--hairline)", color: "var(--ink-3)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", textAlign: "left" }}
-      >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-          <Layers size={15} /> Plan {data.plan?.plan_name ?? ""}
-        </span>
-        <Arrow size={15} />
-      </button>
     </div>
   );
 }

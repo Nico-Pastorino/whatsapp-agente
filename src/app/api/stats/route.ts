@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withRoleDashboardBusinessContext } from "@/lib/route-auth";
 import { checkAccountAccess } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ function toUnix(val: string | number | null): number | null {
 
 export async function GET() {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withRoleDashboardBusinessContext(["owner", "admin"], async ({ businessId }) => {
       const access = await checkAccountAccess(businessId);
       if (!access.canUseApp) {
         return NextResponse.json({ error: "Sin acceso." }, { status: 403 });

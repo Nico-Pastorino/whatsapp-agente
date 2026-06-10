@@ -69,6 +69,7 @@ export interface Message {
   role: "user" | "assistant" | "human";
   content: string;
   created_at: number;
+  sent_by_user_id: string | null;
 }
 
 export interface ConnectionState {
@@ -267,6 +268,8 @@ export interface BusinessMember {
   role: BusinessMemberRole;
   status: "active" | "unavailable";
   created_at: number | null;
+  updated_at: number | null;
+  last_active_at: number | null;
 }
 
 export interface BusinessTeamInviteStatus {
@@ -291,8 +294,21 @@ export interface BusinessInvitation {
   accepted_by: string | null;
   expires_at: number | null;
   accepted_at: number | null;
+  revoked_at: number | null;
+  resent_at: number | null;
   created_at: number | null;
   updated_at: number | null;
+}
+
+export interface AuditLog {
+  id: string;
+  business_id: string;
+  actor_user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: number | null;
 }
 
 export interface TeamCapacitySummary {
@@ -434,6 +450,10 @@ function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+}
+
 function isValidBusinessMemberRole(value: string): value is BusinessMemberRole {
   return value === "owner" || value === "admin" || value === "agent";
 }
@@ -465,6 +485,28 @@ function resolveInvitationStatus(status: string, expiresAt: string | null | unde
 function assertCanManageTeam(role: BusinessMemberRole): void {
   if (role === "agent") {
     throw new TeamManagementError("No tenés permisos para gestionar el equipo.", 403);
+  }
+}
+
+export async function recordAuditLog(input: {
+  businessId: string;
+  actorUserId: string | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase.from("audit_logs").insert({
+    business_id: input.businessId,
+    actor_user_id: input.actorUserId,
+    action: input.action,
+    entity_type: input.entityType,
+    entity_id: input.entityId ?? null,
+    metadata: input.metadata ?? {},
+  });
+  if (error) {
+    console.warn("[audit] could not write audit log:", error.message);
   }
 }
 
@@ -544,6 +586,8 @@ function mapBusinessInvitationRow(row: {
   accepted_by: string | null;
   expires_at: string | null;
   accepted_at: string | null;
+  revoked_at?: string | null;
+  resent_at?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }): BusinessInvitation {
@@ -559,6 +603,8 @@ function mapBusinessInvitationRow(row: {
     accepted_by: row.accepted_by,
     expires_at: toUnixSeconds(row.expires_at),
     accepted_at: toUnixSeconds(row.accepted_at),
+    revoked_at: toUnixSeconds(row.revoked_at ?? null),
+    resent_at: toUnixSeconds(row.resent_at ?? null),
     created_at: toUnixSeconds(row.created_at),
     updated_at: toUnixSeconds(row.updated_at),
   };
@@ -606,6 +652,7 @@ function mapMessageRow(row: {
   role: "user" | "assistant" | "human";
   content: string;
   created_at: string;
+  sent_by_user_id?: string | null;
 }): Message {
   return {
     id: row.id,
@@ -613,6 +660,7 @@ function mapMessageRow(row: {
     role: row.role,
     content: row.content,
     created_at: toUnixSeconds(row.created_at) ?? 0,
+    sent_by_user_id: row.sent_by_user_id ?? null,
   };
 }
 
@@ -1567,7 +1615,7 @@ export async function getBusinessMembers(businessId: string): Promise<BusinessMe
   const supabase = getSupabaseAdminClient();
   const { data: members, error } = await supabase
     .from("business_members")
-    .select("id, business_id, user_id, role, created_at")
+    .select("id, business_id, user_id, role, created_at, updated_at, last_active_at")
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
@@ -1579,6 +1627,8 @@ export async function getBusinessMembers(businessId: string): Promise<BusinessMe
     user_id: string;
     role: BusinessMemberRole;
     created_at: string | null;
+    updated_at: string | null;
+    last_active_at: string | null;
   }>;
 
   if (memberRows.length === 0) return [];
@@ -1620,6 +1670,8 @@ export async function getBusinessMembers(businessId: string): Promise<BusinessMe
       role: member.role,
       status: authUsers.get(member.user_id)?.status ?? "unavailable",
       created_at: toUnixSeconds(member.created_at),
+      updated_at: toUnixSeconds(member.updated_at),
+      last_active_at: toUnixSeconds(member.last_active_at),
     };
   });
 }
@@ -1629,7 +1681,7 @@ export async function listBusinessInvitations(businessId: string): Promise<Busin
   const { data, error } = await supabase
     .from("business_invitations")
     .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
     )
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
@@ -1650,6 +1702,8 @@ export async function listBusinessInvitations(businessId: string): Promise<Busin
         accepted_by: string | null;
         expires_at: string | null;
         accepted_at: string | null;
+        revoked_at: string | null;
+        resent_at: string | null;
         created_at: string | null;
         updated_at: string | null;
       }
@@ -1662,7 +1716,7 @@ export async function getBusinessInvitationByToken(token: string): Promise<Busin
   const { data, error } = await supabase
     .from("business_invitations")
     .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
     )
     .eq("token", token)
     .maybeSingle();
@@ -1681,6 +1735,8 @@ export async function getBusinessInvitationByToken(token: string): Promise<Busin
       accepted_by: string | null;
       expires_at: string | null;
       accepted_at: string | null;
+      revoked_at: string | null;
+      resent_at: string | null;
       created_at: string | null;
       updated_at: string | null;
     }
@@ -1705,7 +1761,7 @@ export async function createBusinessInvitation(
   }
 
   const normalizedEmail = normalizeEmail(email);
-  if (!normalizedEmail) {
+  if (!normalizedEmail || !isValidEmail(normalizedEmail)) {
     throw new TeamManagementError("Ingresá un email válido.", 400);
   }
 
@@ -1724,7 +1780,7 @@ export async function createBusinessInvitation(
       supabase
         .from("business_invitations")
         .select(
-          "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+          "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
         )
         .eq("business_id", businessId)
         .eq("email", normalizedEmail)
@@ -1767,6 +1823,8 @@ export async function createBusinessInvitation(
         accepted_by: string | null;
         expires_at: string | null;
         accepted_at: string | null;
+        revoked_at: string | null;
+        resent_at: string | null;
         created_at: string | null;
         updated_at: string | null;
       }
@@ -1786,11 +1844,20 @@ export async function createBusinessInvitation(
       updated_at: new Date().toISOString(),
     })
     .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at"
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
     )
     .single();
 
   if (createError || !createdInvite) throw createError ?? new TeamManagementError("No se pudo crear la invitación.", 500);
+
+  await recordAuditLog({
+    businessId,
+    actorUserId: invitedByUserId,
+    action: "team.invitation.created",
+    entityType: "business_invitation",
+    entityId: createdInvite.id,
+    metadata: { email: normalizedEmail, role },
+  });
 
   return mapBusinessInvitationRow(
     createdInvite as {
@@ -1804,6 +1871,8 @@ export async function createBusinessInvitation(
       accepted_by: string | null;
       expires_at: string | null;
       accepted_at: string | null;
+      revoked_at: string | null;
+      resent_at: string | null;
       created_at: string | null;
       updated_at: string | null;
     }
@@ -1813,7 +1882,8 @@ export async function createBusinessInvitation(
 export async function revokeBusinessInvitation(
   businessId: string,
   actorRole: BusinessMemberRole,
-  invitationId: string
+  invitationId: string,
+  actorUserId: string | null = null
 ): Promise<void> {
   assertCanManageTeam(actorRole);
   const supabase = getSupabaseAdminClient();
@@ -1834,12 +1904,111 @@ export async function revokeBusinessInvitation(
     .from("business_invitations")
     .update({
       status: "revoked",
+      revoked_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq("id", invitationId)
     .eq("business_id", businessId);
 
   if (updateError) throw updateError;
+
+  await recordAuditLog({
+    businessId,
+    actorUserId,
+    action: "team.invitation.revoked",
+    entityType: "business_invitation",
+    entityId: invitationId,
+  });
+}
+
+export async function resendBusinessInvitation(
+  businessId: string,
+  actorRole: BusinessMemberRole,
+  invitationId: string,
+  actorUserId: string | null = null
+): Promise<BusinessInvitation> {
+  assertCanManageTeam(actorRole);
+  const supabase = getSupabaseAdminClient();
+  const { data: invitation, error } = await supabase
+    .from("business_invitations")
+    .select(
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
+    )
+    .eq("id", invitationId)
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!invitation?.id) throw new TeamManagementError("Invitación no encontrada.", 404);
+
+  const current = mapBusinessInvitationRow(invitation as {
+    id: string;
+    business_id: string;
+    email: string;
+    role: string;
+    token: string;
+    status: string;
+    invited_by: string | null;
+    accepted_by: string | null;
+    expires_at: string | null;
+    accepted_at: string | null;
+    revoked_at: string | null;
+    resent_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+  });
+
+  if (current.status !== "pending" && current.status !== "expired") {
+    throw new TeamManagementError("Solo podés reenviar invitaciones pendientes o vencidas.", 409);
+  }
+
+  const now = new Date().toISOString();
+  const { data: updated, error: updateError } = await supabase
+    .from("business_invitations")
+    .update({
+      token: generateInvitationToken(),
+      status: "pending",
+      expires_at: invitationExpiresAt(),
+      resent_at: now,
+      revoked_at: null,
+      updated_at: now,
+    })
+    .eq("id", invitationId)
+    .eq("business_id", businessId)
+    .select(
+      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
+    )
+    .single();
+
+  if (updateError || !updated) {
+    throw updateError ?? new TeamManagementError("No se pudo reenviar la invitación.", 500);
+  }
+
+  await recordAuditLog({
+    businessId,
+    actorUserId,
+    action: "team.invitation.resent",
+    entityType: "business_invitation",
+    entityId: invitationId,
+    metadata: { email: updated.email, role: updated.role },
+  });
+
+  return mapBusinessInvitationRow(updated as {
+    id: string;
+    business_id: string;
+    email: string;
+    role: string;
+    token: string;
+    status: string;
+    invited_by: string | null;
+    accepted_by: string | null;
+    expires_at: string | null;
+    accepted_at: string | null;
+    revoked_at: string | null;
+    resent_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+  });
 }
 
 export async function acceptBusinessInvitation(
@@ -1888,6 +2057,14 @@ export async function acceptBusinessInvitation(
       role: invitation.role,
     });
     if (insertError) throw insertError;
+    await recordAuditLog({
+      businessId: invitation.business_id,
+      actorUserId: userId,
+      action: "team.invitation.accepted",
+      entityType: "business_invitation",
+      entityId: invitation.id,
+      metadata: { role: invitation.role, email: invitation.email },
+    });
   } else {
     alreadyMember = true;
   }
@@ -1914,7 +2091,8 @@ export async function updateBusinessMemberRole(
   businessId: string,
   actorRole: BusinessMemberRole,
   memberId: string,
-  nextRole: BusinessMemberRole
+  nextRole: BusinessMemberRole,
+  actorUserId: string | null = null
 ): Promise<BusinessMember> {
   assertCanManageTeam(actorRole);
 
@@ -1956,11 +2134,20 @@ export async function updateBusinessMemberRole(
 
   const { error: updateError } = await supabase
     .from("business_members")
-    .update({ role: nextRole })
+    .update({ role: nextRole, updated_at: new Date().toISOString() })
     .eq("id", memberId)
     .eq("business_id", businessId);
 
   if (updateError) throw updateError;
+
+  await recordAuditLog({
+    businessId,
+    actorUserId,
+    action: "team.member.role_updated",
+    entityType: "business_member",
+    entityId: memberId,
+    metadata: { previous_role: currentRole, next_role: nextRole, user_id: member.user_id },
+  });
 
   const members = await getBusinessMembers(businessId);
   const updated = members.find((entry) => entry.id === memberId);
@@ -1971,7 +2158,8 @@ export async function updateBusinessMemberRole(
 export async function removeBusinessMember(
   businessId: string,
   actorRole: BusinessMemberRole,
-  memberId: string
+  memberId: string,
+  actorUserId: string | null = null
 ): Promise<void> {
   assertCanManageTeam(actorRole);
 
@@ -2008,6 +2196,15 @@ export async function removeBusinessMember(
     .eq("business_id", businessId);
 
   if (deleteError) throw deleteError;
+
+  await recordAuditLog({
+    businessId,
+    actorUserId,
+    action: "team.member.removed",
+    entityType: "business_member",
+    entityId: memberId,
+    metadata: { previous_role: targetRole },
+  });
 }
 
 export async function listAvailableBusinessesForUser(userId: string): Promise<AvailableBusiness[]> {

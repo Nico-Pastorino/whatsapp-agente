@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { downgradePlan } from "@/lib/db";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withRoleDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    return await withDashboardBusinessContext(async ({ businessId }) => {
+    return await withRoleDashboardBusinessContext(["owner"], async ({ businessId }) => {
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
       const planCode =
         typeof body.plan_code === "string" ? body.plan_code.trim() : "";

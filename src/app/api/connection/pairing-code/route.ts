@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConnectionState, requestPairingCode } from "@/lib/db";
-import { toDashboardAuthResponse, withVerifiedActiveDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withVerifiedActiveRoleDashboardBusinessContext } from "@/lib/route-auth";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: NextRequest) {
   try {
-    return await withVerifiedActiveDashboardBusinessContext(async ({ businessId }) => {
+    return await withVerifiedActiveRoleDashboardBusinessContext(["owner"], async ({ businessId }) => {
       const rl = rateLimit(`pairing-code:${businessId}`, 4, 10 * 60_000);
       if (!rl.ok) {
         return NextResponse.json(

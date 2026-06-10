@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createBusinessInvitation, type BusinessMemberRole } from "@/lib/db";
-import { toDashboardAuthResponse, withVerifiedActiveDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withVerifiedActiveRoleDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    return await withVerifiedActiveDashboardBusinessContext(async ({ businessId, role, user }) => {
+    return await withVerifiedActiveRoleDashboardBusinessContext(["owner", "admin"], async ({ businessId, role, user }) => {
       const body = await req.json().catch(() => ({}));
       const email = typeof body.email === "string" ? body.email : "";
       const nextRole =

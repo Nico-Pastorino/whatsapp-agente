@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MercadoPagoConfig, PreApproval } from "mercadopago";
 import { getSupabaseAdminClient } from "@/lib/supabase";
-import { toDashboardAuthResponse, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withRoleDashboardBusinessContext } from "@/lib/route-auth";
 import { canUpgradeTo, checkAccountAccess } from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
 // Descuento anual centralizado en plan-display.ts — fuente única para toda la app.
@@ -30,7 +30,7 @@ function getAppUrl(): string {
 
 export async function POST(req: NextRequest) {
   try {
-    return await withDashboardBusinessContext(async ({ businessId, user }) => {
+    return await withRoleDashboardBusinessContext(["owner"], async ({ businessId, user }) => {
       const rl = rateLimit(`checkout:${businessId}`, 8, 5 * 60_000);
       if (!rl.ok) {
         return NextResponse.json(

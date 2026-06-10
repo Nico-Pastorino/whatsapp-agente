@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBusinessProfile, setBusinessProfile } from "@/lib/db";
-import { toDashboardAuthResponse, withActiveDashboardBusinessContext, withDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withActiveRoleDashboardBusinessContext, withDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveRoleDashboardBusinessContext(["owner", "admin"], async ({ businessId }) => {
       const body = await req.json();
 
       const name: string = (body.name ?? "").trim();

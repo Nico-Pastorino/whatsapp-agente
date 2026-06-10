@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBusinessProfile, setBusinessProfile, canUseTemplate } from "@/lib/db";
-import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
+import { toDashboardAuthResponse, withActiveRoleDashboardBusinessContext } from "@/lib/route-auth";
 import {
   getTemplateById,
   buildExtraFromTemplate,
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
+    return await withActiveRoleDashboardBusinessContext(["owner", "admin"], async ({ businessId }) => {
       const body = await req.json();
       const templateId = typeof body.templateId === "string" ? body.templateId.trim() : "";
       const mode: "merge" | "replace" = body.mode === "replace" ? "replace" : "merge";
