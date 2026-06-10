@@ -22,7 +22,15 @@ export async function POST(req: NextRequest) {
       }
 
       const body = await req.json().catch(() => ({}));
-      const phone = typeof body.phone === "string" ? body.phone.replace(/[^\d]/g, "") : "";
+      let phone = typeof body.phone === "string" ? body.phone.replace(/[^\d]/g, "") : "";
+
+      // Normalización Argentina: los celulares en WhatsApp SIEMPRE llevan
+      // 549 + área + número. Si el usuario puso 54 sin el 9 (error clásico),
+      // lo corregimos — un código pedido para el número equivocado nunca
+      // va a poder ingresarse en el teléfono.
+      if (phone.startsWith("54") && !phone.startsWith("549") && phone.length >= 12) {
+        phone = `549${phone.slice(2)}`;
+      }
 
       if (phone.length < 10 || phone.length > 15) {
         return NextResponse.json(
