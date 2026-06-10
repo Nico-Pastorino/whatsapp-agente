@@ -78,6 +78,7 @@ export {
   recordHumanMessageUsage,
   recordInboundMessageUsage,
   requestWhatsappDisconnect,
+  requestPairingCode,
   resolveContactIdentity,
   setOutboxError,
   setBusinessProfile,

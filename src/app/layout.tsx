@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider, THEME_NO_FLASH_SCRIPT } from "@/components/ThemeProvider";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "Atendé — Tu vendedor automático por WhatsApp",
@@ -30,6 +31,7 @@ export default function RootLayout({
         {/* Fija el tema antes del primer pintado para evitar parpadeo. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_NO_FLASH_SCRIPT }} />
         <ThemeProvider>{children}</ThemeProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

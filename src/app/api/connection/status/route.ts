@@ -25,6 +25,9 @@ export async function GET() {
           qrPng,
           updatedAt: state.updated_at,
           workerOnline: state.worker_online,
+          // Vinculación por código (alternativa al QR)
+          pairingCode: state.pairing_code,
+          pairingPhone: state.pairing_phone,
         });
       }
 
@@ -33,6 +36,8 @@ export async function GET() {
         phone: state.phone,
         updatedAt: state.updated_at,
         workerOnline: state.worker_online,
+        pairingCode: state.pairing_code,
+        pairingPhone: state.pairing_phone,
       });
     });
   } catch (error) {

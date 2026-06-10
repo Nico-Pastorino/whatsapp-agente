@@ -80,6 +80,10 @@ export interface ConnectionState {
   worker_online: boolean;
   last_seen_at: number | null;
   auth_path: string | null;
+  /** Número solicitado para vincular por código (null si no se pidió). */
+  pairing_phone: string | null;
+  /** Código de vinculación de 8 caracteres generado por WhatsApp. */
+  pairing_code: string | null;
 }
 
 export interface OutboxItem {
@@ -2722,7 +2726,7 @@ export async function getConnectionState(
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("whatsapp_sessions")
-    .select("status, qr_string, phone, auth_path, last_seen_at, updated_at")
+    .select("status, qr_string, phone, auth_path, last_seen_at, updated_at, pairing_phone, pairing_code")
     .eq("business_id", businessId)
     .eq("instance_name", instanceName)
     .single();
@@ -2738,6 +2742,8 @@ export async function getConnectionState(
       last_seen_at: null,
       updated_at: 0,
       worker_online: false,
+      pairing_phone: null,
+      pairing_code: null,
     };
   }
 
@@ -2751,6 +2757,8 @@ export async function getConnectionState(
     last_seen_at: lastSeenAt,
     updated_at: toUnixSeconds(data.updated_at) ?? 0,
     worker_online: typeof lastSeenAt === "number" ? Math.floor(Date.now() / 1000) - lastSeenAt <= 30 : false,
+    pairing_phone: data.pairing_phone ?? null,
+    pairing_code: data.pairing_code ?? null,
   };
 }
 
@@ -2760,6 +2768,8 @@ export async function setConnectionState(
     qr_string?: string | null;
     phone?: string | null;
     auth_path?: string | null;
+    pairing_phone?: string | null;
+    pairing_code?: string | null;
   },
   businessId = getBusinessId(),
   instanceName = getWorkerInstanceName()
@@ -2768,6 +2778,8 @@ export async function setConnectionState(
     qr_string: null,
     phone: null,
     auth_path: null,
+    pairing_phone: null,
+    pairing_code: null,
   }));
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase
@@ -2780,11 +2792,36 @@ export async function setConnectionState(
         qr_string: patch.qr_string !== undefined ? patch.qr_string : current.qr_string,
         phone: patch.phone !== undefined ? patch.phone : current.phone,
         auth_path: patch.auth_path !== undefined ? patch.auth_path : current.auth_path,
+        pairing_phone: patch.pairing_phone !== undefined ? patch.pairing_phone : current.pairing_phone,
+        pairing_code: patch.pairing_code !== undefined ? patch.pairing_code : current.pairing_code,
         desired_action: "none",
         updated_at: new Date().toISOString(),
       },
       { onConflict: "business_id,instance_name" }
     );
+  if (error) throw error;
+}
+
+/**
+ * El dashboard solicita vincular por código: guarda el número y limpia el
+ * código anterior. El worker lo detecta y genera el código vía Baileys.
+ */
+export async function requestPairingCode(
+  phone: string,
+  businessId = getBusinessId(),
+  instanceName = getWorkerInstanceName()
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("whatsapp_sessions")
+    .update({
+      pairing_phone: phone,
+      pairing_code: null,
+      pairing_requested_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("business_id", businessId)
+    .eq("instance_name", instanceName);
   if (error) throw error;
 }
 

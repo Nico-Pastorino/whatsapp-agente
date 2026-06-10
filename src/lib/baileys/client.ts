@@ -37,6 +37,11 @@ interface SessionState {
    * en Supabase cada pocos segundos — reduce egress de forma drástica.
    */
   connected: boolean;
+  /**
+   * Evita pedir más de un código de vinculación por socket. Se resetea en cada
+   * startSession (un socket nuevo permite un código nuevo).
+   */
+  pairingRequested: boolean;
 }
 
 // Map de businessId → estado de sesión
@@ -57,6 +62,7 @@ function getOrCreateSession(businessId: string): SessionState {
       reconnectTimer: null,
       manualDisconnectInProgress: false,
       connected: false,
+      pairingRequested: false,
     });
   }
   return sessions.get(businessId)!;
@@ -145,6 +151,31 @@ export async function startSession(businessId: string): Promise<void> {
         businessId,
         instanceName
       );
+
+      // ── Vinculación por CÓDIGO (alternativa al QR, aditivo) ──────────────
+      // Si el dashboard pidió un código (pairing_phone seteado) y este socket
+      // todavía no generó uno, lo pedimos a WhatsApp y lo publicamos.
+      // El QR sigue vigente en paralelo: el usuario usa el método que quiera.
+      const pairingSession = sessions.get(businessId);
+      if (pairingSession && !pairingSession.pairingRequested && !sock.authState.creds.registered) {
+        try {
+          const st = await getConnectionState(businessId, instanceName);
+          const pairingPhone = st.pairing_phone?.replace(/[^\d]/g, "") ?? "";
+          if (pairingPhone.length >= 10) {
+            pairingSession.pairingRequested = true;
+            const code = await sock.requestPairingCode(pairingPhone);
+            console.log(`[worker/${businessId}] Código de vinculación generado para ${pairingPhone}`);
+            await setConnectionState(
+              { status: "qr", pairing_code: code, auth_path: authDir },
+              businessId,
+              instanceName
+            );
+          }
+        } catch (err) {
+          console.error(`[worker/${businessId}] Error generando código de vinculación:`, err);
+          // No rompe el flujo QR: el usuario puede escanear igual.
+        }
+      }
     }
 
     if (connection === "connecting") {
@@ -165,7 +196,7 @@ export async function startSession(businessId: string): Promise<void> {
       const phone = rawId.split(":")[0];
       console.log(`[worker/${businessId}] Conectado como ${phone}`);
       await setConnectionState(
-        { status: "connected", qr_string: null, phone, auth_path: authDir },
+        { status: "connected", qr_string: null, phone, auth_path: authDir, pairing_phone: null, pairing_code: null },
         businessId,
         instanceName
       );

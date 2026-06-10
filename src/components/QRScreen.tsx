@@ -15,6 +15,8 @@ interface StatusData {
   phone?: string;
   updatedAt?: number;
   workerOnline?: boolean;
+  pairingCode?: string | null;
+  pairingPhone?: string | null;
 }
 
 const HOW_TO = [
@@ -31,6 +33,12 @@ export default function QRScreen({ onConnected }: Props) {
   const [showHowTo, setShowHowTo] = useState(false);
   const [showQrAnyway, setShowQrAnyway] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Vinculación por código (alternativa al QR — ideal desde el mismo celular)
+  const [method, setMethod] = useState<"qr" | "code">("qr");
+  const [phoneInput, setPhoneInput] = useState("");
+  const [codeRequested, setCodeRequested] = useState(false);
+  const [requestingCode, setRequestingCode] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   // Detectar pantallas chicas (celular). Reacciona a rotación / cambios de tamaño.
   useEffect(() => {
@@ -89,6 +97,113 @@ export default function QRScreen({ onConnected }: Props) {
     const msg = `Abrí este link en una computadora para conectar WhatsApp a tu asistente de Atendé:\n${connectionUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   }
+
+  async function requestCode() {
+    setRequestingCode(true);
+    setCodeError(null);
+    try {
+      const res = await fetch("/api/connection/pairing-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phoneInput }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setCodeRequested(true);
+      } else {
+        setCodeError(json.error ?? "No pudimos generar el código. Intentá de nuevo.");
+      }
+    } catch {
+      setCodeError("Error de conexión. Intentá de nuevo.");
+    } finally {
+      setRequestingCode(false);
+    }
+  }
+
+  // Código formateado XXXX-XXXX para leer fácil.
+  const formattedPairingCode = data.pairingCode
+    ? `${data.pairingCode.slice(0, 4)}-${data.pairingCode.slice(4)}`
+    : null;
+
+  // ── Selector de método: QR vs código ────────────────────────────────────────
+  const methodToggle = (
+    <div className="atd-seg" style={{ width: "100%", maxWidth: 360, margin: "0 auto 14px" }}>
+      <button className={method === "qr" ? "on" : ""} onClick={() => setMethod("qr")} style={{ flex: 1, justifyContent: "center" }}>
+        Escanear QR
+      </button>
+      <button className={method === "code" ? "on" : ""} onClick={() => setMethod("code")} style={{ flex: 1, justifyContent: "center" }}>
+        Con código
+      </button>
+    </div>
+  );
+
+  // ── Bloque de vinculación por código ────────────────────────────────────────
+  const codeCard = (
+    <div className="atd-card" style={{ padding: 20, maxWidth: 380, margin: "0 auto", textAlign: "left" }}>
+      {formattedPairingCode ? (
+        <>
+          <p className="page-sub" style={{ marginBottom: 8 }}>tu código de vinculación</p>
+          <p className="mono" style={{ fontSize: 32, fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink)", textAlign: "center", margin: "8px 0 14px", userSelect: "all" }}>
+            {formattedPairingCode}
+          </p>
+          <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>
+            En el WhatsApp de tu negocio:
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              {[
+                "Configuración → Dispositivos vinculados",
+                "Tocá “Vincular un dispositivo”",
+                "Elegí “Vincular con el número de teléfono”",
+                "Escribí este código",
+              ].map((step, i) => (
+                <span key={i} style={{ display: "flex", gap: 8 }}>
+                  <span className="mono" style={{ color: "var(--accent)", flexShrink: 0 }}>0{i + 1}</span> {step}
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 14, textAlign: "center" }}>
+            esperando que ingreses el código…
+          </p>
+        </>
+      ) : codeRequested ? (
+        <div style={{ textAlign: "center", padding: "10px 0" }}>
+          <div className="atd-spinner" style={{ margin: "0 auto 12px" }} />
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Generando tu código…</p>
+          <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: 0 }}>
+            Puede tardar hasta un minuto. Quedate en esta pantalla.
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="page-sub" style={{ marginBottom: 6 }}>vincular con tu número</p>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 12px", lineHeight: 1.55 }}>
+            Ideal si estás desde el mismo celular: te damos un código y lo escribís en WhatsApp. Sin escanear nada.
+          </p>
+          <input
+            type="tel"
+            inputMode="numeric"
+            value={phoneInput}
+            onChange={(e) => setPhoneInput(e.target.value)}
+            placeholder="Ej: 5491155551234"
+            className="atd-input"
+            style={{ marginBottom: 6 }}
+          />
+          <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "0 0 12px" }}>
+            Con código de país, sin 0 ni 15. Argentina: 54 9 + área + número.
+          </p>
+          <button
+            onClick={requestCode}
+            disabled={requestingCode || phoneInput.replace(/[^\d]/g, "").length < 10}
+            className="atd-btn primary"
+            style={{ width: "100%", opacity: requestingCode || phoneInput.replace(/[^\d]/g, "").length < 10 ? 0.5 : 1 }}
+          >
+            {requestingCode ? "Pidiendo código…" : "Generar código"}
+          </button>
+          {codeError && <p style={{ fontSize: 12.5, color: "#b42318", marginTop: 10 }}>{codeError}</p>}
+        </>
+      )}
+    </div>
+  );
 
   // ── Bloque QR reutilizable (idéntico al original) ──────────────────────────
   const qrCard = (
@@ -159,6 +274,29 @@ export default function QRScreen({ onConnected }: Props) {
         </div>
 
         <div style={{ padding: "8px 20px 110px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {methodToggle}
+
+          {method === "code" && (
+            <>
+              {codeCard}
+              {/* Estado de conexión compartido */}
+              <div className="atd-card" style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, background: "var(--surface)" }}>
+                <span className={`atd-dot ${data.status === "connecting" ? "" : "live"}`} style={{ background: data.pairingCode || data.status === "connecting" ? "var(--green)" : "var(--muted)" }} />
+                <span style={{ fontSize: 13, color: "var(--ink-2)" }}>
+                  {data.status === "connecting"
+                    ? "Conectando con WhatsApp…"
+                    : data.pairingCode
+                    ? "Código listo — ingresalo en WhatsApp"
+                    : showBotOfflineHint
+                    ? "Preparando el asistente (1–2 min)…"
+                    : "Listo para generar tu código"}
+                </span>
+              </div>
+            </>
+          )}
+
+          {method === "qr" && (
+          <>
           {/* Explicación principal */}
           <div className="atd-card" style={{ padding: 18, display: "flex", gap: 12, alignItems: "flex-start", background: "var(--surface)" }}>
             <span style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: "var(--green-tint)", color: "var(--green-ink)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
@@ -224,13 +362,15 @@ export default function QRScreen({ onConnected }: Props) {
               <div style={{ marginTop: 12, textAlign: "center" }}>
                 <div style={{ padding: "10px 14px", borderRadius: 12, background: "var(--human-tint)", color: "var(--human)", fontSize: 12.5, lineHeight: 1.5, marginBottom: 12, textAlign: "left" }}>
                   ⚠️ Necesitás escanear este código desde el teléfono donde tenés WhatsApp —
-                  no desde este mismo. Por eso conviene abrirlo en otra pantalla.
+                  no desde este mismo. ¿Estás en ese teléfono? Usá la pestaña “Con código”.
                 </div>
                 {qrCard}
                 {statusPill}
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       </div>
     );
@@ -247,19 +387,27 @@ export default function QRScreen({ onConnected }: Props) {
       </div>
 
       <div style={{ padding: "8px 20px 100px", textAlign: "center" }}>
-        <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 auto 20px", maxWidth: 280 }}>
-          Escaneá este código desde WhatsApp en tu celular para vincular tu asistente.
-        </p>
+        {methodToggle}
 
-        {qrCard}
+        {method === "qr" ? (
+          <>
+            <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 auto 20px", maxWidth: 280 }}>
+              Escaneá este código desde WhatsApp en tu celular para vincular tu asistente.
+            </p>
 
-        {data.qrPng && (
-          <div className="mono" style={{ fontSize: 11, color: qrIsStale ? "#c0392b" : "var(--muted)", marginBottom: 20 }}>
-            {qrIsStale ? "⏳ actualizando código..." : "escanear antes de que expire"}
-          </div>
+            {qrCard}
+
+            {data.qrPng && (
+              <div className="mono" style={{ fontSize: 11, color: qrIsStale ? "#c0392b" : "var(--muted)", marginBottom: 20 }}>
+                {qrIsStale ? "⏳ actualizando código..." : "escanear antes de que expire"}
+              </div>
+            )}
+
+            {howToCard}
+          </>
+        ) : (
+          codeCard
         )}
-
-        {howToCard}
       </div>
     </div>
   );
