@@ -137,7 +137,7 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
         <span className="atd-pill">{planCode.toUpperCase()}</span>
         {appliedId && (
           <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
-            Listo. Tu asistente ya tiene una base para responder mejor.
+            Listo. Ahora completá los datos marcados como [completar] en “Información clave” y probá tu asistente.
           </span>
         )}
         {error && (
@@ -390,10 +390,20 @@ function ConfirmModal({
   onReplace: () => void;
   onCancel: () => void;
 }) {
+  // Resumen de lo que carga la plantilla, para decidir con información.
+  const willConfigure = [
+    `Tono: ${template.tone.toLowerCase().replace(/\.$/, "")}`,
+    "Mensaje de bienvenida y respuestas para cuando no sabe",
+    `${template.faqs.length} preguntas frecuentes típicas del rubro`,
+    `${template.responseRules.length} reglas del rubro`,
+    template.bookingConfig ? "Flujo de reservas / turnos" : null,
+    `${template.suggestedCategories.length} categorías sugeridas de productos o servicios`,
+  ].filter(Boolean) as string[];
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 90, padding: 16 }}>
-      <div className="atd-card" style={{ width: "100%", maxWidth: 430, padding: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+      <div className="atd-card" style={{ width: "100%", maxWidth: 430, padding: 24, maxHeight: "88svh", overflowY: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <span style={{ fontSize: 28 }}>{template.emoji}</span>
           <div>
             <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
@@ -402,6 +412,31 @@ function ConfirmModal({
             <p style={{ fontSize: 12, color: "var(--muted)", margin: "2px 0 0" }}>{template.name}</p>
           </div>
         </div>
+
+        {/* Qué configura */}
+        <div style={{ padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", marginBottom: 12 }}>
+          <p className="page-sub" style={{ margin: "0 0 8px" }}>esta plantilla configura</p>
+          {willConfigure.map((item) => (
+            <p key={item} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--ink-2)", margin: "0 0 5px", lineHeight: 1.4 }}>
+              <span style={{ color: "var(--green)", fontWeight: 700, flexShrink: 0 }}>✓</span> {item}
+            </p>
+          ))}
+        </div>
+
+        {/* Datos que el usuario debe completar después */}
+        {template.recommendedFields.length > 0 && (
+          <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px dashed var(--hairline-2)", marginBottom: 16 }}>
+            <p className="page-sub" style={{ margin: "0 0 8px" }}>para que funcione mejor, completá</p>
+            {template.recommendedFields.map((field) => (
+              <p key={field} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--ink-3)", margin: "0 0 5px", lineHeight: 1.4 }}>
+                <span style={{ flexShrink: 0 }}>○</span> {field}
+              </p>
+            ))}
+            <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "8px 0 0" }}>
+              Quedan marcados como pendientes en tu entrenamiento. Tu asistente no usa datos sin completar.
+            </p>
+          </div>
+        )}
 
         {profileIsEmpty ? (
           <>
