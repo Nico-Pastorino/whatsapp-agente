@@ -424,3 +424,52 @@ body {
 }
 .atd-spinner.lg { width: 40px; height: 40px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Landing v3: animaciones e impacto visual ─────────────────── */
+
+/* Marquee horizontal continuo (duplicar contenido para loop perfecto) */
+@keyframes lp-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.lp-marquee {
+  display: flex;
+  width: max-content;
+  animation: lp-marquee 28s linear infinite;
+}
+.lp-marquee.slow { animation-duration: 44s; }
+.lp-marquee.reverse { animation-direction: reverse; }
+.lp-marquee-mask {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-marquee { animation: none; flex-wrap: wrap; width: auto; }
+}
+
+/* Glow pulsante para el teléfono del hero */
+@keyframes lp-glow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.06); }
+}
+.lp-hero-glow {
+  position: absolute;
+  inset: -12% -18%;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, rgba(255,107,77,0.28), transparent 70%),
+    radial-gradient(closest-side, rgba(61,220,151,0.18), transparent 75%);
+  filter: blur(32px);
+  animation: lp-glow 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-hero-glow { animation: none; }
+}
+
+/* Burbujas de chat "pegadas" con leve rotación (sección de consultas) */
+.lp-sticker { transition: transform .25s ease; }
+@media (hover: hover) {
+  .lp-sticker:hover { transform: rotate(0deg) translateY(-4px) !important; }
+}
