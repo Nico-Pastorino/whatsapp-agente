@@ -61,6 +61,25 @@ export default function MoreScreen() {
             <ArrowLeft size={16} style={{ color: "var(--muted)", transform: "rotate(180deg)" }} />
           </button>
         ))}
+
+        {/* Cerrar sesión — única vía de logout en mobile (el sidebar es desktop-only) */}
+        <button
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+            router.push("/login");
+            router.refresh();
+          }}
+          className="atd-card"
+          style={{ marginTop: 8, padding: "16px", display: "flex", alignItems: "center", gap: 14, width: "100%", textAlign: "left", cursor: "pointer", background: "var(--surface)" }}
+        >
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)", flexShrink: 0, fontSize: 17 }}>
+            ↩︎
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-2)" }}>Cerrar sesión</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Salir de tu cuenta en este dispositivo</div>
+          </div>
+        </button>
       </div>
     </div>
   );

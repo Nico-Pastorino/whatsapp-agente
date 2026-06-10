@@ -132,6 +132,8 @@ export default function ConnectionGate({ currentView }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [trialPlan, setTrialPlan] = useState<TrialPlanState | null>(null);
+  // Email sin verificar → banner guía hacia /app/verify-email (un fetch al montar).
+  const [emailUnverified, setEmailUnverified] = useState(false);
   // Conversación pedida por URL (?c=<id>), p. ej. al venir desde Reservas / Turnos.
   // Se lee una vez al montar y se consume en el primer load de conversaciones.
   const [requestedConversationId, setRequestedConversationId] = useState<string | null>(() => {
@@ -162,6 +164,16 @@ export default function ConnectionGate({ currentView }: Props) {
     const interval = setInterval(tick, 120_000);
     return () => clearInterval(interval);
   }, [currentView]);
+
+  // Chequeo único de verificación de email (sin polling: cambia poco).
+  useEffect(() => {
+    fetch("/api/auth/verification-status", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { verified?: boolean } | null) => {
+        if (data && data.verified === false) setEmailUnverified(true);
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function loadConnectionStatus() {
     try {
@@ -358,6 +370,17 @@ export default function ConnectionGate({ currentView }: Props) {
     trialPlan?.status === "trial" &&
     trialPlan.can_use_app;
 
+  const verifyBanner = emailUnverified ? (
+    <div style={{ padding: "10px 16px", background: "var(--human-tint)", borderBottom: "1px solid rgba(212,154,58,0.3)", color: "var(--human)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 13 }}>
+        ✉️ Verificá tu email para activar tu prueba y conectar WhatsApp.
+      </span>
+      <Link href="/app/verify-email" className="atd-btn sm" style={{ background: "var(--human)", color: "#fff", border: "none", textDecoration: "none" }}>
+        Verificar ahora
+      </Link>
+    </div>
+  ) : null;
+
   const trialBanner = showTrialBanner ? (
     <div style={{ padding: "10px 16px", background: "rgba(31,107,74,0.09)", borderBottom: "1px solid rgba(31,107,74,0.16)", color: "var(--green-ink)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
       <span style={{ fontSize: 13 }}>
@@ -382,6 +405,7 @@ export default function ConnectionGate({ currentView }: Props) {
 
       {/* Right side: content + mobile tab bar */}
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {verifyBanner}
         {trialBanner}
         {/* Desktop content */}
         <div className="hidden md:flex" style={{ flex: 1, overflow: "hidden" }}>
