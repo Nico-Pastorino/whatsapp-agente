@@ -136,11 +136,6 @@ export async function POST(req: NextRequest) {
           : `Plan ${plan.name}${cycleLabel} — Agente WhatsApp`;
 
       const access = await checkAccountAccess(businessId);
-      const now = new Date();
-      const trialEnd =
-        subscription.trial_ends_at && new Date(subscription.trial_ends_at).getTime() > now.getTime()
-          ? new Date(subscription.trial_ends_at)
-          : null;
 
       // notification_url: MP también usa el configurado en el dashboard, pero
       // explicitarlo acá garantiza que cada preapproval tenga el webhook correcto
@@ -159,7 +154,6 @@ export async function POST(req: NextRequest) {
           frequency_type: "months",
           transaction_amount: chargeAmount,
           currency_id: plan.currency ?? "ARS",
-          ...(trialEnd ? { start_date: trialEnd.toISOString() } : {}),
         },
       } as unknown as Parameters<typeof preApprovalClient.create>[0]["body"];
 
