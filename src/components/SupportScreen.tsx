@@ -56,7 +56,7 @@ export default function SupportScreen() {
 
       <div
         style={{
-          padding: "4px 20px 0",
+          padding: "4px 0 0",
           display: "flex",
           flexDirection: "column",
           gap: 10,
@@ -112,7 +112,7 @@ export default function SupportScreen() {
 
       <p
         style={{
-          padding: "12px 20px 0",
+          padding: "12px 0 0",
           fontSize: 12.5,
           color: "var(--muted)",
           lineHeight: 1.6,

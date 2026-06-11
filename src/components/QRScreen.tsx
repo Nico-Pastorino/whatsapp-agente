@@ -269,7 +269,7 @@ export default function QRScreen({ onConnected }: Props) {
   if (isMobile) {
     return (
       <div style={{ flex: 1, overflow: "auto", background: "var(--bg)" }}>
-        <div className="page-header">
+        <div className="page-header" style={{ padding: "14px 22px 18px" }}>
           <div>
             <div className="page-sub">conectar whatsapp</div>
             <h1 className="page-title">Conectar</h1>
@@ -373,7 +373,7 @@ export default function QRScreen({ onConnected }: Props) {
   // ── DESKTOP / TABLET: experiencia original con QR ──────────────────────────
   return (
     <div style={{ flex: 1, overflow: "auto", background: "var(--bg)" }}>
-      <div className="page-header">
+      <div className="page-header" style={{ padding: "14px 22px 18px" }}>
         <div>
           <div className="page-sub">conectar whatsapp</div>
           <h1 className="page-title">Conectar</h1>

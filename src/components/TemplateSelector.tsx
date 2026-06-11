@@ -117,7 +117,7 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
 
   return (
     <>
-      <section className="atd-card template-selector-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+      <section className="atd-card template-selector-card" style={{ margin: "12px 0 0", padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
           <div style={{ minWidth: 220, flex: 1 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
@@ -243,10 +243,11 @@ function TemplateSheet({
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.42)", zIndex: 140, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 10 }}>
-      <div className="atd-card" style={{ width: "100%", maxWidth: 760, maxHeight: "88svh", padding: 0, overflow: "hidden", borderRadius: "20px 20px 14px 14px" }}>
+    <div className="atd-overlay sheet" style={{ zIndex: 140 }} onClick={onClose}>
+      <div className="atd-modal" style={{ width: "100%", maxWidth: 760, maxHeight: "88svh", padding: 0, display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+        <div className="atd-sheet-grabber md:hidden" />
         {/* Header */}
-        <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--hairline)", display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid var(--hairline)", display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
             <h3 style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Elegí una plantilla</h3>
             <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "4px 0 0" }}>
@@ -296,7 +297,7 @@ function TemplateSheet({
         </div>
 
         {/* Templates grid */}
-        <div style={{ padding: 12, overflowY: "auto", maxHeight: "calc(88svh - 162px)" }}>
+        <div style={{ padding: 12, overflowY: "auto", flex: 1, minHeight: 0 }}>
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr" }}>
             {filtered.map((template) => {
               const locked = isTemplateLocked(template.tier, planCode);
@@ -357,7 +358,7 @@ function TemplateRow({
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <p style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", margin: 0 }}>{template.name}</p>
           {isLocked && (
-            <span style={{ background: "#fff3cd", color: "#7a5800", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>
+            <span className="pro-badge">
               {requiredPlanLabel()}
             </span>
           )}
@@ -371,7 +372,7 @@ function TemplateRow({
           {template.description}
         </p>
       </div>
-      <span style={{ fontSize: 18, color: isApplied ? "var(--green)" : isLocked ? "#7a5800" : "var(--muted)", flexShrink: 0 }}>
+      <span style={{ fontSize: isLocked && !isApplied ? 12 : 18, fontWeight: isLocked && !isApplied ? 700 : 400, color: isApplied ? "var(--green)" : isLocked ? "var(--human)" : "var(--muted)", flexShrink: 0 }}>
         {isApplied ? "✓" : isLocked ? "Pro" : "→"}
       </span>
     </button>
@@ -404,8 +405,8 @@ function ConfirmModal({
   ].filter(Boolean) as string[];
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 150, padding: 16 }}>
-      <div className="atd-card" style={{ width: "100%", maxWidth: 430, padding: 24, maxHeight: "88svh", overflowY: "auto" }}>
+    <div className="atd-overlay sheet" style={{ zIndex: 150 }}>
+      <div className="atd-modal" style={{ width: "100%", maxWidth: 430, padding: 24, maxHeight: "88svh", overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <span style={{ fontSize: 28 }}>{template.emoji}</span>
           <div>
@@ -463,9 +464,9 @@ function ConfirmModal({
                 <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--green)" }}>Completar datos faltantes</span>
                 <span style={{ fontSize: 12, color: "var(--green)", opacity: 0.85 }}>Conserva lo que ya cargaste y suma sugerencias.</span>
               </button>
-              <button onClick={onReplace} disabled={applying} style={{ padding: "13px 16px", borderRadius: 12, border: "1px solid #ffd3c8", background: "#fff4f2", textAlign: "left", cursor: "pointer", opacity: applying ? 0.5 : 1 }}>
+              <button onClick={onReplace} disabled={applying} style={{ padding: "13px 16px", borderRadius: 12, border: "1px solid color-mix(in oklab, var(--accent) 35%, transparent)", background: "var(--accent-soft)", textAlign: "left", cursor: "pointer", opacity: applying ? 0.5 : 1 }}>
                 <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>Reemplazar configuración actual</span>
-                <span style={{ fontSize: 12, color: "var(--accent)", opacity: 0.85 }}>Cambia descripción, preguntas frecuentes, catálogo inicial y reglas.</span>
+                <span style={{ fontSize: 12, color: "var(--accent-ink)", opacity: 0.9 }}>Cambia descripción, preguntas frecuentes, catálogo inicial y reglas.</span>
               </button>
             </div>
             <button onClick={onCancel} disabled={applying} className="atd-btn secondary" style={{ width: "100%" }}>Cancelar</button>
@@ -501,8 +502,8 @@ function UpgradeModal({
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 150, padding: 16 }}>
-      <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+    <div className="atd-overlay sheet" style={{ zIndex: 150 }}>
+      <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
         <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
           {template.emoji} {template.name}
         </h4>

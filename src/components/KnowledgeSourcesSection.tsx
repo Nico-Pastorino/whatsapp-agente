@@ -103,7 +103,7 @@ export default function KnowledgeSourcesSection() {
   }
 
   return (
-    <section id="fuentes-externas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+    <section id="fuentes-externas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
       <div className="mb-4">
         <p className="page-sub" style={{ color: "var(--green)", marginBottom: 4 }}>conectá tus datos</p>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Fuentes externas</h3>

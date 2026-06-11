@@ -175,7 +175,7 @@ export default function StatsScreen() {
         </div>
       </div>
 
-      <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16, background: stats.active_today > 0 ? "var(--green-tint)" : "var(--surface)" }}>
+      <div className="atd-card" style={{ margin: "0 0 12px", padding: 16, background: stats.active_today > 0 ? "var(--green-tint)" : "var(--surface)" }}>
         <div className="page-sub" style={{ marginBottom: 4 }}>hoy</div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-end" }}>
           <div>
@@ -189,7 +189,7 @@ export default function StatsScreen() {
       </div>
 
       {/* ── KPIs principales ── */}
-      <div className="lg:grid lg:grid-cols-3 lg:gap-3" style={{ margin: "0 20px 12px", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+      <div className="lg:grid lg:grid-cols-3 lg:gap-3" style={{ margin: "0 0 12px", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
         <StatCard
           label="Total"
           value={stats.total_conversations}
@@ -207,7 +207,7 @@ export default function StatsScreen() {
       </div>
 
       {/* ── Modo + gráfico ── */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-3" style={{ margin: "0 20px 12px" }}>
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-3" style={{ margin: "0 0 12px" }}>
 
         {/* Modo de atención */}
         <div className="atd-card" style={{ padding: 16, marginBottom: 12 }}>
@@ -270,7 +270,7 @@ export default function StatsScreen() {
 
       {/* ── Fila 4: Conversaciones recientes ── */}
       {stats.recent_conversations.length > 0 && (
-        <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
+        <div className="atd-card" style={{ margin: "0 0 12px", padding: 16 }}>
           <div className="page-sub" style={{ marginBottom: 10 }}>conversaciones recientes</div>
           {stats.recent_conversations.map((conv, i) => (
             <div
@@ -312,7 +312,7 @@ export default function StatsScreen() {
 
       {/* ── Estado vacío ── */}
       {stats.total_conversations === 0 && (
-        <div className="atd-card" style={{ margin: "0 20px", padding: "32px 20px", textAlign: "center" }}>
+        <div className="atd-card" style={{ margin: 0, padding: "32px 20px", textAlign: "center" }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
           <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}>
             Todavía no hay conversaciones

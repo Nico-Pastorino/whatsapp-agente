@@ -1,14 +1,20 @@
 "use client";
 
 import { useTheme, type ThemeChoice } from "./ThemeProvider";
+import { Sun, Moon, Monitor } from "./atende/Icons";
 
-const OPTIONS: { value: ThemeChoice; label: string; icon: string }[] = [
-  { value: "light", label: "Claro", icon: "☀️" },
-  { value: "dark", label: "Oscuro", icon: "🌙" },
-  { value: "system", label: "Sistema", icon: "🖥️" },
+const OPTIONS: { value: ThemeChoice; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
+  { value: "light", label: "Claro", Icon: Sun },
+  { value: "dark", label: "Oscuro", Icon: Moon },
+  { value: "system", label: "Sistema", Icon: Monitor },
 ];
 
-export default function ThemeToggle() {
+/**
+ * Control segmentado compacto para el tema. Es deliberadamente discreto:
+ * vive como una fila más dentro de Ajustes, no como una sección destacada.
+ * `showLabels` agrega el texto al lado del ícono (para layouts más anchos).
+ */
+export default function ThemeToggle({ showLabels = false }: { showLabels?: boolean }) {
   const { theme, setTheme } = useTheme();
 
   return (
@@ -16,45 +22,47 @@ export default function ThemeToggle() {
       role="radiogroup"
       aria-label="Apariencia"
       style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 6,
+        display: "inline-flex",
+        gap: 2,
         background: "var(--surface-2)",
         border: "1px solid var(--hairline)",
-        borderRadius: 14,
-        padding: 4,
+        borderRadius: 999,
+        padding: 3,
+        flexShrink: 0,
       }}
     >
-      {OPTIONS.map((opt) => {
-        const active = theme === opt.value;
+      {OPTIONS.map(({ value, label, Icon }) => {
+        const active = theme === value;
         return (
           <button
-            key={opt.value}
+            key={value}
             role="radio"
             aria-checked={active}
-            onClick={() => setTheme(opt.value)}
+            aria-label={label}
+            title={label}
+            onClick={() => setTheme(value)}
             style={{
-              display: "flex",
-              flexDirection: "column",
+              display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 4,
-              minHeight: 56,
-              padding: "8px 6px",
-              borderRadius: 10,
+              gap: 6,
+              height: 30,
+              minWidth: showLabels ? 0 : 36,
+              padding: showLabels ? "0 12px" : 0,
+              borderRadius: 999,
               border: "none",
               cursor: "pointer",
-              background: active ? "var(--surface)" : "transparent",
+              background: active ? "var(--surface-solid)" : "transparent",
               boxShadow: active ? "var(--shadow-1)" : "none",
-              color: active ? "var(--ink)" : "var(--ink-3)",
-              fontWeight: active ? 600 : 400,
-              fontSize: 12.5,
+              color: active ? "var(--ink)" : "var(--muted)",
+              fontWeight: 600,
+              fontSize: 12,
               fontFamily: "var(--font-sans)",
               transition: "background .15s, color .15s",
             }}
           >
-            <span style={{ fontSize: 18, lineHeight: 1 }}>{opt.icon}</span>
-            {opt.label}
+            <Icon size={15} />
+            {showLabels && label}
           </button>
         );
       })}

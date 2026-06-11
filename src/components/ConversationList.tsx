@@ -74,7 +74,7 @@ export default function ConversationList({
   return (
     <div className="conversation-list" style={{ display: "flex", flexDirection: "column", height: "100%", background: "transparent" }}>
       {/* Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ padding: "16px 18px 14px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div>
             <div className="page-sub">

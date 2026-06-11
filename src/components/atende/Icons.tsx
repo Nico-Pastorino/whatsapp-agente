@@ -195,3 +195,28 @@ export const LifeBuoy = make(
     <path d="M4.7 4.7l2.7 2.7M12.6 12.6l2.7 2.7M15.3 4.7l-2.7 2.7M7.4 12.6l-2.7 2.7" />
   </>
 );
+
+// Tema / apariencia
+export const Sun = make(
+  <>
+    <circle cx="10" cy="10" r="3.4" />
+    <path d="M10 2.2v2.1M10 15.7v2.1M2.2 10h2.1M15.7 10h2.1M4.5 4.5L6 6M14 14l1.5 1.5M15.5 4.5L14 6M6 14l-1.5 1.5" />
+  </>
+);
+export const Moon = make(
+  <path d="M16.5 11.7A6.6 6.6 0 0 1 8.3 3.5a6.6 6.6 0 1 0 8.2 8.2z" />
+);
+export const Monitor = make(
+  <>
+    <rect x="3" y="4" width="14" height="9.5" rx="2" />
+    <path d="M8 17h4M10 13.5V17" />
+  </>
+);
+
+// Salir de la cuenta
+export const Logout = make(
+  <>
+    <path d="M12.5 3.5H6.8A2.3 2.3 0 0 0 4.5 5.8v8.4a2.3 2.3 0 0 0 2.3 2.3h5.7" />
+    <path d="M9 10h8M14 7l3 3-3 3" />
+  </>
+);

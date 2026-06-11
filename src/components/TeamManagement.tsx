@@ -298,7 +298,7 @@ export default function TeamManagement() {
 
         {(success || error) && (
           <div style={{
-            margin: "0 20px",
+            margin: 0,
             padding: "10px 14px", borderRadius: 12, fontSize: 13,
             border: error ? "1px solid #f5c2bb" : "1px solid var(--green)",
             background: error ? "#fff0ee" : "var(--green-tint)",
@@ -309,7 +309,7 @@ export default function TeamManagement() {
         )}
 
         {lastInviteLink && (
-          <div style={{ margin: "0 20px", padding: 16, borderRadius: 14, border: "1px solid var(--green)", background: "var(--green-tint)" }}>
+          <div style={{ margin: 0, padding: 16, borderRadius: 14, border: "1px solid var(--green)", background: "var(--green-tint)" }}>
             <p style={{ fontSize: 13, color: "var(--green)", marginBottom: 10 }}>
               Invitación creada. Copiá el link y enviáselo a la persona.
             </p>
@@ -337,7 +337,7 @@ export default function TeamManagement() {
         )}
 
         {isLimitReached && (
-          <div style={{ margin: "0 20px", padding: "14px 16px", borderRadius: 14, border: "1px solid #ffe5a0", background: "#fffbeb" }}>
+          <div style={{ margin: 0, padding: "14px 16px", borderRadius: 14, border: "1px solid #ffe5a0", background: "#fffbeb" }}>
             <p style={{ fontSize: 13, fontWeight: 500, color: "#7a5800", marginBottom: 10 }}>
               Alcanzaste el límite de usuarios de tu plan.
             </p>
@@ -347,7 +347,7 @@ export default function TeamManagement() {
           </div>
         )}
 
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+        <section className="atd-card" style={{ margin: "12px 0 0", padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
             <div>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Invitar persona</h3>
@@ -424,7 +424,7 @@ export default function TeamManagement() {
           </div>
         </section>
 
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+        <section className="atd-card" style={{ margin: "12px 0 0", padding: 16 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 12px" }}>Miembros</h3>
           <div style={{ display: "grid", gap: 8 }}>
             {data.members.length === 0 ? (
@@ -517,7 +517,7 @@ export default function TeamManagement() {
           </div>
         </section>
 
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+        <section className="atd-card" style={{ margin: "12px 0 0", padding: 16 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 12px" }}>Invitaciones</h3>
 
           <div style={{ display: "grid", gap: 8 }}>

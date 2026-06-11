@@ -55,16 +55,18 @@ export default function AssistantTester({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 95, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 12 }}
+      className="atd-overlay sheet"
+      style={{ zIndex: 95 }}
       onClick={onClose}
     >
       <div
-        className="atd-card"
-        style={{ width: "100%", maxWidth: 480, height: "min(82svh, 620px)", padding: 0, overflow: "hidden", borderRadius: "22px 22px 14px 14px", display: "flex", flexDirection: "column" }}
+        className="atd-modal"
+        style={{ width: "100%", maxWidth: 480, height: "min(82svh, 620px)", padding: 0, display: "flex", flexDirection: "column" }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="atd-sheet-grabber md:hidden" />
         {/* Header */}
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--hairline)", display: "flex", alignItems: "center", gap: 10, background: "var(--surface)" }}>
+        <div style={{ padding: "12px 16px 14px", borderBottom: "1px solid var(--hairline)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ width: 34, height: 34, borderRadius: 10, background: "var(--green-tint)", color: "var(--green-ink)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             <Spark size={18} />
           </span>

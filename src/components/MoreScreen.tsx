@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Users, QR, ArrowLeft, Calendar, BarChart, LifeBuoy } from "./atende/Icons";
+import { Users, QR, ArrowLeft, Calendar, BarChart, LifeBuoy, Moon, Logout } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
 import { canAccessView, type DashboardRole, type DashboardView } from "@/lib/role-access";
 
@@ -11,6 +11,14 @@ interface MenuItem {
   sub: string;
   href: string;
   view: DashboardView;
+}
+
+function RowIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ width: 36, height: 36, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-2)", flexShrink: 0 }}>
+      {children}
+    </div>
+  );
 }
 
 export default function MoreScreen({ role = "owner" }: { role?: DashboardRole }) {
@@ -28,33 +36,22 @@ export default function MoreScreen({ role = "owner" }: { role?: DashboardRole })
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
-      <div className="page-header">
-        <div>
-          <div className="page-sub">ajustes</div>
-          <h1 style={{ fontSize: 24, lineHeight: 1.1, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Más</h1>
-        </div>
-      </div>
-
-      <div style={{ padding: "4px 20px 100px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {/* Apariencia */}
-        <section className="atd-card" style={{ padding: 14, background: "var(--surface)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ width: 34, height: 34, borderRadius: 11, background: "var(--surface-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>🎨</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>Apariencia</div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 1 }}>Tema de la app</div>
-            </div>
+      <div style={{ padding: "14px 20px 110px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="page-header">
+          <div>
+            <div className="page-sub">ajustes</div>
+            <h1 className="page-title">Más</h1>
           </div>
-          <ThemeToggle />
-        </section>
+        </div>
 
+        {/* Accesos */}
         <section className="atd-card" style={{ background: "var(--surface)", overflow: "hidden" }}>
           {items.map((item, index) => (
             <button
               key={item.href}
               onClick={() => router.push(item.href)}
               style={{
-                padding: "14px",
+                padding: "13px 14px",
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
@@ -66,16 +63,23 @@ export default function MoreScreen({ role = "owner" }: { role?: DashboardRole })
                 borderTop: index ? "1px solid var(--hairline)" : "none",
               }}
             >
-              <div style={{ width: 38, height: 38, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-2)", flexShrink: 0 }}>
-                {item.icon}
-              </div>
+              <RowIcon>{item.icon}</RowIcon>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>{item.label}</div>
                 <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.sub}</div>
               </div>
-              <ArrowLeft size={16} style={{ color: "var(--muted)", transform: "rotate(180deg)" }} />
+              <ArrowLeft size={16} style={{ color: "var(--muted)", transform: "rotate(180deg)", flexShrink: 0 }} />
             </button>
           ))}
+
+          {/* Apariencia — fila discreta con control compacto, sin sección propia */}
+          <div style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12, borderTop: "1px solid var(--hairline)" }}>
+            <RowIcon><Moon size={17} /></RowIcon>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>Apariencia</div>
+            </div>
+            <ThemeToggle />
+          </div>
         </section>
 
         {/* Cerrar sesión — única vía de logout en mobile (el sidebar es desktop-only) */}
@@ -86,11 +90,9 @@ export default function MoreScreen({ role = "owner" }: { role?: DashboardRole })
             router.refresh();
           }}
           className="atd-card"
-          style={{ padding: "14px", display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", cursor: "pointer", background: "var(--surface)" }}
+          style={{ padding: "13px 14px", display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", cursor: "pointer", background: "var(--surface)" }}
         >
-          <div style={{ width: 38, height: 38, borderRadius: 12, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted)", flexShrink: 0, fontSize: 17 }}>
-            ↩︎
-          </div>
+          <RowIcon><Logout size={17} /></RowIcon>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink-2)" }}>Cerrar sesión</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Salir de tu cuenta en este dispositivo</div>

@@ -226,7 +226,7 @@ export default function BusinessConfig() {
           </div>
         </div>
 
-        <div style={{ padding: "0 20px 6px" }}>
+        <div style={{ padding: "0 0 6px" }}>
           <section className="atd-card" style={{ padding: 16 }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
               <div>
@@ -259,7 +259,7 @@ export default function BusinessConfig() {
         />
 
         {/* Acciones rápidas: navegación directa a cada sección */}
-        <div style={{ padding: "4px 20px 0" }}>
+        <div style={{ padding: "4px 0 0" }}>
           <p className="page-sub" style={{ marginBottom: 8 }}>secciones</p>
           <div className="atd-card" style={{ overflow: "hidden", background: "var(--surface)" }}>
             {([
@@ -350,7 +350,7 @@ export default function BusinessConfig() {
         </div>
 
         {/* Paso 1: Identidad del negocio */}
-        <section id="datos-negocio" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="datos-negocio" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
             label="Paso 1"
             title="Identidad del negocio"
@@ -385,7 +385,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Paso 2: Catálogo → link al nuevo módulo */}
-        <section className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
             label="Paso 2"
             title="Catálogo de productos y servicios"
@@ -410,7 +410,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Paso 3: Tono de respuesta */}
-        <section id="tono-respuesta" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="tono-respuesta" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
             label="Paso 3"
             title="Tono de respuesta"
@@ -458,7 +458,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Paso 4: Información clave y preguntas frecuentes (merged) */}
-        <section id="info-clave" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="info-clave" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
             label="Paso 4"
             title="Información clave y preguntas frecuentes"
@@ -575,7 +575,7 @@ export default function BusinessConfig() {
         {/* Fuentes externas: web / Google Sheets / CSV */}
         <KnowledgeSourcesSection />
 
-        <section id="turnos-reservas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="turnos-reservas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
               label="Paso 5"
@@ -619,7 +619,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Paso 6: Avisos internos */}
-        <section id="avisos-encargado" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="avisos-encargado" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
               label="Paso 6"
@@ -803,7 +803,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Paso 7: Probar asistente */}
-        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
             <SectionHeader
               label="Paso 7"
@@ -817,7 +817,7 @@ export default function BusinessConfig() {
         </section>
 
         {/* Paso 8: Respuestas rápidas */}
-        <section id="respuestas-rapidas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
+        <section id="respuestas-rapidas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
             label="Paso 8"
             title="Respuestas rápidas"

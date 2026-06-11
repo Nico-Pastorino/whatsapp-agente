@@ -14,7 +14,7 @@ import {
  */
 export default function SupportCard() {
   return (
-    <section className="atd-card" style={{ margin: "12px 20px 0", padding: 18 }}>
+    <section className="atd-card" style={{ margin: "12px 0 0", padding: 18 }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         <span
           style={{

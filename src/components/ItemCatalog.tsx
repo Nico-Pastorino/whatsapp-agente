@@ -448,30 +448,19 @@ function ItemForm({
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        padding: 16,
-      }}
-    >
+    <div className="atd-overlay sheet" style={{ zIndex: 50 }}>
       <div
-        className="atd-card"
+        className="atd-modal"
         style={{
           width: "100%",
           maxWidth: 540,
           display: "flex",
           flexDirection: "column",
-          maxHeight: "94vh",
+          maxHeight: "92svh",
           padding: 0,
-          overflow: "hidden",
         }}
       >
+        <div className="atd-sheet-grabber md:hidden" />
         {/* Header */}
         <div
           style={{
@@ -1093,7 +1082,7 @@ export default function ItemCatalog() {
       {loadError && (
         <div
           style={{
-            margin: "10px 20px 0",
+            margin: "10px 0 0",
             padding: "12px 16px",
             borderRadius: 12,
             border: "1px solid #fca5a5",
@@ -1128,7 +1117,7 @@ export default function ItemCatalog() {
       {actionError && (
         <div
           style={{
-            margin: "10px 20px 0",
+            margin: "10px 0 0",
             padding: "10px 16px",
             borderRadius: 12,
             border: "1px solid #fca5a5",
@@ -1146,7 +1135,7 @@ export default function ItemCatalog() {
       {successMsg && (
         <div
           style={{
-            margin: "10px 20px 0",
+            margin: "10px 0 0",
             padding: "10px 16px",
             borderRadius: 12,
             border: "1px solid var(--green)",
@@ -1160,7 +1149,7 @@ export default function ItemCatalog() {
         </div>
       )}
 
-      <div className="atd-card" style={{ margin: "4px 20px 0", padding: 16 }}>
+      <div className="atd-card" style={{ margin: "4px 0 0", padding: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
           {[
             ["Productos", activeProducts],
@@ -1183,7 +1172,7 @@ export default function ItemCatalog() {
       </div>
 
       {/* ── Usage bar ─────────────────────────────────────────────────────── */}
-      <div className="atd-card" style={{ margin: "12px 20px 0", padding: "14px 16px" }}>
+      <div className="atd-card" style={{ margin: "12px 0 0", padding: "14px 16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>
           <span>
             Capacidad del plan:{" "}
@@ -1229,7 +1218,7 @@ export default function ItemCatalog() {
       </div>
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <div style={{ padding: "14px 20px 0", overflowX: "auto" }}>
+      <div style={{ padding: "14px 0 0", overflowX: "auto" }}>
         <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--hairline)", paddingBottom: 0 }}>
           {tabs.map((tab) => (
             <button
@@ -1272,7 +1261,7 @@ export default function ItemCatalog() {
 
       {/* ── Search ────────────────────────────────────────────────────────── */}
       {state.items.length > 0 && (
-        <div style={{ padding: "10px 20px 0" }}>
+        <div style={{ padding: "10px 0 0" }}>
           <input
             type="text"
             value={search}
@@ -1405,19 +1394,8 @@ export default function ItemCatalog() {
 
       {/* ── Delete Confirmation ───────────────────────────────────────────── */}
       {deleteConfirmId && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 50,
-            background: "rgba(0,0,0,0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-          }}
-        >
-          <div className="atd-card" style={{ width: "100%", maxWidth: 380, padding: 24 }}>
+        <div className="atd-overlay" style={{ zIndex: 50 }}>
+          <div className="atd-modal" style={{ width: "100%", maxWidth: 380, padding: 24 }}>
             <p style={{ fontSize: 28, marginBottom: 8 }}>🗑️</p>
             <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
               ¿Eliminar este producto/servicio?

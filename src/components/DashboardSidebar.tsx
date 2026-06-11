@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart, Calendar, LifeBuoy } from "./atende/Icons";
+import { Spark, Chat, Shop, Bolt, Layers, Users, QR, BarChart, Calendar, LifeBuoy, Logout } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
 import { canAccessView, type DashboardRole } from "@/lib/role-access";
 
@@ -188,9 +188,9 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
 
       {/* Bottom: appearance + WhatsApp status + logout */}
       <div style={{ padding: "14px 14px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* Apariencia */}
-        <div style={{ padding: "0 2px 4px" }}>
-          <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6, paddingLeft: 6 }}>Apariencia</div>
+        {/* Apariencia — fila discreta: label + control compacto */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "2px 6px 4px" }}>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>Apariencia</span>
           <ThemeToggle />
         </div>
 
@@ -224,7 +224,7 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
             background: "transparent", color: "var(--muted)", fontSize: 13,
           }}
         >
-          <Cog size={14} />
+          <Logout size={14} />
           Cerrar sesión
         </button>
       </div>

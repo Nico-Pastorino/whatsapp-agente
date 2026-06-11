@@ -175,7 +175,7 @@ export default function AgendaScreen() {
 
   return (
     <DashboardContentShell maxWidth={1320}>
-      <div style={{ padding: "14px 20px 0" }}>
+      <div style={{ padding: "14px 0 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
           <div>
             <div className="page-sub">agenda</div>
@@ -268,13 +268,15 @@ export default function AgendaScreen() {
       {showForm && (
         <div
           onClick={() => !saving && setShowForm(false)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+          className="atd-overlay sheet"
+          style={{ zIndex: 200 }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="atd-card"
-            style={{ width: "100%", maxWidth: 520, borderRadius: "20px 20px 0 0", padding: 20, maxHeight: "92vh", overflowY: "auto" }}
+            className="atd-modal"
+            style={{ width: "100%", maxWidth: 520, padding: 20, maxHeight: "92svh", overflowY: "auto" }}
           >
+            <div className="atd-sheet-grabber md:hidden" style={{ margin: "-6px auto 10px" }} />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{editing ? "Editar reserva" : "Nueva reserva"}</h3>
               <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "var(--muted)" }}>×</button>

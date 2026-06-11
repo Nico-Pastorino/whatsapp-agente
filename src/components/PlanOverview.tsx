@@ -537,7 +537,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         </div>
 
         {plan.status === "trial" && plan.can_use_app && (
-          <div style={{ margin: "0 20px 14px", padding: 16, borderRadius: 16, background: "rgba(31,107,74,0.09)", border: "1px solid rgba(31,107,74,0.18)", display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+          <div style={{ margin: "0 0 14px", padding: 16, borderRadius: 16, background: "rgba(31,107,74,0.09)", border: "1px solid rgba(31,107,74,0.18)", display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--green-ink)" }}>
                 Estás usando tu prueba gratuita de 14 días.
@@ -557,12 +557,12 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         )}
 
         {plan.status === "trial" && plan.can_use_app && (plan.days_left_trial ?? 0) <= 3 && (
-          <div style={{ margin: "0 20px 14px", padding: 12, borderRadius: 12, background: "rgba(234,179,8,0.12)", color: "#854d0e", fontSize: 13 }}>
+          <div style={{ margin: "0 0 14px", padding: 12, borderRadius: 12, background: "rgba(234,179,8,0.12)", color: "#854d0e", fontSize: 13 }}>
             Tu prueba gratuita termina pronto. Activá tu plan para que el bot siga respondiendo sin interrupciones.
           </div>
         )}
 
-        <div style={{ margin: "0 20px 12px", padding: 16, borderRadius: 14, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+        <div style={{ margin: "0 0 12px", padding: 16, borderRadius: 14, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
             <div>
               <div className="page-sub" style={{ marginBottom: 3 }}>plan actual</div>
@@ -606,14 +606,14 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         </div>
 
         {checkoutError && (
-          <div style={{ margin: "0 20px 12px", padding: 12, borderRadius: 12, background: "rgba(192,57,43,0.1)", color: "#c0392b", fontSize: 13 }}>
+          <div style={{ margin: "0 0 12px", padding: 12, borderRadius: 12, background: "rgba(192,57,43,0.1)", color: "#c0392b", fontSize: 13 }}>
             {checkoutError}
           </div>
         )}
 
         <div className="lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-3">
           {/* Usage */}
-          <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
+          <div className="atd-card" style={{ margin: "0 0 12px", padding: 16 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>uso del plan</div>
             {[
               { label: "Usuarios", used: 1, limit: plan.users_limit },
@@ -637,7 +637,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           </div>
 
           {/* Features */}
-          <div className="atd-card" style={{ margin: "0 20px 12px", padding: 16 }}>
+          <div className="atd-card" style={{ margin: "0 0 12px", padding: 16 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>incluido en {plan.plan_name}</div>
             <div className="grid gap-x-6 lg:grid-cols-2">
               <div>
@@ -663,7 +663,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
         {/* Upgrade cards */}
         {plan.upgrade_options.length > 0 && plan.upgrade_options.map((opt) => (
-          <div key={opt.code} className="atd-card" style={{ margin: "0 20px 10px", padding: 16, background: "var(--accent-soft)", borderColor: "transparent" }}>
+          <div key={opt.code} className="atd-card" style={{ margin: "0 0 10px", padding: 16, background: "var(--accent-soft)", borderColor: "transparent" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
               <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--accent)", color: "var(--on-accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>✦</span>
               <div>
@@ -690,7 +690,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
         {/* Downgrade options */}
         {plan.downgrade_options.length > 0 && (
-          <div className="atd-card" style={{ margin: "0 20px 10px", padding: 16 }}>
+          <div className="atd-card" style={{ margin: "0 0 10px", padding: 16 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>bajar de plan</div>
             {plan.downgrade_options.map((opt) => (
               <button key={opt.code} onClick={() => { setDowngradeTarget(opt); setShowDowngradeModal(true); }}
@@ -702,7 +702,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         )}
 
         {(plan.status === "canceled" || plan.status === "past_due") && (
-          <div style={{ margin: "0 20px 10px" }}>
+          <div style={{ margin: "0 0 10px" }}>
             <button onClick={() => startCheckout()} disabled={checkoutLoading} className="atd-btn green" style={{ width: "100%" }}>
               {checkoutLoading ? "Redirigiendo..." : "Renovar plan"}
             </button>
@@ -714,8 +714,8 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
       {/* Cancel modal */}
       {showCancelModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", padding: 16 }}>
-          <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+        <div className="atd-overlay" style={{ zIndex: 50 }}>
+          <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
             <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Cancelar el plan?</h3>
             <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
               Tu asistente seguirá activo hasta el final del período ya pagado. Después el acceso queda pausado.
@@ -732,8 +732,8 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
       {/* Downgrade modal */}
       {showDowngradeModal && downgradeTarget && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", padding: 16 }}>
-          <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+        <div className="atd-overlay" style={{ zIndex: 50 }}>
+          <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
             <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Bajar a {downgradeTarget.name}?</h3>
             <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
               El cambio se aplica ahora mismo. Si tu negocio supera los límites del plan, la operación no se permitirá.
