@@ -109,6 +109,33 @@ function SectionHeader({
   );
 }
 
+function AdvancedSummary({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <summary
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        cursor: "pointer",
+        listStyle: "none",
+      }}
+    >
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>{title}</span>
+        <span style={{ display: "block", fontSize: 12.5, color: "var(--ink-3)", marginTop: 3 }}>{description}</span>
+      </span>
+      <span className="business-disclosure-arrow" aria-hidden="true">⌄</span>
+    </summary>
+  );
+}
+
 export default function BusinessConfig() {
   const [profile, setProfile] = useState<Profile>({
     name: "",
@@ -171,7 +198,6 @@ export default function BusinessConfig() {
   const profileIsEmpty = !profile.description && !profile.extra && !profile.knowledge_base;
   // Checklist unificado — misma fuente de verdad que el Centro de control.
   const checklist = buildAssistantChecklist(profile, catalogCount);
-  const doneByKey = Object.fromEntries(checklist.map((i) => [i.key, i.done])) as Record<string, boolean>;
   const progress = assistantProgress(checklist);
   const nextStep = checklist.find((item) => !item.done);
 
@@ -214,14 +240,14 @@ export default function BusinessConfig() {
   }
 
   return (
-    <DashboardContentShell maxWidth={1180} bottomPadding={220}>
+    <DashboardContentShell maxWidth={960} bottomPadding={220}>
 
         <div className="page-header">
           <div>
             <div className="page-sub">configuración</div>
-            <h1 style={{ fontSize: 24, lineHeight: 1.12, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Entrená tu asistente</h1>
+            <h1 style={{ fontSize: 24, lineHeight: 1.12, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Mi negocio</h1>
             <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "5px 0 0" }}>
-              Solo completá lo básico. Podés ajustar detalles después.
+              Completá lo esencial y probá el asistente. Lo demás queda como opcional.
             </p>
           </div>
         </div>
@@ -242,7 +268,7 @@ export default function BusinessConfig() {
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <a href={nextStep?.href ?? "#probar-asistente"} className="atd-btn primary sm" style={{ display: "inline-flex", textDecoration: "none" }}>
-                {nextStep ? "Continuar" : "Revisar"}
+                {nextStep ? "Continuar configuración" : "Revisar"}
               </a>
               <button type="button" onClick={() => setShowTester(true)} className="atd-btn ghost sm" style={{ display: "inline-flex" }}>
                 Probar
@@ -258,105 +284,14 @@ export default function BusinessConfig() {
           onApplied={reloadProfile}
         />
 
-        {/* Acciones rápidas: navegación directa a cada sección */}
-        <div style={{ padding: "4px 0 0" }}>
-          <p className="page-sub" style={{ marginBottom: 8 }}>secciones</p>
-          <div className="atd-card" style={{ overflow: "hidden", background: "var(--surface)" }}>
-            {([
-              {
-                icon: "🏪",
-                label: "Datos del negocio",
-                desc: "Nombre y descripción",
-                href: "#datos-negocio",
-                done: doneByKey.business ?? false,
-                isLink: false,
-              },
-              {
-                icon: "🛍️",
-                label: "Catálogo",
-                desc: "Productos y servicios",
-                href: "/app/catalog",
-                done: doneByKey.catalog ?? false,
-                isLink: true,
-              },
-              {
-                icon: "📋",
-                label: "Info clave y FAQs",
-                desc: "Horarios, pagos, preguntas",
-                href: "#info-clave",
-                done: doneByKey.info ?? false,
-                isLink: false,
-              },
-              {
-                icon: "🎙️",
-                label: "Tono de respuesta",
-                desc: "Cómo habla tu asistente",
-                href: "#tono-respuesta",
-                done: doneByKey.tone ?? false,
-                isLink: false,
-              },
-              {
-                icon: "📅",
-                label: "Reservas / Turnos",
-                desc: "Agenda automática",
-                href: "#turnos-reservas",
-                done: profile.booking_enabled,
-                isLink: false,
-              },
-              {
-                icon: "🔔",
-                label: "Avisos",
-                desc: "Notificar al encargado",
-                href: "#avisos-encargado",
-                done: doneByKey.notify ?? false,
-                isLink: false,
-              },
-              {
-                icon: "🧪",
-                label: "Probar asistente",
-                desc: "Mirá cómo responde",
-                href: "#probar-asistente",
-                done: false,
-                isLink: false,
-              },
-            ] as { icon: string; label: string; desc: string; href: string; done: boolean; isLink: boolean }[]).map((action, index) => {
-              const cardStyle = {
-                display: "flex" as const,
-                alignItems: "center" as const,
-                gap: 12,
-                padding: "13px 14px",
-                borderTop: index ? "1px solid var(--hairline)" : "none",
-                background: "transparent",
-                textDecoration: "none",
-                cursor: "pointer" as const,
-                minHeight: 0,
-                color: "inherit",
-              };
-              const inner = (
-                <>
-                  <span style={{ width: 36, height: 36, borderRadius: 12, background: action.done ? "var(--green-tint)" : "var(--surface-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{action.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13.5, fontWeight: 650, color: "var(--ink)", margin: "0 0 2px" }}>{action.label}</p>
-                    <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.35, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{action.desc}</p>
-                  </div>
-                  <span style={{ color: action.done ? "var(--green)" : "var(--muted)", fontSize: 16, flexShrink: 0 }}>{action.done ? "✓" : "→"}</span>
-                </>
-              );
-              return action.isLink
-                ? <Link key={action.label} href={action.href} style={cardStyle}>{inner}</Link>
-                : <a key={action.label} href={action.href} style={cardStyle}>{inner}</a>;
-            })}
-          </div>
-        </div>
-
-        {/* Paso 1: Identidad del negocio */}
+        {/* Información principal */}
         <section id="datos-negocio" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
-            label="Paso 1"
-            title="Identidad del negocio"
-            description="El nombre y la descripción definen quién sos y qué hacés."
+            label="Básico"
+            title="Qué tiene que saber el asistente"
+            description="Con esto ya puede empezar a responder consultas simples."
           />
-          <div className="space-y-4">
+          <div className="business-form-grid">
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: "var(--ink-2)" }}>
                 Nombre del negocio
@@ -371,50 +306,50 @@ export default function BusinessConfig() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: "var(--ink-2)" }}>
-                Descripción del negocio
+                Qué vendés o qué hacés
               </label>
               <textarea
                 value={profile.description}
                 onChange={(e) => updateField("description", e.target.value)}
                 rows={3}
-                placeholder="Ej: Somos una peluquería con más de 10 años de experiencia, especializada en cortes modernos y coloración..."
+                placeholder="Ej: Peluquería con cortes, color y turnos de martes a sábado."
                 className={`${inputClass} resize-none`}
               />
             </div>
           </div>
         </section>
 
-        {/* Paso 2: Catálogo → link al nuevo módulo */}
-        <section className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="info-clave" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
-            label="Paso 2"
-            title="Catálogo de productos y servicios"
-            description="Gestioná lo que vendés desde la sección dedicada. Tu asistente usa esa información para responder consultas sobre precios, stock y disponibilidad."
+            label="Respuestas"
+            title="Datos frecuentes"
+            description="Horarios, ubicación, medios de pago, envíos, reglas y cualquier dato que se repita mucho."
           />
-          <Link
-            href="/app/catalog"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: 16, borderRadius: 12, border: "1px solid var(--green)",
-              background: "var(--green-tint)", textDecoration: "none",
-            }}
-          >
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--green)", margin: 0 }}>Ir al Catálogo</p>
-              <p style={{ fontSize: 12, color: "var(--green)", opacity: 0.8, marginTop: 2 }}>
-                Agregá productos y servicios con categoría, precio, stock y más.
-              </p>
-            </div>
-            <span style={{ color: "var(--green)", fontSize: 18 }}>→</span>
-          </Link>
+          <textarea
+            value={profile.extra}
+            onChange={(e) => updateField("extra", e.target.value)}
+            rows={5}
+            placeholder={`Ej:\nHorario: martes a sábado de 10 a 19\nUbicación: Av. Siempre Viva 742\nPago: efectivo, transferencia y tarjeta\nReservas: pedir nombre, día y horario`}
+            className={`${inputClass} resize-none`}
+          />
+
+          <div className="business-quick-links">
+            <Link href="/app/catalog" className="business-quick-link">
+              <span>Catálogo</span>
+              <small>{catalogCount > 0 ? `${catalogCount} cargados` : "Agregar productos o servicios"}</small>
+            </Link>
+            <button type="button" onClick={() => setShowTester(true)} className="business-quick-link">
+              <span>Probar asistente</span>
+              <small>Ver cómo responde antes de activar</small>
+            </button>
+          </div>
         </section>
 
-        {/* Paso 3: Tono de respuesta */}
         <section id="tono-respuesta" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
-            label="Paso 3"
-            title="Tono de respuesta"
-            description="Elegí cómo querés que suene tu asistente al escribir. Podés cambiarlo cuando quieras."
+            label="Estilo"
+            title="Cómo querés que hable"
+            description="Elegí un tono. Si no tocás nada, usa uno cálido y natural."
           />
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
             {TONE_PRESETS.map((tone) => {
@@ -452,35 +387,20 @@ export default function BusinessConfig() {
               );
             })}
           </div>
-          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
-            Si no elegís ninguno, tu asistente usa un tono cálido y natural por defecto.
-          </p>
         </section>
 
-        {/* Paso 4: Información clave y preguntas frecuentes (merged) */}
-        <section id="info-clave" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
-          <SectionHeader
-            label="Paso 4"
-            title="Información clave y preguntas frecuentes"
-            description="Cargá todo lo que tu asistente necesita saber: horarios, ubicación, formas de pago, envíos, preguntas frecuentes con sus respuestas, reglas y cualquier dato importante de tu negocio."
+        <details className="atd-card business-advanced-card" style={{ margin: "12px 0 0", padding: 20 }}>
+          <AdvancedSummary
+            title="Opciones avanzadas"
+            description="Preguntas frecuentes, reservas, avisos, fuentes externas y respuestas del equipo."
           />
-          <textarea
-            value={profile.extra}
-            onChange={(e) => updateField("extra", e.target.value)}
-            rows={8}
-            placeholder={`Ej:\nHorario: Lunes a Viernes 9:00 a 18:00 / Sábados 9:00 a 13:00\nUbicación: Av. Siempre Viva 742, Buenos Aires\nMétodos de pago: Efectivo, transferencia, tarjeta\nPara reservar: enviá tu nombre, fecha y hora deseada`}
-            className={`${inputClass} resize-none`}
-          />
-
-          {/* ── Preguntas frecuentes estructuradas ── */}
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px dashed var(--hairline-2)" }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>
-              Preguntas frecuentes
-            </p>
-            <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "0 0 12px" }}>
-              Cargá la pregunta tal como la hacen tus clientes y la respuesta real. Tu asistente las usa
-              para responder directo, sin inventar.
-            </p>
+          <div style={{ display: "grid", gap: 14, marginTop: 18 }}>
+            <section id="preguntas-frecuentes" className="business-nested-section">
+              <SectionHeader
+                label="Opcional"
+                title="Preguntas frecuentes"
+                description="Sumá preguntas exactas si querés respuestas más controladas."
+              />
 
             {faqs.map((faq, i) => (
               <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 10, padding: 12, borderRadius: 12, background: "var(--surface-2)" }}>
@@ -568,19 +488,23 @@ export default function BusinessConfig() {
                 />
               </div>
             )}
-          </div>
-        </section>
+            </section>
 
-        {/* Paso 5: Agenda de turnos */}
-        {/* Fuentes externas: web / Google Sheets / CSV */}
-        <KnowledgeSourcesSection />
+            <section className="business-nested-section">
+              <SectionHeader
+                label="Opcional"
+                title="Fuentes externas"
+                description="Conectá una web, Google Sheets o CSV si manejás mucha información."
+              />
+              <KnowledgeSourcesSection />
+            </section>
 
-        <section id="turnos-reservas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="turnos-reservas" className="business-nested-section">
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
-              label="Paso 5"
+              label="Opcional"
               title="Reservas / Turnos"
-              description="Activá esta función y tu asistente toma solicitudes de reserva o turno por WhatsApp: pide los datos y las deja pendientes de confirmación."
+              description="Activá esto solo si querés que el asistente tome solicitudes de reserva."
             />
             <button
               type="button"
@@ -618,13 +542,12 @@ export default function BusinessConfig() {
           )}
         </section>
 
-        {/* Paso 6: Avisos internos */}
-        <section id="avisos-encargado" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="avisos-encargado" className="business-nested-section">
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
-              label="Paso 6"
+              label="Opcional"
               title="Avisos al equipo"
-              description="Cuando tu asistente necesite ayuda o reciba una reserva, avisamos a este número por WhatsApp."
+              description="Recibí avisos por WhatsApp cuando haya consultas importantes."
             />
             <button
               type="button"
@@ -802,26 +725,11 @@ export default function BusinessConfig() {
           })()}
         </section>
 
-        {/* Paso 7: Probar asistente */}
-        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-            <SectionHeader
-              label="Paso 7"
-              title="Probá cómo responde tu asistente"
-              description="Escribí como si fueras un cliente y mirá la respuesta. Usa la configuración que ya guardaste (datos, catálogo, tono y preguntas frecuentes)."
-            />
-            <button type="button" onClick={() => setShowTester(true)} className="atd-btn primary" style={{ flexShrink: 0 }}>
-              Probar asistente
-            </button>
-          </div>
-        </section>
-
-        {/* Paso 8: Respuestas rápidas */}
-        <section id="respuestas-rapidas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="respuestas-rapidas" className="business-nested-section">
           <SectionHeader
-            label="Paso 8"
+            label="Opcional"
             title="Respuestas rápidas"
-            description="Frases predefinidas que aparecen como chips cuando un integrante del equipo toma el control de una conversación. Clic para insertar en el mensaje."
+            description="Frases para el equipo cuando una persona toma el control de un chat."
           />
 
           {/* Lista de respuestas cargadas */}
@@ -886,6 +794,21 @@ export default function BusinessConfig() {
               Todavía no hay respuestas rápidas. Agregá frases frecuentes de tu equipo.
             </p>
           )}
+        </section>
+          </div>
+        </details>
+
+        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <SectionHeader
+              label="Prueba"
+              title="Probá cómo responde"
+              description="Guardá cambios y abrí una conversación de prueba con la configuración actual."
+            />
+            <button type="button" onClick={() => setShowTester(true)} className="atd-btn primary" style={{ flexShrink: 0 }}>
+              Probar asistente
+            </button>
+          </div>
         </section>
 
         <div className="business-save-dock" role="status" aria-live="polite">

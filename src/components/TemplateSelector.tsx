@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   BUSINESS_TEMPLATES,
   type BusinessTemplate,
@@ -230,11 +231,18 @@ function TemplateSheet({
   onSelect: (template: BusinessTemplate) => void;
 }) {
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [isClosing, setIsClosing] = useState(false);
 
   const filtered = useMemo(() => {
     if (selectedCategory === "all") return templates;
     return templates.filter((t) => TEMPLATE_CATEGORY_MAP[t.id] === selectedCategory);
   }, [templates, selectedCategory]);
+
+  function requestClose() {
+    if (isClosing) return;
+    setIsClosing(true);
+    window.setTimeout(onClose, 220);
+  }
 
   // Reset category when search query changes
   const handleQueryChange = (value: string) => {
@@ -242,8 +250,8 @@ function TemplateSheet({
     if (value.trim()) setSelectedCategory("all");
   };
 
-  return (
-    <div className="atd-overlay sheet" style={{ zIndex: 140 }} onClick={onClose}>
+  return createPortal(
+    <div className={`atd-overlay sheet ${isClosing ? "closing" : ""}`} style={{ zIndex: 140 }} onClick={requestClose}>
       <div className="atd-modal" style={{ width: "100%", maxWidth: 760, maxHeight: "88svh", padding: 0, display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
         <div className="atd-sheet-grabber md:hidden" />
         {/* Header */}
@@ -254,7 +262,7 @@ function TemplateSheet({
               Después podés ajustar textos, tono y preguntas.
             </p>
           </div>
-          <button onClick={onClose} aria-label="Cerrar" style={{ width: 36, height: 36, borderRadius: 999, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink)", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>
+          <button onClick={requestClose} aria-label="Cerrar" style={{ width: 36, height: 36, borderRadius: 999, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink)", fontSize: 22, cursor: "pointer", lineHeight: 1 }}>
             ×
           </button>
         </div>
@@ -320,7 +328,8 @@ function TemplateSheet({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

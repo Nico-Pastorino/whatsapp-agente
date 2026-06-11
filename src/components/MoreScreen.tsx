@@ -26,11 +26,11 @@ export default function MoreScreen({ role = "owner" }: { role?: DashboardRole })
 
   // Mismo criterio que la sidebar: cada item declara su vista y se filtra por rol.
   const allItems: MenuItem[] = [
-    { icon: <QR size={18} />,   label: "Conectar WhatsApp", sub: "Vincular o reconectar el número",        href: "/app/connect", view: "connect" },
-    { icon: <Calendar size={18} />, label: "Reservas / Turnos", sub: "Solicitudes de reservas y turnos",    href: "/app/agenda", view: "agenda" },
-    { icon: <Users size={18} />, label: "Equipo",            sub: "Miembros, roles e invitaciones",        href: "/app/team", view: "team" },
-    { icon: <BarChart size={18} />, label: "Métricas",      sub: "Cómo viene respondiendo tu asistente",    href: "/app/stats", view: "stats" },
-    { icon: <LifeBuoy size={18} />, label: "Ayuda y soporte", sub: "Hablá con nosotros por WhatsApp o correo", href: "/app/support", view: "support" },
+    { icon: <QR size={18} />,   label: "WhatsApp", sub: "Vincular número",        href: "/app/connect", view: "connect" },
+    { icon: <Calendar size={18} />, label: "Turnos", sub: "Reservas pendientes",    href: "/app/agenda", view: "agenda" },
+    { icon: <Users size={18} />, label: "Equipo",            sub: "Personas y permisos",        href: "/app/team", view: "team" },
+    { icon: <BarChart size={18} />, label: "Métricas",      sub: "Resultados del asistente",    href: "/app/stats", view: "stats" },
+    { icon: <LifeBuoy size={18} />, label: "Soporte", sub: "Ayuda por WhatsApp o correo", href: "/app/support", view: "support" },
   ];
   const items = allItems.filter((item) => canAccessView(role, item.view));
 
@@ -40,7 +40,7 @@ export default function MoreScreen({ role = "owner" }: { role?: DashboardRole })
         <div className="page-header">
           <div>
             <div className="page-sub">ajustes</div>
-            <h1 className="page-title">Más</h1>
+            <h1 className="page-title">Más opciones</h1>
           </div>
         </div>
 

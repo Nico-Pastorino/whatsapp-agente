@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Spark, Send, X } from "./atende/Icons";
 
 interface TestMessage {
@@ -20,11 +21,18 @@ export default function AssistantTester({ onClose }: { onClose: () => void }) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
+
+  function requestClose() {
+    if (isClosing) return;
+    setIsClosing(true);
+    window.setTimeout(onClose, 220);
+  }
 
   async function send(text: string) {
     const clean = text.trim();
@@ -53,11 +61,11 @@ export default function AssistantTester({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
+  return createPortal(
     <div
-      className="atd-overlay sheet"
+      className={`atd-overlay sheet ${isClosing ? "closing" : ""}`}
       style={{ zIndex: 95 }}
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
         className="atd-modal"
@@ -74,7 +82,7 @@ export default function AssistantTester({ onClose }: { onClose: () => void }) {
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>Probar asistente</div>
             <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>prueba · no se envía a nadie</div>
           </div>
-          <button onClick={onClose} aria-label="Cerrar" style={{ width: 32, height: 32, borderRadius: 999, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={requestClose} aria-label="Cerrar" style={{ width: 32, height: 32, borderRadius: 999, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             <X size={16} />
           </button>
         </div>
@@ -145,6 +153,7 @@ export default function AssistantTester({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

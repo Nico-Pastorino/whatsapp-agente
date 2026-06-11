@@ -43,15 +43,15 @@ function AtendeWordmark() {
 
 const NAV_ITEMS: Array<{ key: DashboardView; label: string; Icon: React.ComponentType<{ size?: number }>; href: string }> = [
   { key: "home",          label: "Inicio",          Icon: Spark,  href: "/app/home" },
-  { key: "conversations", label: "Conversaciones",  Icon: Chat,   href: "/app/conversations" },
-  { key: "business",      label: "Mi negocio",       Icon: Shop,   href: "/app/business" },
-  { key: "catalog",       label: "Productos y servicios", Icon: Bolt, href: "/app/catalog" },
-  { key: "agenda",        label: "Reservas / Turnos", Icon: Calendar, href: "/app/agenda" },
-  { key: "plan",          label: "Mi plan",          Icon: Layers, href: "/app/plan" },
+  { key: "conversations", label: "Chats",           Icon: Chat,   href: "/app/conversations" },
+  { key: "business",      label: "Asistente",       Icon: Shop,   href: "/app/business" },
+  { key: "catalog",       label: "Catálogo",        Icon: Bolt, href: "/app/catalog" },
+  { key: "agenda",        label: "Turnos",          Icon: Calendar, href: "/app/agenda" },
+  { key: "plan",          label: "Plan",            Icon: Layers, href: "/app/plan" },
   { key: "team",          label: "Equipo",           Icon: Users,  href: "/app/team" },
   { key: "stats",         label: "Métricas",         Icon: BarChart, href: "/app/stats" },
-  { key: "connect",       label: "Conectar",         Icon: QR,     href: "/app/connect" },
-  { key: "support",       label: "Ayuda y soporte",  Icon: LifeBuoy, href: "/app/support" },
+  { key: "connect",       label: "WhatsApp",        Icon: QR,     href: "/app/connect" },
+  { key: "support",       label: "Soporte",         Icon: LifeBuoy, href: "/app/support" },
 ];
 
 export default function DashboardSidebar({ activeView, phone, role = "owner", onDisconnect }: Props) {

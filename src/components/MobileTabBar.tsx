@@ -30,8 +30,8 @@ export default function MobileTabBar({ activeView, role = "owner" }: Props) {
   // y entra "Turnos" (agenda) para no dejar la barra vacía.
   const allTabs: Array<{ key: string; view: DashboardView; label: string; Icon: React.ComponentType<{ size?: number }>; href: string; center?: boolean }> = [
     { key: "chats",    view: "conversations", label: "Chats",   Icon: Chat,     href: "/app/conversations" },
-    { key: "business", view: "business",      label: "Negocio", Icon: Shop,     href: "/app/business" },
-    { key: "home",     view: "home",          label: "Atendé",  Icon: Spark,    href: "/app/home", center: true },
+    { key: "business", view: "business",      label: "Asistente", Icon: Shop,     href: "/app/business" },
+    { key: "home",     view: "home",          label: "Inicio",  Icon: Spark,    href: "/app/home", center: true },
     { key: "plan",     view: "plan",          label: "Plan",    Icon: Layers,   href: "/app/plan" },
     { key: "agenda",   view: "agenda",        label: "Turnos",  Icon: Calendar, href: "/app/agenda" },
     { key: "more",     view: "more",          label: "Más",     Icon: Menu,     href: "/app/more" },
