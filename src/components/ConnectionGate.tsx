@@ -416,7 +416,7 @@ export default function ConnectionGate({ currentView }: Props) {
           {content}
         </div>
         {/* Mobile content */}
-        <div className="flex md:hidden" style={{ flex: 1, overflow: "hidden", flexDirection: "column" }}>
+        <div className={`app-mobile-content ${showTrialBanner ? "has-trial-banner" : ""} flex md:hidden`} style={{ flex: 1, overflow: "hidden", flexDirection: "column" }}>
           {mobileContent}
         </div>
 

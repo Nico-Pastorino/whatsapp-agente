@@ -164,7 +164,7 @@ export default function ConversationPanel({
   const isIA = mode === "AI";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "transparent" }}>
+    <div className="conversation-panel" style={{ display: "flex", flexDirection: "column", height: "100%", background: "transparent" }}>
       {/* Header */}
       <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--glass-border)", background: "var(--glass)", backdropFilter: "blur(18px) saturate(1.5)", WebkitBackdropFilter: "blur(18px) saturate(1.5)" }}>
         {onBack && (
@@ -204,7 +204,7 @@ export default function ConversationPanel({
       )}
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 7 }}>
+      <div className="conversation-messages" style={{ flex: 1, overflow: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 7 }}>
         {messages.length === 0 ? (
           <p className="mono" style={{ textAlign: "center", color: "var(--muted)", fontSize: 11, textTransform: "uppercase", padding: "20px 0" }}>Sin mensajes aún</p>
         ) : (
@@ -233,7 +233,7 @@ export default function ConversationPanel({
       </div>
 
       {/* Composer */}
-      <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--glass-border)", background: "var(--glass)", backdropFilter: "blur(18px) saturate(1.45)", WebkitBackdropFilter: "blur(18px) saturate(1.45)" }}>
+      <div className="conversation-composer" style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--glass-border)", background: "var(--glass)", backdropFilter: "blur(18px) saturate(1.45)", WebkitBackdropFilter: "blur(18px) saturate(1.45)" }}>
         {isIA ? (
           <p className="mono" style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", textTransform: "uppercase" }}>
             El asistente responde automáticamente
