@@ -118,6 +118,54 @@ function csvToText(csv: string): string {
     .join("\n");
 }
 
+/**
+ * Productos desde JSON-LD (schema.org). La mayoría de los ecommerce
+ * (Tiendanube, Shopify, WooCommerce) embeben su catálogo como datos
+ * estructurados aunque la página se renderice con JavaScript.
+ */
+function extractJsonLdProducts(html: string): string {
+  const lines: string[] = [];
+
+  function walk(node: unknown): void {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    const obj = node as Record<string, unknown>;
+    const type = obj["@type"];
+    const isProduct = type === "Product" || (Array.isArray(type) && type.includes("Product"));
+    if (isProduct && typeof obj.name === "string") {
+      let line = `• ${obj.name}`;
+      const offersRaw = obj.offers;
+      const offers = Array.isArray(offersRaw) ? offersRaw : offersRaw ? [offersRaw] : [];
+      const first = offers[0] as Record<string, unknown> | undefined;
+      const price = first?.price ?? first?.lowPrice;
+      const currency = typeof first?.priceCurrency === "string" ? first.priceCurrency : "";
+      if (price !== undefined && price !== null && `${price}`.trim()) line += ` — ${currency} ${price}`.replace("  ", " ");
+      if (typeof first?.availability === "string" && first.availability.includes("OutOfStock")) line += " [Sin stock]";
+      if (typeof obj.description === "string" && obj.description.trim()) {
+        line += ` | ${obj.description.trim().slice(0, 120)}`;
+      }
+      lines.push(line);
+    }
+    // Listas de productos y grafos anidados
+    if (Array.isArray(obj.itemListElement)) {
+      for (const it of obj.itemListElement) walk((it as Record<string, unknown>)?.item ?? it);
+    }
+    if (Array.isArray(obj["@graph"])) walk(obj["@graph"]);
+  }
+
+  for (const m of html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      walk(JSON.parse(m[1]));
+    } catch {
+      // JSON-LD malformado: lo ignoramos.
+    }
+  }
+  return lines.slice(0, 150).join("\n");
+}
+
+/** ¿La página es un cascarón client-rendered? ("Cargando productos...") */
+const JS_PLACEHOLDER_RX = /cargando[^.\n]{0,40}\.{3}|loading[^.\n]{0,40}\.{3}/i;
+
 /** HTML → texto plano (sin scripts/styles/tags, espacios colapsados). */
 function htmlToText(html: string): string {
   return html
@@ -192,6 +240,23 @@ export async function fetchAndExtract(rawUrl: string): Promise<{ content: string
   const contentType = res.headers.get("content-type") ?? "";
   const isCsv = sourceType === "sheet" || contentType.includes("csv") || contentType.includes("text/plain");
   let text = isCsv && !raw.trimStart().startsWith("<") ? csvToText(raw) : htmlToText(raw);
+
+  // Páginas web: intentar rescatar el catálogo desde JSON-LD (funciona aunque
+  // la página pinte los productos con JavaScript).
+  if (!isCsv) {
+    const ldProducts = extractJsonLdProducts(raw);
+    if (ldProducts) {
+      text = `PRODUCTOS (datos estructurados de la página):\n${ldProducts}\n\n${text}`;
+    } else if (JS_PLACEHOLDER_RX.test(text) && text.length < 2500) {
+      // Cascarón client-rendered sin datos estructurados: avisar YA, en vez de
+      // guardar un snapshot vacío que después deja al asistente sin respuestas.
+      throw new Error(
+        "Esta página carga sus productos con JavaScript y no se pueden leer directamente. " +
+          "Lo más confiable: pasá tus precios a una planilla de Google Sheets y conectá ese link " +
+          "(compartido como “Cualquiera con el enlace”)."
+      );
+    }
+  }
 
   if (!text.trim()) {
     throw new Error("El link no tiene texto legible. Si es un Excel, compartilo como Google Sheets o CSV.");
