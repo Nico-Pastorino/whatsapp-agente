@@ -569,8 +569,21 @@ body {
 }
 
 @media (max-width: 767px) {
+  .app-mobile-content.has-trial-banner .liquid-container {
+    padding-top: 102px;
+  }
+  .app-mobile-content.has-trial-banner > .flex-1.overflow-y-auto {
+    padding-top: 84px;
+  }
+  .app-mobile-content.has-trial-banner > .liquid-shell:not(.liquid-scroll) {
+    padding-top: 84px;
+  }
   .conversation-panel {
     position: relative;
+    padding-top: 84px;
+  }
+  .conversation-list {
+    padding-top: 84px;
   }
   .conversation-messages {
     padding-bottom: 184px !important;
@@ -591,6 +604,69 @@ body {
     backdrop-filter: blur(30px) saturate(1.75) !important;
     -webkit-backdrop-filter: blur(30px) saturate(1.75) !important;
   }
+  .template-selector-card {
+    margin-top: 14px !important;
+  }
+  .template-selector-card > div:first-child {
+    align-items: stretch !important;
+  }
+  .template-selector-card .template-selector-trigger {
+    width: 100%;
+    min-height: 44px;
+  }
+  .template-preview-list {
+    margin-left: -4px;
+    margin-right: -4px;
+    padding-bottom: 2px;
+  }
+  section[id] {
+    scroll-margin-top: 104px;
+  }
+}
+
+.template-preview-list {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+.template-preview-item {
+  min-width: 148px;
+  max-width: 190px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  flex-shrink: 0;
+}
+.template-preview-emoji {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.template-preview-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.template-preview-lock {
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #7a5800;
+  font-size: 10px;
+  font-weight: 750;
+  flex-shrink: 0;
 }
 
 .trial-banner {
@@ -617,9 +693,6 @@ body {
     box-shadow: inset 0 1px 0 var(--glass-glow), 0 18px 46px -24px rgba(0,0,0,0.32);
     backdrop-filter: blur(30px) saturate(1.75);
     -webkit-backdrop-filter: blur(30px) saturate(1.75);
-  }
-  .app-mobile-content.has-trial-banner {
-    padding-top: 84px;
   }
   .app-mobile-content.has-trial-banner > * {
     min-height: 0;

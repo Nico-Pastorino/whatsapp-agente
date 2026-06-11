@@ -116,34 +116,61 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
   }
 
   return (
-    <section className="atd-card" style={{ margin: "12px 20px 0", padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-        <div style={{ minWidth: 220, flex: 1 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
-            Usar plantilla por rubro
-          </h3>
-          <p style={{ marginTop: 3, fontSize: 12.5, color: "var(--ink-3)", maxWidth: 560 }}>
-            Cargá una base inicial y editá solo lo necesario.
-          </p>
+    <>
+      <section className="atd-card template-selector-card" style={{ margin: "12px 20px 0", padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 220, flex: 1 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
+              Usar plantilla por rubro
+            </h3>
+            <p style={{ marginTop: 3, fontSize: 12.5, color: "var(--ink-3)", maxWidth: 560 }}>
+              Cargá una base inicial y editá solo lo necesario.
+            </p>
+          </div>
+          <button onClick={() => setIsOpen(true)} className="atd-btn ghost sm template-selector-trigger">
+            Ver plantillas
+          </button>
         </div>
-        <button onClick={() => setIsOpen(true)} className="atd-btn ghost sm">
-          Ver plantillas
-        </button>
-      </div>
 
-      <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>{availableTemplates} disponibles · plan {planCode.toUpperCase()}</span>
-        {appliedId && (
-          <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
-            Plantilla aplicada.
-          </span>
-        )}
-        {error && (
-          <span style={{ fontSize: 13, color: "#c0392b", fontWeight: 600 }}>
-            {error}
-          </span>
-        )}
-      </div>
+        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{availableTemplates} disponibles · plan {planCode.toUpperCase()}</span>
+          {appliedId && (
+            <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
+              Plantilla aplicada.
+            </span>
+          )}
+          {error && (
+            <span style={{ fontSize: 13, color: "#c0392b", fontWeight: 600 }}>
+              {error}
+            </span>
+          )}
+        </div>
+
+        <div className="template-preview-list">
+          {templates.slice(0, 4).map((template) => {
+            const locked = isTemplateLocked(template.tier, planCode);
+            return (
+              <button
+                key={template.id}
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  if (locked) {
+                    setLockedSelected(template);
+                  } else {
+                    setSelected(template);
+                  }
+                }}
+                className="template-preview-item"
+              >
+                <span className="template-preview-emoji">{template.emoji}</span>
+                <span className="template-preview-name">{template.name}</span>
+                {locked && <span className="template-preview-lock">Pro</span>}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {isOpen && (
         <TemplateSheet
@@ -181,7 +208,7 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
           onClose={() => setLockedSelected(null)}
         />
       )}
-    </section>
+    </>
   );
 }
 
@@ -216,7 +243,7 @@ function TemplateSheet({
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.42)", zIndex: 80, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 10 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.42)", zIndex: 140, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 10 }}>
       <div className="atd-card" style={{ width: "100%", maxWidth: 760, maxHeight: "88svh", padding: 0, overflow: "hidden", borderRadius: "20px 20px 14px 14px" }}>
         {/* Header */}
         <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--hairline)", display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "space-between" }}>
@@ -377,7 +404,7 @@ function ConfirmModal({
   ].filter(Boolean) as string[];
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 90, padding: 16 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 150, padding: 16 }}>
       <div className="atd-card" style={{ width: "100%", maxWidth: 430, padding: 24, maxHeight: "88svh", overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <span style={{ fontSize: 28 }}>{template.emoji}</span>
@@ -474,7 +501,7 @@ function UpgradeModal({
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 90, padding: 16 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 150, padding: 16 }}>
       <div className="atd-card" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
         <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
           {template.emoji} {template.name}

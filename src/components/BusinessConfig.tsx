@@ -214,7 +214,7 @@ export default function BusinessConfig() {
   }
 
   return (
-    <DashboardContentShell maxWidth={1180}>
+    <DashboardContentShell maxWidth={1180} bottomPadding={220}>
 
         <div className="page-header">
           <div>
@@ -251,6 +251,12 @@ export default function BusinessConfig() {
           </section>
 
         </div>
+
+        {/* Plantillas por Rubro */}
+        <TemplateSelector
+          profileIsEmpty={profileIsEmpty}
+          onApplied={reloadProfile}
+        />
 
         {/* Acciones rápidas: navegación directa a cada sección */}
         <div style={{ padding: "4px 20px 0" }}>
@@ -342,12 +348,6 @@ export default function BusinessConfig() {
             })}
           </div>
         </div>
-
-        {/* Plantillas por Rubro */}
-        <TemplateSelector
-          profileIsEmpty={profileIsEmpty}
-          onApplied={reloadProfile}
-        />
 
         {/* Paso 1: Identidad del negocio */}
         <section id="datos-negocio" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
