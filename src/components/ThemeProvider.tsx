@@ -60,12 +60,13 @@ function applyTheme(resolved: ResolvedTheme, inApp: boolean): void {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [theme, setThemeState] = useState<ThemeChoice>("system");
+  // Dark-first: identidad premium por defecto; la elección guardada manda.
+  const [theme, setThemeState] = useState<ThemeChoice>("dark");
   const [resolved, setResolved] = useState<ResolvedTheme>("light");
 
   // Hidratar la preferencia guardada al montar (el script no-flash ya pintó el tema).
   useEffect(() => {
-    let stored: ThemeChoice = "system";
+    let stored: ThemeChoice = "dark";
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved === "light" || saved === "dark" || saved === "system") {

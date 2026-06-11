@@ -116,8 +116,10 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
     <aside style={{
       width: 224,
       height: "100%",
-      background: "var(--surface)",
-      borderRight: "1px solid var(--hairline)",
+      background: "var(--glass-strong)",
+      backdropFilter: "blur(22px) saturate(1.5)",
+      WebkitBackdropFilter: "blur(22px) saturate(1.5)",
+      borderRight: "1px solid var(--glass-border)",
       display: "flex",
       flexDirection: "column",
       flexShrink: 0,

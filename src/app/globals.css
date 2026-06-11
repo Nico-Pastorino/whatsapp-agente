@@ -134,6 +134,12 @@
 }
 
 /* Fondo ambiental: manchas de color suaves detrás del vidrio (solo en la app). */
+:root[data-theme="dark"] body::before {
+  background:
+    radial-gradient(560px 420px at 88% -6%, color-mix(in oklab, var(--green) 26%, transparent), transparent 65%),
+    radial-gradient(460px 360px at -10% 30%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 62%),
+    radial-gradient(620px 460px at 55% 112%, color-mix(in oklab, var(--green) 14%, transparent), transparent 62%);
+}
 :root[data-theme] body::before {
   content: "";
   position: fixed;
@@ -198,7 +204,12 @@ body {
   white-space: nowrap;
 }
 .atd-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.atd-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
 .atd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Sombra de color en botones sólidos: sensación táctil/flotante */
+.atd-btn.primary { box-shadow: 0 6px 20px -8px color-mix(in oklab, var(--ink) 55%, transparent); }
+.atd-btn.green   { box-shadow: 0 6px 20px -8px color-mix(in oklab, var(--green) 65%, transparent); }
+.atd-btn.accent  { box-shadow: 0 6px 20px -8px color-mix(in oklab, var(--accent) 60%, transparent); }
 .atd-btn.primary { background: var(--ink); color: var(--bg); }
 .atd-btn.green   { background: var(--green); color: var(--on-green); }
 .atd-btn.accent  { background: var(--accent); color: var(--on-accent); }
