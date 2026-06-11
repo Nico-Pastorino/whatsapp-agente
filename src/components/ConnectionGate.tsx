@@ -18,6 +18,7 @@ import MoreScreen from "./MoreScreen";
 import SupportScreen from "./SupportScreen";
 import MobileTabBar from "./MobileTabBar";
 import { Spark } from "./atende/Icons";
+import type { DashboardRole } from "@/lib/role-access";
 
 interface Conversation {
   id: string;
@@ -125,9 +126,11 @@ function EmptyChats() {
 
 interface Props {
   currentView: DashboardView;
+  /** Rol del usuario en el negocio activo — define qué secciones ve en la navegación. */
+  role?: DashboardRole;
 }
 
-export default function ConnectionGate({ currentView }: Props) {
+export default function ConnectionGate({ currentView, role = "owner" }: Props) {
   const [phone, setPhone] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [initialChecked, setInitialChecked] = useState(false);
@@ -264,7 +267,7 @@ export default function ConnectionGate({ currentView }: Props) {
     content = <HomeScreen />;
     mobileContent = content;
   } else if (currentView === "more") {
-    content = <MoreScreen />;
+    content = <MoreScreen role={role} />;
     mobileContent = content;
   } else if (currentView === "support") {
     content = <SupportScreen />;
@@ -282,7 +285,7 @@ export default function ConnectionGate({ currentView }: Props) {
     content = <TeamManagement />;
     mobileContent = content;
   } else if (currentView === "plan") {
-    content = <PlanOverview />;
+    content = <PlanOverview role={role} />;
     mobileContent = content;
   } else if (currentView === "stats") {
     content = <StatsScreen />;
@@ -403,6 +406,7 @@ export default function ConnectionGate({ currentView }: Props) {
         <DashboardSidebar
           activeView={currentView}
           phone={phone}
+          role={role}
           onDisconnect={handleDisconnect}
         />
       </div>
@@ -421,7 +425,7 @@ export default function ConnectionGate({ currentView }: Props) {
         </div>
 
         {/* Mobile tab bar */}
-        <MobileTabBar activeView={currentView} />
+        <MobileTabBar activeView={currentView} role={role} />
       </div>
     </div>
   );

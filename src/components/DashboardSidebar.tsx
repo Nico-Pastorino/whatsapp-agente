@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spark, Chat, Shop, Bolt, Layers, Users, QR, Cog, BarChart, Calendar, LifeBuoy } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
+import { canAccessView, type DashboardRole } from "@/lib/role-access";
 
 type DashboardView =
   | "conversations"
@@ -21,6 +22,7 @@ type DashboardView =
 interface Props {
   activeView: DashboardView;
   phone: string | null;
+  role?: DashboardRole;
   onDisconnect: () => void;
 }
 
@@ -52,7 +54,7 @@ const NAV_ITEMS: Array<{ key: DashboardView; label: string; Icon: React.Componen
   { key: "support",       label: "Ayuda y soporte",  Icon: LifeBuoy, href: "/app/support" },
 ];
 
-export default function DashboardSidebar({ activeView, phone, onDisconnect }: Props) {
+export default function DashboardSidebar({ activeView, phone, role = "owner", onDisconnect }: Props) {
   const router = useRouter();
   const [businesses, setBusinesses] = useState<
     Array<{ business_id: string; business_name: string; role: string }>
@@ -154,7 +156,7 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
 
       {/* Nav items */}
       <nav style={{ flex: 1, padding: "0 12px", display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }}>
-        {NAV_ITEMS.map(({ key, label, Icon, href }) => {
+        {NAV_ITEMS.filter(({ key }) => canAccessView(role, key)).map(({ key, label, Icon, href }) => {
           const active = activeView === key;
           return (
             <button
@@ -201,7 +203,7 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
           <span style={{ flex: 1, fontSize: 12, color: "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {phone ?? "Sin número"}
           </span>
-          {phone && (
+          {phone && role === "owner" && (
             <button
               onClick={handleDisconnectWA}
               title="Desconectar WhatsApp"

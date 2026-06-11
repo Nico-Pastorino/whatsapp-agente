@@ -3,24 +3,28 @@
 import { useRouter } from "next/navigation";
 import { Users, QR, ArrowLeft, Calendar, BarChart, LifeBuoy } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
+import { canAccessView, type DashboardRole, type DashboardView } from "@/lib/role-access";
 
 interface MenuItem {
   icon: React.ReactNode;
   label: string;
   sub: string;
   href: string;
+  view: DashboardView;
 }
 
-export default function MoreScreen() {
+export default function MoreScreen({ role = "owner" }: { role?: DashboardRole }) {
   const router = useRouter();
 
-  const items: MenuItem[] = [
-    { icon: <QR size={18} />,   label: "Conectar WhatsApp", sub: "Vincular o reconectar el número",        href: "/app/connect" },
-    { icon: <Calendar size={18} />, label: "Reservas / Turnos", sub: "Solicitudes de reservas y turnos",    href: "/app/agenda" },
-    { icon: <Users size={18} />, label: "Equipo",            sub: "Miembros, roles e invitaciones",        href: "/app/team" },
-    { icon: <BarChart size={18} />, label: "Métricas",      sub: "Cómo viene respondiendo tu asistente",    href: "/app/stats" },
-    { icon: <LifeBuoy size={18} />, label: "Ayuda y soporte", sub: "Hablá con nosotros por WhatsApp o correo", href: "/app/support" },
+  // Mismo criterio que la sidebar: cada item declara su vista y se filtra por rol.
+  const allItems: MenuItem[] = [
+    { icon: <QR size={18} />,   label: "Conectar WhatsApp", sub: "Vincular o reconectar el número",        href: "/app/connect", view: "connect" },
+    { icon: <Calendar size={18} />, label: "Reservas / Turnos", sub: "Solicitudes de reservas y turnos",    href: "/app/agenda", view: "agenda" },
+    { icon: <Users size={18} />, label: "Equipo",            sub: "Miembros, roles e invitaciones",        href: "/app/team", view: "team" },
+    { icon: <BarChart size={18} />, label: "Métricas",      sub: "Cómo viene respondiendo tu asistente",    href: "/app/stats", view: "stats" },
+    { icon: <LifeBuoy size={18} />, label: "Ayuda y soporte", sub: "Hablá con nosotros por WhatsApp o correo", href: "/app/support", view: "support" },
   ];
+  const items = allItems.filter((item) => canAccessView(role, item.view));
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>

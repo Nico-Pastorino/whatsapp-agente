@@ -11,5 +11,5 @@ export default async function BusinessPage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="business" />;
+  return <ConnectionGate currentView="business" role={ctx?.role} />;
 }

@@ -11,5 +11,5 @@ export default async function CatalogPage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="catalog" />;
+  return <ConnectionGate currentView="catalog" role={ctx?.role} />;
 }

@@ -11,5 +11,5 @@ export default async function TeamPage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="team" />;
+  return <ConnectionGate currentView="team" role={ctx?.role} />;
 }

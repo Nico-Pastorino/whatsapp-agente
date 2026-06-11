@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardContentShell from "./DashboardContentShell";
+import { ROLE_DESCRIPTIONS } from "@/lib/role-access";
 
 type BusinessMemberRole = "owner" | "admin" | "agent";
 type BusinessInvitationStatus = "pending" | "accepted" | "expired" | "revoked";
@@ -363,13 +364,13 @@ export default function TeamManagement() {
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                   <span className="atd-pill green">Admin</span>
                   <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.4 }}>
-                    Gestiona configuración, catálogo, turnos, chats y equipo operativo.
+                    {ROLE_DESCRIPTIONS.admin}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                   <span className="atd-pill">Operador</span>
                   <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.4 }}>
-                    Responde conversaciones y trabaja sobre la operación diaria.
+                    {ROLE_DESCRIPTIONS.agent}
                   </p>
                 </div>
               </div>
@@ -389,8 +390,8 @@ export default function TeamManagement() {
                   disabled={inviteLoading || !data.can_invite}
                   className="atd-input"
                 >
-                  <option value="admin">Admin</option>
-                  <option value="agent">Agent</option>
+                  <option value="admin">{ROLE_LABELS.admin}</option>
+                  <option value="agent">{ROLE_LABELS.agent}</option>
                 </select>
                 <button
                   type="submit"
@@ -499,6 +500,11 @@ export default function TeamManagement() {
                           >
                             Quitar
                           </button>
+                          {roleChanged && !adminBlockedByOwnerRule && (
+                            <p style={{ gridColumn: "1 / -1", margin: 0, fontSize: 12, color: "var(--ink-3)", lineHeight: 1.4 }}>
+                              {ROLE_LABELS[selectedRole]}: {ROLE_DESCRIPTIONS[selectedRole]}
+                            </p>
+                          )}
                         </div>
                       ) : null}
                     </div>

@@ -17,5 +17,5 @@ export default async function ConnectPage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="connect" />;
+  return <ConnectionGate currentView="connect" role={ctx?.role} />;
 }

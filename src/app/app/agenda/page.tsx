@@ -11,5 +11,5 @@ export default async function AgendaPage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="agenda" />;
+  return <ConnectionGate currentView="agenda" role={ctx?.role} />;
 }

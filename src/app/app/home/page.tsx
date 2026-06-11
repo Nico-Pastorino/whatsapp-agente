@@ -11,5 +11,5 @@ export default async function HomePage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="home" />;
+  return <ConnectionGate currentView="home" role={ctx?.role} />;
 }

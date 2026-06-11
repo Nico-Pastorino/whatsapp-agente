@@ -11,5 +11,5 @@ export default async function ConversationsPage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="conversations" />;
+  return <ConnectionGate currentView="conversations" role={ctx?.role} />;
 }

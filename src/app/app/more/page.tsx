@@ -11,5 +11,5 @@ export default async function MorePage() {
       redirect("/app/plan");
     }
   }
-  return <ConnectionGate currentView="more" />;
+  return <ConnectionGate currentView="more" role={ctx?.role} />;
 }

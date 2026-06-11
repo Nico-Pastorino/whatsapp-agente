@@ -5,6 +5,7 @@ import type { UpgradeOption } from "@/lib/db";
 import { ANNUAL_DISCOUNT, formatARS } from "@/lib/plan-display";
 import DashboardContentShell from "./DashboardContentShell";
 import SupportCard from "./SupportCard";
+import { ROLE_LABELS, type DashboardRole } from "@/lib/role-access";
 
 interface PlanSummary {
   plan_code: string;
@@ -334,7 +335,7 @@ function OnboardingGuide({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function PlanOverview() {
+export default function PlanOverview({ role = "owner" }: { role?: DashboardRole }) {
   const [plan, setPlan] = useState<PlanSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -480,6 +481,30 @@ export default function PlanOverview() {
       <div style={{ height: "100%", background: "var(--bg)", padding: 20 }}>
         <div className="atd-card" style={{ padding: 16, color: "#c0392b", background: "rgba(192,57,43,0.07)", borderColor: "rgba(192,57,43,0.2)" }}>
           {error ?? "No se pudo cargar el estado del plan."}
+        </div>
+      </div>
+    );
+  }
+
+  // Los no-dueños solo llegan acá cuando la cuenta está inactiva (el layout los
+  // redirige si está activa). No pueden pagar (la API de checkout es solo owner),
+  // así que mostramos el estado sin botones de pago para no frustrarlos con 403s.
+  if (role !== "owner") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)", padding: 24 }}>
+        <div className="atd-card" style={{ maxWidth: 460, padding: 28, textAlign: "center" }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", margin: "0 0 10px" }}>
+            {plan.can_use_app ? "Tu plan" : "La cuenta necesita un plan activo"}
+          </h2>
+          <p style={{ fontSize: 14, color: "var(--ink-3)", margin: "0 0 16px", lineHeight: 1.5 }}>
+            {plan.can_use_app
+              ? `Este negocio usa el plan ${plan.plan_name}.`
+              : "La prueba gratuita o la suscripción de este negocio venció."}{" "}
+            La facturación la gestiona el Dueño del negocio. Tu rol actual es {ROLE_LABELS[role]}.
+          </p>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+            Pedile al dueño que active o actualice el plan desde su cuenta.
+          </p>
         </div>
       </div>
     );
