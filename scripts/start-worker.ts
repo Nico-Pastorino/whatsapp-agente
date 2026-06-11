@@ -50,6 +50,7 @@ import {
   beginManualDisconnect,
 } from "../src/lib/baileys/client";
 import { getWorkerInstanceName, getBaileysAuthBasePath } from "../src/lib/env";
+import { refreshStaleSources } from "../src/lib/knowledge-sources";
 
 const INSTANCE = getWorkerInstanceName();
 const AUTH_BASE = getBaileysAuthBasePath();
@@ -62,6 +63,7 @@ const INTERNAL_NOTIF_INTERVAL_MS = 10_000;   // avisos internos cada 10s (antes 
 const HEARTBEAT_INTERVAL_MS   = 15_000;      // heartbeat cada 15s (antes 10s; sigue < ventana de 30s)
 const DISCONNECT_CHECK_MS     = 20_000;      // desconexión remota cada 20s (antes 2s)
 const AUTO_RETURN_INTERVAL_MS = 5 * 60_000;  // auto-retorno a IA cada 5min
+const SOURCES_REFRESH_INTERVAL_MS = 60 * 60_000; // refrescar fuentes externas cada 60min
 
 console.log(`[worker] Iniciando worker multi-tenant`);
 console.log(`[worker] instance_name=${INSTANCE}`);
@@ -290,6 +292,21 @@ setInterval(async () => {
     }, 3_000);
   }
 }, DISCONNECT_CHECK_MS);
+
+// ──────────────────────────────────────────────
+// Fuentes externas: refresco automático (snapshots > 6 h)
+// ──────────────────────────────────────────────
+
+setInterval(async () => {
+  try {
+    const refreshed = await refreshStaleSources(6);
+    if (refreshed > 0) {
+      console.log(`[worker] Fuentes externas refrescadas: ${refreshed}`);
+    }
+  } catch (err) {
+    console.error("[worker] Error refrescando fuentes externas:", err);
+  }
+}, SOURCES_REFRESH_INTERVAL_MS);
 
 // ──────────────────────────────────────────────
 // Señales del proceso

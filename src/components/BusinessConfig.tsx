@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import DashboardContentShell from "./DashboardContentShell";
 import TemplateSelector from "./TemplateSelector";
 import AssistantTester from "./AssistantTester";
+import KnowledgeSourcesSection from "./KnowledgeSourcesSection";
 import { TONE_PRESETS, buildAssistantChecklist, assistantProgress } from "@/lib/onboarding";
 
 interface Profile {
@@ -571,6 +572,9 @@ export default function BusinessConfig() {
         </section>
 
         {/* Paso 5: Agenda de turnos */}
+        {/* Fuentes externas: web / Google Sheets / CSV */}
+        <KnowledgeSourcesSection />
+
         <section id="turnos-reservas" className="atd-card" style={{ margin: "12px 20px 0", padding: 20 }}>
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader

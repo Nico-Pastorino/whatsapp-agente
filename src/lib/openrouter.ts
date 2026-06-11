@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { getBusinessProfile, listActiveItemsForPrompt, isPromotionActive } from "./db";
 import { SYSTEM_PROMPT } from "./system-prompt";
 import { toneHint } from "./onboarding";
+import { getEnabledSourcesContent } from "./knowledge-sources";
 import type { Message, CatalogItem } from "./db";
 
 // ---------------------------------------------------------------------------
@@ -156,9 +157,10 @@ function normalizeAction(raw: Record<string, unknown> | null): ConversationActio
 }
 
 async function buildSystemPrompt(businessId: string): Promise<string> {
-  const [profile, items] = await Promise.all([
+  const [profile, items, externalSources] = await Promise.all([
     getBusinessProfile(businessId).catch(() => null),
     listActiveItemsForPrompt(businessId).catch(() => []),
+    getEnabledSourcesContent(businessId).catch(() => []),
   ]);
 
   if (!profile) return SYSTEM_PROMPT;
@@ -253,6 +255,22 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
       "INFORMACIÓN CLAVE Y PREGUNTAS FRECUENTES:",
       sanitizeForPrompt(combinedInfo, 4000),
       "Usá esta información como fuente principal para responder dudas sobre políticas, envíos, garantías, formas de pago, devoluciones y preguntas frecuentes."
+    );
+  }
+
+  // ── Fuentes externas (links que el negocio conectó: web, Google Sheets, CSV) ──
+  if (externalSources.length > 0) {
+    lines.push(
+      "",
+      "INFORMACIÓN EXTERNA DEL NEGOCIO (importada automáticamente de sus páginas y planillas):"
+    );
+    for (const src of externalSources) {
+      lines.push("", `— Fuente: ${sanitizeForPrompt(src.label, 80)}`, sanitizeForPrompt(src.content, 5000));
+    }
+    lines.push(
+      "",
+      "Usá estos datos para responder precios, stock, disponibilidad, carta, menú o turnos.",
+      "Si un dato puntual no aparece ni acá ni en el resto de la información del negocio, tratalo como dato faltante: no lo inventes, consultalo."
     );
   }
 
