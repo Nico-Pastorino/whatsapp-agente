@@ -72,7 +72,7 @@ export default function ConversationList({
   const attentionCount = conversations.filter((c) => c.needs_attention).length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "transparent" }}>
+    <div className="conversation-list" style={{ display: "flex", flexDirection: "column", height: "100%", background: "transparent" }}>
       {/* Header */}
       <div className="page-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

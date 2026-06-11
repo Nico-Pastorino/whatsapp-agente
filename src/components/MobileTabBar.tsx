@@ -49,7 +49,12 @@ export default function MobileTabBar({ activeView, role = "owner" }: Props) {
       {tabs.map(({ key, label, Icon, href, center }) => (
         <button
           key={key}
-          onClick={() => router.push(href)}
+          onClick={() => {
+            if (key === "chats") {
+              window.dispatchEvent(new Event("atende:show-conversation-list"));
+            }
+            router.push(href);
+          }}
           className={`atd-tab ${active === key ? "active" : ""} ${center ? "center" : ""}`}
         >
           <span className="tab-ic">

@@ -610,6 +610,9 @@ function mapBusinessInvitationRow(row: {
   };
 }
 
+const BUSINESS_INVITATION_SELECT =
+  "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, created_at, updated_at";
+
 async function getAgentPhoneNumber(): Promise<string | null> {
   try {
     const state = await getConnectionState();
@@ -1615,7 +1618,7 @@ export async function getBusinessMembers(businessId: string): Promise<BusinessMe
   const supabase = getSupabaseAdminClient();
   const { data: members, error } = await supabase
     .from("business_members")
-    .select("id, business_id, user_id, role, created_at, updated_at, last_active_at")
+    .select("id, business_id, user_id, role, created_at")
     .eq("business_id", businessId)
     .order("created_at", { ascending: true });
 
@@ -1627,8 +1630,6 @@ export async function getBusinessMembers(businessId: string): Promise<BusinessMe
     user_id: string;
     role: BusinessMemberRole;
     created_at: string | null;
-    updated_at: string | null;
-    last_active_at: string | null;
   }>;
 
   if (memberRows.length === 0) return [];
@@ -1670,8 +1671,8 @@ export async function getBusinessMembers(businessId: string): Promise<BusinessMe
       role: member.role,
       status: authUsers.get(member.user_id)?.status ?? "unavailable",
       created_at: toUnixSeconds(member.created_at),
-      updated_at: toUnixSeconds(member.updated_at),
-      last_active_at: toUnixSeconds(member.last_active_at),
+      updated_at: toUnixSeconds(member.created_at),
+      last_active_at: null,
     };
   });
 }
@@ -1680,9 +1681,7 @@ export async function listBusinessInvitations(businessId: string): Promise<Busin
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("business_invitations")
-    .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
-    )
+    .select(BUSINESS_INVITATION_SELECT)
     .eq("business_id", businessId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -1715,9 +1714,7 @@ export async function getBusinessInvitationByToken(token: string): Promise<Busin
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("business_invitations")
-    .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
-    )
+    .select(BUSINESS_INVITATION_SELECT)
     .eq("token", token)
     .maybeSingle();
 
@@ -1779,9 +1776,7 @@ export async function createBusinessInvitation(
       supabase.from("profiles").select("id").eq("email", normalizedEmail),
       supabase
         .from("business_invitations")
-        .select(
-          "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
-        )
+        .select(BUSINESS_INVITATION_SELECT)
         .eq("business_id", businessId)
         .eq("email", normalizedEmail)
         .eq("status", "pending")
@@ -1843,9 +1838,7 @@ export async function createBusinessInvitation(
       expires_at: invitationExpiresAt(),
       updated_at: new Date().toISOString(),
     })
-    .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
-    )
+    .select(BUSINESS_INVITATION_SELECT)
     .single();
 
   if (createError || !createdInvite) throw createError ?? new TeamManagementError("No se pudo crear la invitación.", 500);
@@ -1904,7 +1897,6 @@ export async function revokeBusinessInvitation(
     .from("business_invitations")
     .update({
       status: "revoked",
-      revoked_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
     .eq("id", invitationId)
@@ -1931,9 +1923,7 @@ export async function resendBusinessInvitation(
   const supabase = getSupabaseAdminClient();
   const { data: invitation, error } = await supabase
     .from("business_invitations")
-    .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
-    )
+    .select(BUSINESS_INVITATION_SELECT)
     .eq("id", invitationId)
     .eq("business_id", businessId)
     .maybeSingle();
@@ -1969,15 +1959,11 @@ export async function resendBusinessInvitation(
       token: generateInvitationToken(),
       status: "pending",
       expires_at: invitationExpiresAt(),
-      resent_at: now,
-      revoked_at: null,
       updated_at: now,
     })
     .eq("id", invitationId)
     .eq("business_id", businessId)
-    .select(
-      "id, business_id, email, role, token, status, invited_by, accepted_by, expires_at, accepted_at, revoked_at, resent_at, created_at, updated_at"
-    )
+    .select(BUSINESS_INVITATION_SELECT)
     .single();
 
   if (updateError || !updated) {
@@ -2134,7 +2120,7 @@ export async function updateBusinessMemberRole(
 
   const { error: updateError } = await supabase
     .from("business_members")
-    .update({ role: nextRole, updated_at: new Date().toISOString() })
+    .update({ role: nextRole })
     .eq("id", memberId)
     .eq("business_id", businessId);
 

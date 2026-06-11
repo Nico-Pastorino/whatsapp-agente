@@ -136,6 +136,7 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
   const [initialChecked, setInitialChecked] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
   const [trialPlan, setTrialPlan] = useState<TrialPlanState | null>(null);
   // Email sin verificar → banner guía hacia /app/verify-email (un fetch al montar).
   const [emailUnverified, setEmailUnverified] = useState(false);
@@ -161,6 +162,25 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
     const interval = setInterval(tick, 12_000);
     return () => clearInterval(interval);
   }, [currentView]);
+
+  useEffect(() => {
+    if (currentView !== "conversations") {
+      setMobileConversationOpen(false);
+      return;
+    }
+    const hasRequestedConversation =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("c");
+    if (!hasRequestedConversation) {
+      setMobileConversationOpen(false);
+    }
+  }, [currentView]);
+
+  useEffect(() => {
+    const showList = () => setMobileConversationOpen(false);
+    window.addEventListener("atende:show-conversation-list", showList);
+    return () => window.removeEventListener("atende:show-conversation-list", showList);
+  }, []);
 
   useEffect(() => {
     if (currentView === "plan") return;
@@ -202,7 +222,10 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
         requestedConversationId && deduped.some((c) => c.id === requestedConversationId)
           ? requestedConversationId
           : null;
-      if (requestedConversationId) setRequestedConversationId(null);
+      if (requestedConversationId) {
+        setRequestedConversationId(null);
+        if (requested) setMobileConversationOpen(true);
+      }
       setSelectedId((current) =>
         requested
           ? requested
@@ -247,6 +270,12 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
   function handleDeleteConversation() {
     setConversations((prev) => prev.filter((c) => c.id !== selectedId));
     setSelectedId(null);
+    setMobileConversationOpen(false);
+  }
+
+  function handleSelectConversation(id: string) {
+    setSelectedId(id);
+    setMobileConversationOpen(true);
   }
 
   if (!initialChecked) {
@@ -350,21 +379,21 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
           )}
         </div>
       );
-      // Mobile: show list OR detail
-      mobileContent = selectedConv ? (
+      // Mobile: show the list by default; opening a row switches to detail.
+      mobileContent = mobileConversationOpen && selectedConv ? (
         <ConversationPanel
           key={selectedConv.id}
           conversation={selectedConv}
           onModeChange={handleModeChange}
           onConversationUpdate={handleConversationUpdate}
-          onDelete={() => { setSelectedId(null); handleDeleteConversation(); }}
-          onBack={() => setSelectedId(null)}
+          onDelete={handleDeleteConversation}
+          onBack={() => setMobileConversationOpen(false)}
         />
       ) : (
         <ConversationList
           conversations={conversations}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={handleSelectConversation}
         />
       );
     }

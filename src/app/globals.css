@@ -575,6 +575,9 @@ body {
   .conversation-messages {
     padding-bottom: 184px !important;
   }
+  .conversation-list > div:last-child {
+    padding-bottom: 104px !important;
+  }
   .conversation-composer {
     position: fixed;
     left: 14px;
@@ -615,8 +618,11 @@ body {
     backdrop-filter: blur(30px) saturate(1.75);
     -webkit-backdrop-filter: blur(30px) saturate(1.75);
   }
-  .app-mobile-content.has-trial-banner .liquid-container {
-    padding-top: 98px;
+  .app-mobile-content.has-trial-banner {
+    padding-top: 84px;
+  }
+  .app-mobile-content.has-trial-banner > * {
+    min-height: 0;
   }
 }
 @media (min-width: 768px) {

@@ -257,19 +257,21 @@ export default function TeamManagement() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", background: "var(--bg)" }}>
-        <div className="atd-spinner" />
-      </div>
+      <DashboardContentShell maxWidth={1180}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 260 }}>
+          <div className="atd-spinner" />
+        </div>
+      </DashboardContentShell>
     );
   }
 
   if (!data) {
     return (
-      <div style={{ height: "100%", background: "var(--bg)", padding: 24 }}>
+      <DashboardContentShell maxWidth={1180}>
         <div style={{ maxWidth: 600, margin: "0 auto", borderRadius: 18, border: "1px solid #f5c2bb", background: "#fff0ee", padding: 20, color: "var(--accent)", fontSize: 14 }}>
           {error ?? "No se pudo cargar el equipo."}
         </div>
-      </div>
+      </DashboardContentShell>
     );
   }
 
