@@ -72,7 +72,7 @@ export default function ConversationList({
   const attentionCount = conversations.filter((c) => c.needs_attention).length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg)" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "transparent" }}>
       {/* Header */}
       <div className="page-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -106,10 +106,10 @@ export default function ConversationList({
         <button
           onClick={() => setFilter("human")}
           style={{
-            margin: "0 20px 10px",
+            margin: "0 16px 10px",
             padding: 14,
-            borderRadius: 14,
-            border: "1px solid transparent",
+            borderRadius: 18,
+            border: "1px solid color-mix(in oklab, var(--human) 30%, transparent)",
             background: "var(--human-tint)",
             color: "var(--human)",
             display: "flex",
@@ -131,8 +131,8 @@ export default function ConversationList({
       )}
 
       {/* Search */}
-      <div style={{ padding: "0 20px 8px" }}>
-        <div style={{ height: 38, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--hairline-2)", display: "flex", alignItems: "center", padding: "0 12px", gap: 8 }}>
+      <div style={{ padding: "0 16px 10px" }}>
+        <div className="liquid-panel" style={{ height: 42, display: "flex", alignItems: "center", padding: "0 13px", gap: 8 }}>
           <Search size={16} style={{ color: "var(--muted)", flexShrink: 0 }} />
           <input
             id="conv-search"
@@ -146,7 +146,7 @@ export default function ConversationList({
       </div>
 
       {/* Filter pills */}
-      <div style={{ padding: "0 20px 10px", display: "flex", gap: 6 }}>
+      <div style={{ padding: "0 16px 12px", display: "flex", gap: 6, overflowX: "auto" }}>
         {([
           ["all",   `Todas ${conversations.length}`],
           ["ia",    `IA ${iaCount}`],
@@ -157,7 +157,7 @@ export default function ConversationList({
             onClick={() => setFilter(key)}
             className="atd-pill"
             style={{
-              background: filter === key ? "var(--ink)" : "var(--surface)",
+              background: filter === key ? "var(--ink)" : "var(--glass)",
               color: filter === key ? "var(--bg)" : "var(--ink-2)",
               borderColor: filter === key ? "transparent" : "var(--hairline-2)",
               cursor: "pointer",
@@ -169,7 +169,7 @@ export default function ConversationList({
       </div>
 
       {/* List */}
-      <div style={{ flex: 1, overflow: "auto" }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "0 10px 12px" }}>
         {filtered.length === 0 ? (
           <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--muted)", fontSize: 13, lineHeight: 1.6 }}>
             {search.trim() || filter !== "all"
@@ -177,7 +177,7 @@ export default function ConversationList({
               : "Cuando un cliente escriba a tu WhatsApp, la conversación va a aparecer acá."}
           </div>
         ) : (
-          filtered.map((conv, i) => {
+          filtered.map((conv) => {
             const name = displayName(conv);
             const isIA = conv.mode === "AI";
             const isSelected = selectedId === conv.id;
@@ -191,16 +191,19 @@ export default function ConversationList({
                 onClick={() => onSelect(conv.id)}
                 style={{
                   width: "100%", textAlign: "left",
-                  padding: "12px 20px",
+                  padding: "12px",
                   display: "flex", alignItems: "center", gap: 12,
-                  borderTop: i ? "1px solid var(--hairline)" : "none",
+                  border: "1px solid var(--glass-border)",
+                  borderRadius: 20,
+                  marginBottom: 8,
                   background: isSelected
-                    ? "var(--surface)"
+                    ? "var(--glass-strong)"
                     : needsAttention
                     ? "rgba(212,154,58,0.06)"
-                    : "transparent",
+                    : "var(--glass-soft)",
+                  boxShadow: isSelected ? "var(--shadow-1)" : "none",
                   cursor: "pointer",
-                  transition: "background .15s",
+                  transition: "background .15s, transform .15s var(--ease-ios)",
                 }}
               >
                 {/* Avatar with mode badge */}

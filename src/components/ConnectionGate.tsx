@@ -103,20 +103,22 @@ function dedupeConversationsByContact(conversations: Conversation[]): Conversati
 // Empty state for conversations
 function EmptyChats() {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center", background: "var(--bg)" }}>
-      <div style={{ width: 88, height: 88, borderRadius: 28, background: "var(--green-tint)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, position: "relative" }}>
+    <div className="liquid-shell liquid-enter" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
+      <div className="liquid-card" style={{ width: "min(100%, 390px)", padding: 28 }}>
+      <div className="liquid-icon" style={{ width: 88, height: 88, borderRadius: 30, margin: "0 auto 20px", position: "relative", background: "var(--green-tint)" }}>
         <Spark size={36} style={{ color: "var(--green-ink)" }} />
         <span style={{ position: "absolute", top: -8, right: -8, width: 28, height: 28, borderRadius: 999, background: "var(--accent)", color: "var(--on-accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 600 }}>+</span>
       </div>
-      <h3 className="serif" style={{ fontSize: 26, margin: "0 0 8px", lineHeight: 1 }}>
+      <h3 className="serif" style={{ fontSize: 30, margin: "0 0 8px", lineHeight: 1 }}>
         Todavía no <span className="italic">hay chats.</span>
       </h3>
       <p style={{ fontSize: 14, color: "var(--ink-3)", maxWidth: 260, margin: "0 auto 20px" }}>
         Conectá WhatsApp para que tu asistente empiece a recibir conversaciones.
       </p>
-      <Link href="/app/connect" className="atd-btn primary">
+      <Link href="/app/connect" className="liquid-action primary" style={{ textDecoration: "none" }}>
         Conectar WhatsApp
       </Link>
+      </div>
     </div>
   );
 }
@@ -246,7 +248,7 @@ export default function ConnectionGate({ currentView }: Props) {
 
   if (!initialChecked) {
     return (
-      <div style={{ minHeight: "100svh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
+      <div className="liquid-shell" style={{ minHeight: "100svh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div className="atd-spinner" />
       </div>
     );
@@ -287,8 +289,8 @@ export default function ConnectionGate({ currentView }: Props) {
     mobileContent = content;
   } else if (currentView === "connect") {
     content = phone ? (
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 24 }}>
-        <div className="atd-card" style={{ padding: 28, maxWidth: 360, width: "100%", textAlign: "center" }}>
+      <div className="liquid-shell liquid-enter" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div className="liquid-card" style={{ padding: 30, maxWidth: 390, width: "100%", textAlign: "center" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
             <span className="atd-dot live" style={{ width: 12, height: 12 }} />
           </div>
@@ -297,7 +299,7 @@ export default function ConnectionGate({ currentView }: Props) {
           <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 16px" }}>
             Tu asistente ya está activo y respondiendo por WhatsApp. Podés tomar el control cuando quieras desde Conversaciones.
           </p>
-          <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--green-tint)", color: "var(--green-ink)", fontSize: 12 }}>
+          <div className="liquid-panel" style={{ padding: "10px 14px", color: "var(--green-ink)", fontSize: 12 }}>
             {connectionStatus === "connected" ? "Asistente activo" : "Sincronizando…"}
           </div>
         </div>
@@ -314,15 +316,15 @@ export default function ConnectionGate({ currentView }: Props) {
     } else {
       // Desktop: 2-column layout
       content = (
-        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-          <aside style={{ width: 288, background: "var(--surface)", borderRight: "1px solid var(--hairline)", display: "flex", flexDirection: "column" }}>
+        <div className="liquid-shell" style={{ display: "flex", flex: 1, overflow: "hidden", padding: 16, gap: 14 }}>
+          <aside className="liquid-card" style={{ width: 306, display: "flex", flexDirection: "column", minHeight: 0 }}>
             <ConversationList
               conversations={conversations}
               selectedId={selectedId}
               onSelect={setSelectedId}
             />
           </aside>
-          <main style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
+          <main className="liquid-card" style={{ flex: 1, overflow: "hidden", minWidth: 0 }}>
             {selectedConv ? (
               <ConversationPanel
                 key={selectedConv.id}
@@ -332,14 +334,14 @@ export default function ConnectionGate({ currentView }: Props) {
                 onDelete={handleDeleteConversation}
               />
             ) : (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted)", fontSize: 14, background: "var(--bg)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted)", fontSize: 14 }}>
                 Seleccioná una conversación
               </div>
             )}
           </main>
           {/* Panel lateral de cliente — solo en pantallas anchas */}
           {selectedConv && (
-            <div className="hidden lg:block" style={{ height: "100%" }}>
+            <div className="hidden lg:block liquid-card" style={{ height: "100%", width: 300 }}>
               <ConversationClientPanel conversation={selectedConv} />
             </div>
           )}
@@ -371,9 +373,9 @@ export default function ConnectionGate({ currentView }: Props) {
     trialPlan.can_use_app;
 
   const verifyBanner = emailUnverified ? (
-    <div style={{ padding: "10px 16px", background: "var(--human-tint)", borderBottom: "1px solid rgba(212,154,58,0.3)", color: "var(--human)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+    <div className="liquid-panel" style={{ margin: "10px 14px 0", padding: "10px 14px", color: "var(--human)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
       <span style={{ fontSize: 13 }}>
-        ✉️ Verificá tu email para activar tu prueba y conectar WhatsApp.
+        Verificá tu email para activar tu prueba y conectar WhatsApp.
       </span>
       <Link href="/app/verify-email" className="atd-btn sm" style={{ background: "var(--human)", color: "#fff", border: "none", textDecoration: "none" }}>
         Verificar ahora
@@ -384,7 +386,7 @@ export default function ConnectionGate({ currentView }: Props) {
   // Banner de trial COMPACTO: una sola línea. Antes ocupaba ~20% de la
   // pantalla en mobile, repetido en todas las vistas.
   const trialBanner = showTrialBanner ? (
-    <div style={{ padding: "7px 16px", background: "rgba(31,107,74,0.09)", borderBottom: "1px solid rgba(31,107,74,0.16)", color: "var(--green-ink)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+    <div className="liquid-panel" style={{ margin: "10px 14px 0", padding: "8px 14px", color: "var(--green-ink)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
       <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         Prueba gratis · te quedan {trialPlan.days_left_trial ?? 0} días
       </span>
@@ -395,7 +397,7 @@ export default function ConnectionGate({ currentView }: Props) {
   ) : null;
 
   return (
-    <div style={{ display: "flex", height: "100svh", background: "var(--bg)" }}>
+    <div className="liquid-shell" style={{ display: "flex", height: "100svh", background: "transparent" }}>
       {/* Desktop sidebar — hidden on mobile */}
       <div className="hidden md:flex" style={{ height: "100%", flexShrink: 0 }}>
         <DashboardSidebar
@@ -406,7 +408,7 @@ export default function ConnectionGate({ currentView }: Props) {
       </div>
 
       {/* Right side: content + mobile tab bar */}
-      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0, position: "relative" }}>
         {verifyBanner}
         {trialBanner}
         {/* Desktop content */}

@@ -164,9 +164,9 @@ export default function ConversationPanel({
   const isIA = mode === "AI";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg)" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "transparent" }}>
       {/* Header */}
-      <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--hairline)", background: "var(--surface)" }}>
+      <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--glass-border)", background: "var(--glass)", backdropFilter: "blur(18px) saturate(1.5)", WebkitBackdropFilter: "blur(18px) saturate(1.5)" }}>
         {onBack && (
           <button onClick={onBack} style={{ width: 34, height: 34, display: "inline-flex", alignItems: "center", justifyContent: "center", color: "var(--ink-3)", cursor: "pointer", background: "none", border: "none", flexShrink: 0 }}>
             <ArrowLeft size={20} />
@@ -185,7 +185,7 @@ export default function ConversationPanel({
       </div>
 
       {/* Mode toggle */}
-      <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--hairline)" }}>
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--glass-border)" }}>
         <div className="atd-seg" style={{ width: "100%" }}>
           <button className={isIA ? "on" : ""} onClick={() => handleModeChange("AI")} style={{ flex: 1, justifyContent: "center" }}>
             <Spark size={14} /> IA
@@ -198,13 +198,13 @@ export default function ConversationPanel({
 
       {/* Needs attention banner */}
       {conversation.needs_attention && !isIA && (
-        <div style={{ margin: "8px 14px 0", padding: "10px 14px", borderRadius: 12, background: "var(--human-tint)", border: "1px solid rgba(212,154,58,0.3)", fontSize: 12.5, color: "var(--human)", fontWeight: 500 }}>
-          👋 La IA derivó esta conversación. Respondé para retomar el contacto.
+        <div className="liquid-panel" style={{ margin: "10px 14px 0", padding: "10px 14px", fontSize: 12.5, color: "var(--human)", fontWeight: 500 }}>
+          La IA derivó esta conversación. Respondé para retomar el contacto.
         </div>
       )}
 
       {/* Messages */}
-      <div style={{ flex: 1, overflow: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 7 }}>
         {messages.length === 0 ? (
           <p className="mono" style={{ textAlign: "center", color: "var(--muted)", fontSize: 11, textTransform: "uppercase", padding: "20px 0" }}>Sin mensajes aún</p>
         ) : (
@@ -233,7 +233,7 @@ export default function ConversationPanel({
       </div>
 
       {/* Composer */}
-      <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--hairline)", background: "var(--surface)" }}>
+      <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--glass-border)", background: "var(--glass)", backdropFilter: "blur(18px) saturate(1.45)", WebkitBackdropFilter: "blur(18px) saturate(1.45)" }}>
         {isIA ? (
           <p className="mono" style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", textTransform: "uppercase" }}>
             El asistente responde automáticamente
@@ -264,7 +264,7 @@ export default function ConversationPanel({
             </div>
           )}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 999, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div className="liquid-icon" style={{ width: 38, height: 38, borderRadius: 999 }}>
               <Plus size={16} style={{ color: "var(--muted)" }} />
             </div>
             <input
@@ -273,12 +273,14 @@ export default function ConversationPanel({
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               placeholder="Escribí un mensaje..."
               disabled={sending}
-              style={{ flex: 1, minHeight: 36, padding: "9px 14px", borderRadius: 18, background: "var(--surface-2)", border: "1px solid var(--hairline)", fontSize: 13, color: "var(--ink)", fontFamily: "var(--font-sans)", outline: "none" }}
+              className="atd-input"
+              style={{ flex: 1, minHeight: 40, fontSize: 13 }}
             />
             <button
               onClick={sendMessage}
               disabled={sending || !input.trim()}
-              style={{ width: 36, height: 36, borderRadius: 999, background: "var(--ink)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "none", cursor: "pointer", opacity: sending || !input.trim() ? 0.4 : 1 }}
+              className="liquid-action primary"
+              style={{ width: 40, height: 40, minHeight: 40, padding: 0 }}
             >
               {sending ? "·" : <Send size={16} />}
             </button>

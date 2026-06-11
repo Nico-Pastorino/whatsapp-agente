@@ -22,7 +22,7 @@ build/
 # logs
 *.log
 npm-debug.log*
-tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # sistema operativo
 .DS_Store

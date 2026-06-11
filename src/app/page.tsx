@@ -90,30 +90,30 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 
 export default function HomePage() {
   return (
-    <main style={{ background: "var(--bg)", color: "var(--ink)", minHeight: "100vh", overflowX: "hidden" }}>
+    <main className="liquid-shell" style={{ color: "var(--ink)", minHeight: "100vh", overflowX: "hidden" }}>
 
       {/* ── Nav sticky global (píldora oscura, funciona sobre ambos fondos) ── */}
       <nav style={{ position: "sticky", top: 0, zIndex: 100, padding: "12px 12px 0", marginBottom: -68 }}>
         <div className="lp-nav" style={{
           maxWidth: 1000, margin: "0 auto", padding: "0 10px 0 18px", height: 56,
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          background: "rgba(10,46,35,0.78)",
-          backdropFilter: "blur(16px) saturate(1.3)", WebkitBackdropFilter: "blur(16px) saturate(1.3)",
+          background: "var(--glass-strong)",
+          backdropFilter: "blur(26px) saturate(1.6)", WebkitBackdropFilter: "blur(26px) saturate(1.6)",
           border: "1px solid rgba(255,255,255,0.10)", borderRadius: 999,
-          boxShadow: "0 8px 32px -12px rgba(0,0,0,0.4)",
+          boxShadow: "inset 0 1px 0 var(--glass-glow), var(--shadow-float)",
         }}>
-          <BrandWordmark size={20} color="#f3f0ea" />
-          <div className="hidden md:flex" style={{ gap: 28, fontSize: 14, color: "rgba(243,240,234,0.75)" }}>
+          <BrandWordmark size={20} color="var(--ink)" />
+          <div className="hidden md:flex" style={{ gap: 28, fontSize: 14, color: "var(--ink-3)" }}>
             <a href="#como-funciona" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Cómo funciona</a>
             <a href="#rubros" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Rubros</a>
             <a href="#demo" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Demo</a>
             <a href="#planes" className="lp-navlink" style={{ color: "inherit", textDecoration: "none" }}>Planes</a>
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <Link href="/login" className="lp-btn hidden min-[420px]:inline-flex" style={{ padding: "8px 14px", fontSize: 14, fontWeight: 500, color: "rgba(243,240,234,0.8)", textDecoration: "none", borderRadius: 999 }}>
+            <Link href="/login" className="lp-btn hidden min-[420px]:inline-flex" style={{ padding: "8px 14px", fontSize: 14, fontWeight: 500, color: "var(--ink-2)", textDecoration: "none", borderRadius: 999 }}>
               Ingresar
             </Link>
-            <Link href="/signup" className="lp-btn" style={{ padding: "9px 18px", fontSize: 14, fontWeight: 600, background: "var(--accent)", color: "#fff", borderRadius: 999, textDecoration: "none" }}>
+            <Link href="/signup" className="liquid-action accent" style={{ minHeight: 38, padding: "0 18px", fontSize: 14, textDecoration: "none" }}>
               Probar gratis
             </Link>
           </div>

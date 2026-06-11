@@ -50,9 +50,9 @@ interface TeamResponse {
 }
 
 const ROLE_LABELS: Record<BusinessMemberRole | "admin" | "agent", string> = {
-  owner: "Owner",
+  owner: "Dueño",
   admin: "Admin",
-  agent: "Agent",
+  agent: "Operador",
 };
 
 const STATUS_LABELS: Record<BusinessInvitationStatus, string> = {
@@ -359,6 +359,20 @@ export default function TeamManagement() {
 
           {canManageTeam ? (
             <form onSubmit={handleInvite} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="liquid-panel" style={{ padding: 12, display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <span className="atd-pill green">Admin</span>
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.4 }}>
+                    Gestiona configuración, catálogo, turnos, chats y equipo operativo.
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <span className="atd-pill">Operador</span>
+                  <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.4 }}>
+                    Responde conversaciones y trabaja sobre la operación diaria.
+                  </p>
+                </div>
+              </div>
               <input
                 id="team-invite-email"
                 type="email"

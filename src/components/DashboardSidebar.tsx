@@ -114,28 +114,30 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
 
   return (
     <aside style={{
-      width: 224,
+      width: 252,
       height: "100%",
       background: "var(--glass-strong)",
-      backdropFilter: "blur(22px) saturate(1.5)",
-      WebkitBackdropFilter: "blur(22px) saturate(1.5)",
+      backdropFilter: "blur(30px) saturate(1.75)",
+      WebkitBackdropFilter: "blur(30px) saturate(1.75)",
       borderRight: "1px solid var(--glass-border)",
       display: "flex",
       flexDirection: "column",
       flexShrink: 0,
+      boxShadow: "inset -1px 0 0 rgba(255,255,255,0.04)",
     }}>
       {/* Logo + business switcher */}
-      <div style={{ padding: "20px 20px 14px" }}>
+      <div style={{ padding: "24px 18px 16px" }}>
         <AtendeWordmark />
         {businesses.length > 1 && (
           <select
             value={activeBusinessId ?? ""}
             onChange={(e) => handleBusinessChange(e.target.value)}
             style={{
-              marginTop: 10, width: "100%", fontSize: 12,
-              padding: "5px 8px", borderRadius: 7,
-              border: "1px solid var(--hairline)",
-              background: "var(--bg)", color: "var(--ink-2)",
+              marginTop: 14, width: "100%", fontSize: 12,
+              padding: "10px 12px", borderRadius: 16,
+              border: "1px solid var(--glass-border)",
+              background: "var(--glass)", color: "var(--ink-2)",
+              outline: "none",
             }}
           >
             {businesses.map((b) => (
@@ -148,10 +150,10 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: "var(--hairline)", margin: "0 14px 6px" }} />
+      <div style={{ height: 1, background: "var(--glass-border)", margin: "0 14px 10px" }} />
 
       {/* Nav items */}
-      <nav style={{ flex: 1, padding: "4px 10px", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
+      <nav style={{ flex: 1, padding: "0 12px", display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }}>
         {NAV_ITEMS.map(({ key, label, Icon, href }) => {
           const active = activeView === key;
           return (
@@ -160,15 +162,19 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
               onClick={() => router.push(href)}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 12px", borderRadius: 10,
-                border: "none", cursor: "pointer", width: "100%", textAlign: "left",
-                background: active ? "var(--green-tint)" : "transparent",
-                color: active ? "var(--green)" : "var(--ink-2)",
+                padding: "11px 12px", borderRadius: 16,
+                border: active ? "1px solid var(--glass-border)" : "1px solid transparent",
+                cursor: "pointer", width: "100%", textAlign: "left",
+                background: active ? "var(--glass-strong)" : "transparent",
+                color: active ? "var(--ink)" : "var(--ink-3)",
                 fontSize: 14, fontWeight: active ? 600 : 400,
-                transition: "background 0.1s, color 0.1s",
+                transition: "background .16s var(--ease-ios), color .16s var(--ease-ios), transform .16s var(--ease-ios)",
+                boxShadow: active ? "inset 0 1px 0 var(--glass-glow), var(--shadow-1)" : "none",
               }}
             >
-              <Icon size={16} />
+              <span className="liquid-icon" style={{ width: 30, height: 30, borderRadius: 12, background: active ? "var(--green-tint)" : "var(--surface-2)", color: active ? "var(--green)" : "currentColor" }}>
+                <Icon size={15} />
+              </span>
               {label}
             </button>
           );
@@ -176,10 +182,10 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
       </nav>
 
       {/* Divider */}
-      <div style={{ height: 1, background: "var(--hairline)", margin: "6px 14px 0" }} />
+      <div style={{ height: 1, background: "var(--glass-border)", margin: "10px 14px 0" }} />
 
       {/* Bottom: appearance + WhatsApp status + logout */}
-      <div style={{ padding: "12px 14px 18px", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ padding: "14px 14px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
         {/* Apariencia */}
         <div style={{ padding: "0 2px 4px" }}>
           <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 6, paddingLeft: 6 }}>Apariencia</div>
@@ -187,7 +193,7 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
         </div>
 
         {/* WA status */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8 }}>
+        <div className="liquid-panel" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px" }}>
           <span style={{
             width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
             background: phone ? "var(--green)" : "var(--muted)",
@@ -199,7 +205,7 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
             <button
               onClick={handleDisconnectWA}
               title="Desconectar WhatsApp"
-              style={{ fontSize: 14, lineHeight: 1, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
+            style={{ fontSize: 14, lineHeight: 1, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
             >
               ×
             </button>
@@ -211,8 +217,8 @@ export default function DashboardSidebar({ activeView, phone, onDisconnect }: Pr
           onClick={handleLogout}
           style={{
             display: "flex", alignItems: "center", gap: 9,
-            padding: "8px 10px", borderRadius: 8,
-            border: "none", cursor: "pointer", width: "100%", textAlign: "left",
+            padding: "10px 11px", borderRadius: 15,
+            border: "1px solid transparent", cursor: "pointer", width: "100%", textAlign: "left",
             background: "transparent", color: "var(--muted)", fontSize: 13,
           }}
         >

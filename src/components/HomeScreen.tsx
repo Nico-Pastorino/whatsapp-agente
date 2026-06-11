@@ -147,10 +147,10 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
-        <div className="p-5 space-y-3">
+      <div className="liquid-scroll">
+        <div className="liquid-container" style={{ display: "grid", gap: 14 }}>
           {[80, 180, 150].map((h, i) => (
-            <div key={i} className="atd-card" style={{ height: h, animation: "pulse 1.5s ease-in-out infinite" }} />
+            <div key={i} className="liquid-card" style={{ height: h, animation: "pulse 1.5s ease-in-out infinite" }} />
           ))}
         </div>
       </div>
@@ -164,116 +164,109 @@ export default function HomeScreen() {
   const allDone = doneCount === totalSteps;
 
   return (
-    <div className="flex-1 overflow-y-auto pb-4" style={{ background: "var(--bg)" }}>
-      {/* Top bar */}
-      <div style={{ padding: "12px 20px 10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div className="mono" style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" }}>inicio</div>
-          <div style={{ fontSize: 20, lineHeight: 1.15, fontWeight: 650, color: "var(--ink)" }}>
-            {data.businessName}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={() => router.push("/app/conversations")}
-            className="atd-av"
-            style={{ width: 36, height: 36, position: "relative", cursor: "pointer", border: "1px solid var(--hairline)" }}
-            aria-label="Conversaciones"
-          >
-            <Bell size={16} />
-            {data.needsAttention > 0 && (
-              <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, padding: "0 4px", borderRadius: 999, background: "var(--human)", color: "#fff", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                {data.needsAttention}
-              </span>
-            )}
-          </button>
-          <Avatar
-            initials={data.businessName.slice(0, 2).toUpperCase()}
-            size={36}
-            bg="var(--green)"
-            fg="var(--on-green)"
-          />
-        </div>
-      </div>
-
-      {/* Hero status card */}
-      <section style={{ margin: "0 20px 12px", padding: 18, borderRadius: 20, background: data.waConnected ? "var(--green-tint)" : "var(--accent-soft)", color: data.waConnected ? "var(--green-ink)" : "var(--accent-ink)", border: "1px solid transparent" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 600, marginBottom: 10 }}>
-          <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "currentColor" }} />
-          {data.waConnected ? "WhatsApp conectado" : "WhatsApp sin conectar"}
-        </div>
-        <div style={{ fontSize: 25, lineHeight: 1.08, fontWeight: 700, letterSpacing: 0, marginBottom: 6 }}>
-          {data.waConnected ? "Tu asistente está atendiendo." : "Conectá WhatsApp para empezar."}
-        </div>
-        <p style={{ fontSize: 13.5, lineHeight: 1.45, margin: "0 0 16px", opacity: 0.78 }}>
-          {data.waConnected
-            ? data.needsAttention > 0
-              ? "Hay conversaciones esperando una respuesta humana."
-              : `${data.todayConversations} ${data.todayConversations === 1 ? "conversación nueva" : "conversaciones nuevas"} hoy.`
-            : "Vinculá el número del negocio y el asistente queda listo para responder."}
-        </p>
-        <button
-          onClick={() => router.push(data.waConnected ? "/app/conversations" : "/app/connect")}
-          className="atd-btn primary"
-          style={{ height: 42, background: data.waConnected ? "var(--green-ink)" : "var(--accent-ink)", color: "var(--bg)" }}
-        >
-          {data.waConnected ? "Ver chats" : "Conectar ahora"}
-        </button>
-      </section>
-
-      {/* Progreso simple */}
-      <section style={{ margin: "0 20px 12px", padding: 16, borderRadius: 18, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
+    <div className="liquid-scroll">
+      <div className="liquid-container liquid-enter" style={{ display: "grid", gap: 16 }}>
+        <header className="page-header">
           <div>
-            <div style={{ fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>Configuración</div>
-            <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>
-              {allDone ? "Todo listo" : `${doneCount} de ${totalSteps} pasos completos`}
+            <div className="page-sub">centro de control</div>
+            <h1 className="page-title">{data.businessName}</h1>
+          </div>
+          <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
+            <button
+              onClick={() => router.push("/app/conversations")}
+              className="liquid-icon"
+              style={{ position: "relative", cursor: "pointer", border: "1px solid var(--glass-border)" }}
+              aria-label="Conversaciones"
+            >
+              <Bell size={17} />
+              {data.needsAttention > 0 && (
+                <span className="atd-badge" style={{ position: "absolute", top: -5, right: -5 }}>
+                  {data.needsAttention}
+                </span>
+              )}
+            </button>
+            <Avatar
+              initials={data.businessName.slice(0, 2).toUpperCase()}
+              size={42}
+              bg="linear-gradient(135deg, var(--green), var(--accent))"
+              fg="var(--on-green)"
+            />
+          </div>
+        </header>
+
+        <section className="liquid-card" style={{ padding: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: data.waConnected ? "var(--green)" : "var(--accent)", marginBottom: 12 }}>
+            <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "currentColor" }} />
+            {data.waConnected ? "WhatsApp conectado" : "Próxima acción"}
+          </div>
+          <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 1fr)", alignItems: "end" }}>
+            <div>
+              <h2 style={{ fontSize: "clamp(30px, 8vw, 54px)", lineHeight: 0.95, fontWeight: 760, letterSpacing: 0, margin: 0, color: "var(--ink)" }}>
+                {data.waConnected ? "Tu asistente está atendiendo." : "Conectá WhatsApp para empezar."}
+              </h2>
+              <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: "14px 0 0", color: "var(--ink-3)", maxWidth: 520 }}>
+                {data.waConnected
+                  ? data.needsAttention > 0
+                    ? "Hay conversaciones esperando una respuesta humana. Entrá al inbox y tomá las importantes."
+                    : `${data.todayConversations} ${data.todayConversations === 1 ? "conversación nueva" : "conversaciones nuevas"} hoy. Todo sigue simple desde un solo lugar.`
+                  : "Vinculá el número del negocio y dejá Atendé listo para responder, tomar datos y derivarte chats cuando haga falta."}
+              </p>
             </div>
+            <button
+              onClick={() => router.push(data.waConnected ? "/app/conversations" : "/app/connect")}
+              className={`liquid-action ${data.waConnected ? "primary" : "accent"}`}
+              style={{ width: "fit-content" }}
+            >
+              {data.waConnected ? "Abrir inbox" : "Conectar ahora"}
+            </button>
           </div>
-          <strong style={{ fontSize: 18, color: "var(--green)" }}>{pct}%</strong>
-        </div>
-        <div style={{ height: 7, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
-          <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "var(--green)" }} />
-        </div>
-        {!allDone && nextStep && (
-          <button
-            onClick={() => router.push(nextStep.href)}
-            style={{ marginTop: 12, width: "100%", padding: "11px 0 0", border: 0, borderTop: "1px dashed var(--hairline-2)", background: "transparent", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}
-          >
-            <span style={{ width: 20, height: 20, borderRadius: 999, border: "1.5px solid var(--hairline-3)", flexShrink: 0 }} />
-            <span style={{ flex: 1, fontSize: 13.5, color: "var(--ink-2)" }}>{nextStep.label}</span>
-            <Arrow size={16} style={{ color: "var(--muted)" }} />
-          </button>
-        )}
-      </section>
+        </section>
 
-      {/* Resumen de actividad */}
-      <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        <button
-          onClick={() => router.push("/app/conversations")}
-          style={{ padding: 14, borderRadius: 16, textAlign: "left", cursor: "pointer", background: "var(--surface)", border: "1px solid var(--hairline)" }}
-        >
-          <div className="mono" style={{ fontSize: 10, opacity: 0.7, textTransform: "uppercase" }}>Conversaciones</div>
-          <div className="serif" style={{ fontSize: 28, lineHeight: 1, marginTop: 6 }}>{data.totalConversations}</div>
-          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
-            {data.todayConversations} hoy
+        <section className="liquid-card" style={{ padding: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, marginBottom: 12 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 720, color: "var(--ink)" }}>Dejá Atendé listo</h3>
+              <p style={{ fontSize: 13, color: "var(--muted)", margin: "3px 0 0" }}>
+                {allDone ? "Configuración completa" : `${doneCount} de ${totalSteps} pasos completados`}
+              </p>
+            </div>
+            <strong className="mono" style={{ fontSize: 20, color: "var(--green)" }}>{pct}%</strong>
           </div>
-        </button>
-        <button
-          onClick={() => router.push("/app/catalog")}
-          style={{ padding: 14, borderRadius: 16, textAlign: "left", cursor: "pointer", background: "var(--surface)", border: "1px solid var(--hairline)" }}
-        >
-          <div className="mono" style={{ fontSize: 10, opacity: 0.7, textTransform: "uppercase" }}>Productos</div>
-          <div className="serif" style={{ fontSize: 28, lineHeight: 1, marginTop: 6 }}>
-            {data.productCount > 0 ? data.productCount : "0"}
-            {data.plan?.product_limit ? <span style={{ fontSize: 14, color: "var(--muted)" }}> / {data.plan.product_limit}</span> : null}
+          <div style={{ height: 9, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", border: "1px solid var(--glass-border)" }}>
+            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, var(--green), var(--green-soft))", transition: "width .35s var(--ease-ios)" }} />
           </div>
-          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
-            {data.productCount > 0 ? "en tu catálogo" : "Agregá los primeros"}
-          </div>
-        </button>
+          {!allDone && nextStep && (
+            <button
+              onClick={() => router.push(nextStep.href)}
+              className="liquid-panel"
+              style={{ marginTop: 14, width: "100%", padding: 13, border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", color: "var(--ink)" }}
+            >
+              <span style={{ width: 22, height: 22, borderRadius: 999, border: "1.5px solid var(--green)", flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 650 }}>{nextStep.label}</span>
+              <Arrow size={16} style={{ color: "var(--muted)" }} />
+            </button>
+          )}
+        </section>
+
+        <div className="liquid-grid cols-3">
+          {[
+            { label: "Conversaciones", value: data.totalConversations, meta: `${data.todayConversations} hoy`, href: "/app/conversations" },
+            { label: "Catálogo", value: data.productCount, meta: data.plan?.product_limit ? `de ${data.plan.product_limit}` : "productos", href: "/app/catalog" },
+            { label: "Equipo", value: data.teamCount, meta: data.teamCount > 1 ? "miembros" : "solo vos", href: "/app/team" },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={() => router.push(item.href)}
+              className="liquid-card"
+              style={{ padding: 17, textAlign: "left", cursor: "pointer", color: "var(--ink)", border: "1px solid var(--glass-border)" }}
+            >
+              <div className="page-sub" style={{ marginBottom: 8 }}>{item.label}</div>
+              <div className="serif" style={{ fontSize: 36, lineHeight: 0.95 }}>{item.value}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 8 }}>{item.meta}</div>
+            </button>
+          ))}
+        </div>
       </div>
-
     </div>
   );
 }

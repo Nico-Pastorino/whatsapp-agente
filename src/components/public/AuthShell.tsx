@@ -24,7 +24,7 @@ export default function AuthShell({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(circle at top left, rgba(255,107,77,0.14), transparent 28%), radial-gradient(circle at top right, rgba(13,59,46,0.12), transparent 32%), linear-gradient(180deg, rgba(255,255,255,0.56), rgba(243,240,234,0.9))",
+            "radial-gradient(circle at 12% 8%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 30%), radial-gradient(circle at 88% 0%, color-mix(in oklab, var(--green) 24%, transparent), transparent 34%), radial-gradient(circle at 50% 110%, color-mix(in oklab, var(--green) 14%, transparent), transparent 36%)",
         }}
       />
 
@@ -33,7 +33,7 @@ export default function AuthShell({
           <Link href="/" className="inline-flex items-center text-[var(--ink)] no-underline">
             <BrandWordmark size={22} />
           </Link>
-          <span className="hidden rounded-full border border-[var(--hairline)] bg-white/70 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--muted)] shadow-[var(--shadow-1)] sm:inline-flex">
+          <span className="hidden rounded-full border border-[var(--glass-border)] bg-[var(--glass)] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--muted)] shadow-[var(--shadow-1)] backdrop-blur sm:inline-flex">
             Asistente comercial
           </span>
         </div>
@@ -62,7 +62,7 @@ export default function AuthShell({
                 ].map((item, index) => (
                   <div
                     key={item}
-                    className="rounded-[24px] border border-[var(--hairline)] bg-white/80 p-4 shadow-[var(--shadow-1)] backdrop-blur"
+                    className="liquid-panel p-4"
                   >
                     <div className="mb-4 font-[var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
                       0{index + 1}
@@ -76,9 +76,7 @@ export default function AuthShell({
 
           <section className="mx-auto w-full max-w-[440px]">
             {planBanner ? <div className="mb-4">{planBanner}</div> : null}
-            <div
-              className="rounded-[30px] border border-[var(--hairline)] bg-white/92 p-6 shadow-[var(--shadow-3)] backdrop-blur sm:p-8"
-            >
+            <div className="liquid-card p-6 sm:p-8">
               <div className="mb-6 text-center sm:mb-8">
                 {eyebrow ? (
                   <p className="mb-3 font-[var(--font-mono)] text-[11px] uppercase tracking-[0.22em] text-[var(--muted)] lg:hidden">

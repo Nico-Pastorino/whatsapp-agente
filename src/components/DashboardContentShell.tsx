@@ -10,13 +10,12 @@ export default function DashboardContentShell({
   bottomPadding?: number;
 }) {
   return (
-    <div style={{ height: "100%", overflowY: "auto", background: "var(--bg)" }}>
+    <div className="liquid-scroll">
       <div
+        className="liquid-container liquid-enter"
         style={{
-          width: "100%",
           maxWidth,
-          margin: "0 auto",
-          padding: `0 0 ${bottomPadding}px`,
+          paddingBottom: bottomPadding,
         }}
       >
         {children}
