@@ -52,7 +52,7 @@ export default function MobileTabBar({ activeView }: Props) {
           <span className="tab-ic">
             <Icon size={18} />
           </span>
-          <span>{label}</span>
+          <span className="tab-label">{label}</span>
         </button>
       ))}
     </nav>

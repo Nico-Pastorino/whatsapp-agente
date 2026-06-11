@@ -174,7 +174,7 @@ export default function AgendaScreen() {
   const countByStatus = (s: AppointmentStatus) => appointments.filter((a) => a.status === s).length;
 
   return (
-    <DashboardContentShell maxWidth={960}>
+    <DashboardContentShell maxWidth={1320}>
       <div style={{ padding: "14px 20px 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
           <div>

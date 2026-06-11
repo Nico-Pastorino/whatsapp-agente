@@ -317,7 +317,7 @@ export default function ConnectionGate({ currentView }: Props) {
       // Desktop: 2-column layout
       content = (
         <div className="liquid-shell" style={{ display: "flex", flex: 1, overflow: "hidden", padding: 16, gap: 14 }}>
-          <aside className="liquid-card" style={{ width: 306, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <aside className="liquid-card" style={{ width: "clamp(340px, 28vw, 420px)", display: "flex", flexDirection: "column", minHeight: 0 }}>
             <ConversationList
               conversations={conversations}
               selectedId={selectedId}
@@ -341,7 +341,7 @@ export default function ConnectionGate({ currentView }: Props) {
           </main>
           {/* Panel lateral de cliente — solo en pantallas anchas */}
           {selectedConv && (
-            <div className="hidden lg:block liquid-card" style={{ height: "100%", width: 300 }}>
+            <div className="hidden lg:block liquid-card" style={{ height: "100%", width: 320 }}>
               <ConversationClientPanel conversation={selectedConv} />
             </div>
           )}
@@ -386,7 +386,7 @@ export default function ConnectionGate({ currentView }: Props) {
   // Banner de trial COMPACTO: una sola línea. Antes ocupaba ~20% de la
   // pantalla en mobile, repetido en todas las vistas.
   const trialBanner = showTrialBanner ? (
-    <div className="liquid-panel" style={{ margin: "10px 14px 0", padding: "8px 14px", color: "var(--green-ink)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+    <div className="trial-banner liquid-panel">
       <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         Prueba gratis · te quedan {trialPlan.days_left_trial ?? 0} días
       </span>

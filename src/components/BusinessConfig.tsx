@@ -888,40 +888,14 @@ export default function BusinessConfig() {
           )}
         </section>
 
-        {/* Barra de guardado sticky: siempre visible, sin scrollear hasta el final.
-            En mobile queda por encima de la tab bar (bottom 70px). */}
-        <div
-          style={{
-            position: "sticky",
-            bottom: 0,
-            zIndex: 30,
-            margin: "16px 0 0",
-            padding: "10px 20px calc(10px + env(safe-area-inset-bottom))",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            gap: 12,
-            background: "color-mix(in oklab, var(--surface) 92%, transparent)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            borderTop: "1px solid var(--hairline)",
-          }}
-        >
-          {saved && (
-            <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 500 }}>
-              ✓ Guardado correctamente
-            </span>
-          )}
-          {saveError && (
-            <span style={{ fontSize: 13, color: "#c0392b", fontWeight: 500 }}>
-              {saveError}
-            </span>
-          )}
+        <div className="business-save-dock" role="status" aria-live="polite">
+          <span className={`business-save-state ${saveError ? "error" : saved ? "ok" : ""}`}>
+            {saveError || (saved ? "Guardado" : saving ? "Sincronizando" : "Mi negocio")}
+          </span>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="atd-btn primary"
-            style={{ minWidth: 160 }}
+            className="liquid-action primary business-save-button"
           >
             {saving ? "Guardando..." : "Guardar cambios"}
           </button>
