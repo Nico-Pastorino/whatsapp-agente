@@ -31,6 +31,8 @@ const NOTIFY_EVENT_OPTIONS: { key: string; label: string; icon: string }[] = [
   { key: "daily_summary", label: "Resumen diario de actividad", icon: "📊" },
 ];
 
+const DEFAULT_NOTIFY_EVENTS = ["new_appointment", "human_handoff", "hot_lead", "unanswered"];
+
 /** Valida que el número tenga código de país (mínimo 10 dígitos) */
 function validateNotifyPhone(raw: string): { valid: boolean; normalized: string; hint: string } {
   const digits = raw.replace(/[^\d]/g, "");
@@ -133,6 +135,14 @@ function AdvancedSummary({
       </span>
       <span className="business-disclosure-arrow" aria-hidden="true">⌄</span>
     </summary>
+  );
+}
+
+function TrainingPriorityGuide() {
+  return (
+    <section className="business-priority-note">
+      <strong>Prioridad:</strong> catálogo y links → datos frecuentes → preguntas. Si falta algo, no inventa.
+    </section>
   );
 }
 
@@ -247,32 +257,28 @@ export default function BusinessConfig() {
             <div className="page-sub">configuración</div>
             <h1 style={{ fontSize: 24, lineHeight: 1.12, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Mi negocio</h1>
             <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "5px 0 0" }}>
-              Completá lo esencial y probá el asistente. Lo demás queda como opcional.
+              Cargá lo básico, guardá y probá.
             </p>
           </div>
         </div>
 
         <div style={{ padding: "0 0 6px" }}>
-          <section className="atd-card" style={{ padding: 16 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
+          <section className="atd-card" style={{ padding: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
               <div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Estado del asistente</h2>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Asistente {progress}% listo</h2>
                 <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "4px 0 0" }}>
-                  {nextStep ? `Próximo: ${nextStep.label}` : "Listo para probar y mejorar con uso real."}
+                  {nextStep ? `Falta: ${nextStep.label}` : "Listo para probar."}
                 </p>
               </div>
-              <strong style={{ fontSize: 22, color: "var(--green)", lineHeight: 1 }}>{progress}%</strong>
-            </div>
-            <div style={{ height: 7, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", marginBottom: 12 }}>
-              <div style={{ width: `${progress}%`, height: "100%", background: "var(--green)", borderRadius: 999 }} />
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <a href={nextStep?.href ?? "#probar-asistente"} className="atd-btn primary sm" style={{ display: "inline-flex", textDecoration: "none" }}>
-                {nextStep ? "Continuar configuración" : "Revisar"}
-              </a>
-              <button type="button" onClick={() => setShowTester(true)} className="atd-btn ghost sm" style={{ display: "inline-flex" }}>
-                Probar
-              </button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <a href={nextStep?.href ?? "#probar-asistente"} className="atd-btn primary sm" style={{ display: "inline-flex", textDecoration: "none" }}>
+                  {nextStep ? "Completar" : "Revisar"}
+                </a>
+                <button type="button" onClick={() => setShowTester(true)} className="atd-btn ghost sm" style={{ display: "inline-flex" }}>
+                  Probar
+                </button>
+              </div>
             </div>
           </section>
 
@@ -284,12 +290,14 @@ export default function BusinessConfig() {
           onApplied={reloadProfile}
         />
 
+        <TrainingPriorityGuide />
+
         {/* Información principal */}
         <section id="datos-negocio" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
             label="Básico"
             title="Qué tiene que saber el asistente"
-            description="Con esto ya puede empezar a responder consultas simples."
+            description="Nombre y descripción del negocio."
           />
           <div className="business-form-grid">
             <div>
@@ -323,7 +331,7 @@ export default function BusinessConfig() {
           <SectionHeader
             label="Respuestas"
             title="Datos frecuentes"
-            description="Horarios, ubicación, medios de pago, envíos, reglas y cualquier dato que se repita mucho."
+            description="Horarios, ubicación, pagos, envíos y reglas."
           />
           <textarea
             value={profile.extra}
@@ -345,11 +353,20 @@ export default function BusinessConfig() {
           </div>
         </section>
 
+        <section id="fuentes-externas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+          <SectionHeader
+            label="Carga rápida"
+            title="Link externo"
+            description="Web, carta o planilla con precios y stock."
+          />
+          <KnowledgeSourcesSection />
+        </section>
+
         <section id="tono-respuesta" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <SectionHeader
             label="Estilo"
             title="Cómo querés que hable"
-            description="Elegí un tono. Si no tocás nada, usa uno cálido y natural."
+            description="Elegí un tono."
           />
           <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
             {TONE_PRESETS.map((tone) => {
@@ -373,7 +390,6 @@ export default function BusinessConfig() {
                   <span style={{ fontSize: 20, flexShrink: 0 }}>{tone.emoji}</span>
                   <span style={{ flex: 1 }}>
                     <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{tone.label}</span>
-                    <span style={{ display: "block", fontSize: 11.5, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.35 }}>{tone.hint}</span>
                   </span>
                   <span style={{
                     width: 18, height: 18, borderRadius: 999, flexShrink: 0,
@@ -392,7 +408,7 @@ export default function BusinessConfig() {
         <details className="atd-card business-advanced-card" style={{ margin: "12px 0 0", padding: 20 }}>
           <AdvancedSummary
             title="Opciones avanzadas"
-            description="Preguntas frecuentes, reservas, avisos, fuentes externas y respuestas del equipo."
+            description="Preguntas frecuentes, reservas, avisos y respuestas del equipo."
           />
           <div style={{ display: "grid", gap: 14, marginTop: 18 }}>
             <section id="preguntas-frecuentes" className="business-nested-section">
@@ -490,15 +506,6 @@ export default function BusinessConfig() {
             )}
             </section>
 
-            <section className="business-nested-section">
-              <SectionHeader
-                label="Opcional"
-                title="Fuentes externas"
-                description="Conectá una web, Google Sheets o CSV si manejás mucha información."
-              />
-              <KnowledgeSourcesSection />
-            </section>
-
         <section id="turnos-reservas" className="business-nested-section">
           <div className="mb-4 flex items-start justify-between gap-4">
             <SectionHeader
@@ -554,7 +561,13 @@ export default function BusinessConfig() {
               role="switch"
               aria-checked={profile.notify_enabled}
               onClick={() => {
-                setProfile((p) => ({ ...p, notify_enabled: !p.notify_enabled }));
+                setProfile((p) => ({
+                  ...p,
+                  notify_enabled: !p.notify_enabled,
+                  notify_events: !p.notify_enabled && p.notify_events.length === 0
+                    ? DEFAULT_NOTIFY_EVENTS
+                    : p.notify_events,
+                }));
                 setSaved(false);
               }}
               style={{

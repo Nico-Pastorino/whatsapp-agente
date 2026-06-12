@@ -165,7 +165,7 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
 
   if (!profile) return SYSTEM_PROMPT;
 
-  if (!profile.name && !profile.description && items.length === 0 && !profile.extra) {
+  if (!profile.name && !profile.description && items.length === 0 && !profile.extra && externalSources.length === 0) {
     return SYSTEM_PROMPT;
   }
 
@@ -269,7 +269,9 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
     }
     lines.push(
       "",
-      "Usá estos datos para responder precios, stock, disponibilidad, carta, menú o turnos.",
+      "Usá estos datos para responder precios, stock, disponibilidad, carta, menú, productos, servicios o turnos.",
+      "Para consultas de catálogo, precios y stock, esta información externa es prioritaria porque viene del link conectado por el negocio.",
+      "Si esta información contradice textos viejos de plantillas o preguntas frecuentes, priorizá la fuente externa más reciente para precios, productos y disponibilidad.",
       "Si un dato puntual no aparece ni acá ni en el resto de la información del negocio, tratalo como dato faltante: no lo inventes, consultalo."
     );
   }
@@ -333,7 +335,7 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
     "DATOS INCOMPLETOS: si un campo dice '[completar]', '[completar respuesta real]', está vacío o tiene un texto placeholder, eso NO es información real — es un dato que el negocio todavía no cargó. Tratalo como información faltante (consultá al equipo y pedí un dato útil). JAMÁS le repitas un placeholder al cliente.",
     "",
     "CUÁNDO USAR LA INFORMACIÓN DEL NEGOCIO:",
-    "Si el cliente pregunta por precios, productos, servicios, horarios, ubicación o formas de pago, buscá la respuesta PRIMERO en el catálogo y en la información adicional.",
+    "Si el cliente pregunta por precios, productos, servicios, horarios, ubicación o formas de pago, buscá la respuesta PRIMERO en el catálogo, fuentes externas y en la información adicional.",
     "Si la información está disponible → respondé directo con esos datos. NO derives al equipo si la respuesta ya está en el contexto.",
     "Si el cliente pide hablar con una persona, insiste, reclama o pregunta algo sensible → derivá natural y breve: 'Te paso con alguien del equipo así te lo responden bien.' Evitá frases robóticas como 'te paso con un humano', 'derivando' o 'contacta con soporte'.",
     "",

@@ -83,6 +83,25 @@ function buildHumanHandoffMessage(input: {
   return lines.join("\n");
 }
 
+function buildAppointmentInterestMessage(input: {
+  customerLabel: string;
+  customerPhone: string | null;
+  lastMessage: string;
+  summary: string | null;
+  missingFields: string[];
+}): string {
+  const lines = ["📅 *Cliente quiere reservar*"];
+  lines.push(`Cliente: ${input.customerLabel}`);
+  if (input.customerPhone) lines.push(`WhatsApp: ${input.customerPhone}`);
+  lines.push(`Último mensaje: ${input.lastMessage}`);
+  if (input.summary) lines.push(`Resumen: ${input.summary}`);
+  if (input.missingFields.length > 0) {
+    lines.push(`Faltan datos: ${input.missingFields.join(", ")}`);
+  }
+  lines.push("El asistente está pidiendo los datos que faltan. Revisar en el panel de Atende.");
+  return lines.join("\n");
+}
+
 function hasUsableAppointment(action: ConversationAction): boolean {
   if (action.event !== "appointment_ready" || !action.appointment) return false;
   if (!action.appointment.customer_name || !action.appointment.service || !action.appointment.starts_at) return false;
@@ -410,6 +429,26 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
       },
       businessId
     ).catch((err) => console.error(`[notify/${businessId}] handoff enqueue falló:`, err));
+  }
+
+  if (action?.event === "appointment_request" && action.confidence >= 0.62 && !shouldHandoff) {
+    const day = new Date().toISOString().slice(0, 10);
+    const customerPhone = fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
+    const who = fresh.name || customerPhone || "Un cliente";
+    await enqueueInternalNotification(
+      {
+        event_type: "hot_lead",
+        dedup_key: `appointment_request:${convo.id}:${day}`,
+        content: buildAppointmentInterestMessage({
+          customerLabel: who,
+          customerPhone,
+          lastMessage: text.trim(),
+          summary: action.summary ?? null,
+          missingFields: action.appointment?.missing_fields ?? [],
+        }),
+      },
+      businessId
+    ).catch((err) => console.error(`[notify/${businessId}] appointment_request enqueue falló:`, err));
   }
 
   if (action?.event === "hot_lead" && action.confidence >= 0.7 && !shouldHandoff) {

@@ -237,6 +237,39 @@ body {
   overflow: hidden;
 }
 
+.template-confirm-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(760px, calc(100svh - 80px));
+  max-width: 430px;
+  overflow: hidden;
+  padding: 0;
+  width: min(92vw, 430px);
+}
+
+.template-confirm-header {
+  align-items: center;
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 18px 24px 14px;
+}
+
+.template-confirm-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 24px;
+}
+
+.template-confirm-actions {
+  background: color-mix(in oklab, var(--surface-solid) 94%, transparent);
+  border-top: 1px solid var(--hairline);
+  flex-shrink: 0;
+  padding: 14px 24px 18px;
+}
+
 /* Agarradera de bottom sheet (mobile) */
 .atd-sheet-grabber {
   width: 38px;
@@ -256,6 +289,19 @@ body {
     border-radius: 26px 26px 0 0;
     border-bottom: 0;
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  .template-confirm-modal {
+    max-height: calc(100svh - 64px);
+    width: min(92vw, 430px);
+  }
+  .template-confirm-header {
+    padding: 16px 20px 12px;
+  }
+  .template-confirm-body {
+    padding: 12px 20px;
+  }
+  .template-confirm-actions {
+    padding: 12px 20px calc(14px + env(safe-area-inset-bottom));
   }
 }
 
@@ -779,6 +825,19 @@ body {
 .business-form-grid {
   display: grid;
   gap: 14px;
+}
+.business-priority-note {
+  align-items: center;
+  background: var(--green-tint);
+  border: 1px solid color-mix(in oklab, var(--green) 28%, transparent);
+  border-radius: 14px;
+  color: var(--green);
+  display: flex;
+  font-size: 12.5px;
+  gap: 6px;
+  line-height: 1.35;
+  margin: 12px 0 0;
+  padding: 10px 12px;
 }
 .business-quick-links {
   display: grid;

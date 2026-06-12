@@ -3770,6 +3770,21 @@ export const INTERNAL_NOTIFICATION_EVENTS = [
 ] as const;
 export type InternalNotificationEvent = (typeof INTERNAL_NOTIFICATION_EVENTS)[number];
 
+const DEFAULT_INTERNAL_NOTIFICATION_EVENTS: InternalNotificationEvent[] = [
+  "new_appointment",
+  "human_handoff",
+  "hot_lead",
+  "unanswered",
+];
+
+function effectiveInternalNotificationEvents(events: string[]): string[] {
+  // Compatibilidad: cuentas configuradas antes del selector de eventos suelen
+  // tener solo human_handoff aunque esperan recibir todos los avisos importantes.
+  if (events.length === 0) return DEFAULT_INTERNAL_NOTIFICATION_EVENTS;
+  if (events.length === 1 && events[0] === "human_handoff") return DEFAULT_INTERNAL_NOTIFICATION_EVENTS;
+  return events;
+}
+
 /** ¿El plan del negocio permite avisos internos? (Growth y Pro). */
 export async function planAllowsInternalNotifications(
   businessId = getBusinessId()
@@ -3808,7 +3823,8 @@ export async function enqueueInternalNotification(
 ): Promise<{ enqueued: boolean; reason?: string }> {
   const profile = await getBusinessProfile(businessId).catch(() => null);
   if (!profile || !profile.notify_enabled) return { enqueued: false, reason: "disabled" };
-  if (!profile.notify_events.includes(params.event_type)) {
+  const notifyEvents = effectiveInternalNotificationEvents(profile.notify_events);
+  if (!notifyEvents.includes(params.event_type)) {
     return { enqueued: false, reason: "event_off" };
   }
   const phone = normalizePhoneNumber(profile.notify_phone);

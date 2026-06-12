@@ -7,6 +7,7 @@ interface Source {
   url: string;
   label: string | null;
   source_type: "web" | "sheet";
+  content?: string | null;
   status: "pending" | "ok" | "error";
   error_message: string | null;
   enabled: boolean;
@@ -103,49 +104,60 @@ export default function KnowledgeSourcesSection() {
   }
 
   return (
-    <section id="fuentes-externas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
-      <div className="mb-4">
-        <p className="page-sub" style={{ color: "var(--green)", marginBottom: 4 }}>conectá tus datos</p>
-        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Fuentes externas</h3>
-        <p style={{ marginTop: 4, fontSize: 13, color: "var(--ink-3)" }}>
-          Pegá el link de tu web, tu carta online o una planilla de Google con precios o stock.
-          Tu asistente responde con esa información y se actualiza solo cada unas horas.
-        </p>
-      </div>
-
+    <section>
       {/* Fuentes cargadas */}
-      {sources.map((s) => (
-        <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 14, background: "var(--surface-2)", marginBottom: 8 }}>
-          <span style={{ fontSize: 18, flexShrink: 0 }}>{s.source_type === "sheet" ? "📊" : "🌐"}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {s.label || s.url.replace(/^https?:\/\//, "")}
-            </p>
-            <p style={{ fontSize: 11.5, margin: "2px 0 0", color: s.status === "error" ? "#b42318" : "var(--muted)" }}>
-              {s.status === "error"
-                ? s.error_message ?? "Error al leer el link"
-                : `Actualizada ${timeAgo(s.last_fetched_at)}`}
-            </p>
+      {sources.map((s) => {
+        const contentLength = s.content?.trim().length ?? 0;
+        const sourceUrl = s.url.replace(/^https?:\/\//, "");
+        return (
+          <div key={s.id} style={{ padding: "10px 12px", borderRadius: 14, background: "var(--surface-2)", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>{s.source_type === "sheet" ? "📊" : "🌐"}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {s.label ? `${s.label} · ${sourceUrl}` : sourceUrl}
+                </p>
+                <p style={{ fontSize: 11.5, margin: "2px 0 0", color: s.status === "error" ? "#b42318" : "var(--muted)" }}>
+                  {s.status === "error"
+                    ? s.error_message ?? "Error al leer el link"
+                    : contentLength > 0
+                      ? `${contentLength.toLocaleString("es-AR")} caracteres leídos · actualizada ${timeAgo(s.last_fetched_at)}`
+                      : `Sin texto leído · actualizada ${timeAgo(s.last_fetched_at)}`}
+                </p>
+              </div>
+              <button
+                onClick={() => refreshSource(s.id)}
+                disabled={busyId === s.id}
+                aria-label="Actualizar fuente"
+                title="Actualizar ahora"
+                style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink-2)", cursor: "pointer", fontSize: 14, flexShrink: 0, opacity: busyId === s.id ? 0.5 : 1 }}
+              >
+                ⟳
+              </button>
+              <button
+                onClick={() => removeSource(s.id)}
+                disabled={busyId === s.id}
+                aria-label="Eliminar fuente"
+                style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--muted)", cursor: "pointer", fontSize: 15, flexShrink: 0 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {s.status === "ok" && s.content && (
+              <details style={{ marginTop: 8 }}>
+                <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--green)", fontWeight: 600 }}>
+                  Ver texto leído
+                </summary>
+                <p style={{ margin: "8px 0 0", maxHeight: 120, overflow: "auto", whiteSpace: "pre-wrap", fontSize: 11.5, lineHeight: 1.45, color: "var(--ink-3)", background: "var(--surface)", border: "1px solid var(--hairline)", borderRadius: 10, padding: 10 }}>
+                  {s.content.slice(0, 900)}
+                  {s.content.length > 900 ? "\n..." : ""}
+                </p>
+              </details>
+            )}
           </div>
-          <button
-            onClick={() => refreshSource(s.id)}
-            disabled={busyId === s.id}
-            aria-label="Actualizar fuente"
-            title="Actualizar ahora"
-            style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--ink-2)", cursor: "pointer", fontSize: 14, flexShrink: 0, opacity: busyId === s.id ? 0.5 : 1 }}
-          >
-            ⟳
-          </button>
-          <button
-            onClick={() => removeSource(s.id)}
-            disabled={busyId === s.id}
-            aria-label="Eliminar fuente"
-            style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--muted)", cursor: "pointer", fontSize: 15, flexShrink: 0 }}
-          >
-            ×
-          </button>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Alta */}
       {sources.length < 3 ? (
@@ -172,7 +184,7 @@ export default function KnowledgeSourcesSection() {
             {adding ? "Leyendo el link…" : "+ Conectar fuente"}
           </button>
           <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "2px 0 0" }}>
-            ¿Tenés un Excel? Subilo a Google Sheets y compartilo como “Cualquiera con el enlace”.
+            Tiene prioridad para precios, stock y productos.
           </p>
         </div>
       ) : (

@@ -78,7 +78,6 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
   }, []);
 
   const templates = BUSINESS_TEMPLATES.filter((t) => !t.comingSoon);
-  const availableTemplates = templates.filter((t) => !isTemplateLocked(t.tier, planCode)).length;
   const filteredTemplates = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return templates;
@@ -122,10 +121,10 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
           <div style={{ minWidth: 220, flex: 1 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
-              Usar plantilla por rubro
+              Plantilla por rubro
             </h3>
             <p style={{ marginTop: 3, fontSize: 12.5, color: "var(--ink-3)", maxWidth: 560 }}>
-              Cargá una base inicial y editá solo lo necesario.
+              Empezá con una base editable.
             </p>
           </div>
           <button onClick={() => setIsOpen(true)} className="atd-btn ghost sm template-selector-trigger">
@@ -133,8 +132,8 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
           </button>
         </div>
 
-        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "var(--muted)" }}>{availableTemplates} disponibles · plan {planCode.toUpperCase()}</span>
+        {(appliedId || error) && (
+          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {appliedId && (
             <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}>
               Plantilla aplicada.
@@ -145,32 +144,8 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
               {error}
             </span>
           )}
-        </div>
-
-        <div className="template-preview-list">
-          {templates.slice(0, 4).map((template) => {
-            const locked = isTemplateLocked(template.tier, planCode);
-            return (
-              <button
-                key={template.id}
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  if (locked) {
-                    setLockedSelected(template);
-                  } else {
-                    setSelected(template);
-                  }
-                }}
-                className="template-preview-item"
-              >
-                <span className="template-preview-emoji">{template.emoji}</span>
-                <span className="template-preview-name">{template.name}</span>
-                {locked && <span className="template-preview-lock">Pro</span>}
-              </button>
-            );
-          })}
-        </div>
+          </div>
+        )}
       </section>
 
       {isOpen && (
@@ -413,10 +388,13 @@ function ConfirmModal({
     `${template.suggestedCategories.length} categorías sugeridas de productos o servicios`,
   ].filter(Boolean) as string[];
 
-  return (
-    <div className="atd-overlay sheet" style={{ zIndex: 150 }}>
-      <div className="atd-modal" style={{ width: "100%", maxWidth: 430, padding: 24, maxHeight: "88svh", overflowY: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+  return createPortal(
+    <div className="atd-overlay" style={{ zIndex: 150 }} onClick={onCancel}>
+      <div
+        className="atd-modal template-confirm-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="template-confirm-header">
           <span style={{ fontSize: 28 }}>{template.emoji}</span>
           <div>
             <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
@@ -426,34 +404,36 @@ function ConfirmModal({
           </div>
         </div>
 
-        {/* Qué configura */}
-        <div style={{ padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", marginBottom: 12 }}>
-          <p className="page-sub" style={{ margin: "0 0 8px" }}>esta plantilla configura</p>
-          {willConfigure.map((item) => (
-            <p key={item} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--ink-2)", margin: "0 0 5px", lineHeight: 1.4 }}>
-              <span style={{ color: "var(--green)", fontWeight: 700, flexShrink: 0 }}>✓</span> {item}
-            </p>
-          ))}
-        </div>
-
-        {/* Datos que el usuario debe completar después */}
-        {template.recommendedFields.length > 0 && (
-          <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px dashed var(--hairline-2)", marginBottom: 16 }}>
-            <p className="page-sub" style={{ margin: "0 0 8px" }}>para que funcione mejor, completá</p>
-            {template.recommendedFields.map((field) => (
-              <p key={field} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--ink-3)", margin: "0 0 5px", lineHeight: 1.4 }}>
-                <span style={{ flexShrink: 0 }}>○</span> {field}
+        <div className="template-confirm-body">
+          {/* Qué configura */}
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "var(--surface-2)", marginBottom: 12 }}>
+            <p className="page-sub" style={{ margin: "0 0 8px" }}>esta plantilla configura</p>
+            {willConfigure.map((item) => (
+              <p key={item} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--ink-2)", margin: "0 0 5px", lineHeight: 1.4 }}>
+                <span style={{ color: "var(--green)", fontWeight: 700, flexShrink: 0 }}>✓</span> {item}
               </p>
             ))}
-            <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "8px 0 0" }}>
-              Quedan marcados como pendientes en tu entrenamiento. Tu asistente no usa datos sin completar.
-            </p>
           </div>
-        )}
+
+          {/* Datos que el usuario debe completar después */}
+          {template.recommendedFields.length > 0 && (
+            <div style={{ padding: "12px 14px", borderRadius: 12, border: "1px dashed var(--hairline-2)" }}>
+              <p className="page-sub" style={{ margin: "0 0 8px" }}>para que funcione mejor, completá</p>
+              {template.recommendedFields.map((field) => (
+                <p key={field} style={{ display: "flex", gap: 7, fontSize: 12.5, color: "var(--ink-3)", margin: "0 0 5px", lineHeight: 1.4 }}>
+                  <span style={{ flexShrink: 0 }}>○</span> {field}
+                </p>
+              ))}
+              <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "8px 0 0" }}>
+                Quedan marcados como pendientes en tu entrenamiento. Tu asistente no usa datos sin completar.
+              </p>
+            </div>
+          )}
+        </div>
 
         {profileIsEmpty ? (
-          <>
-            <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 18 }}>
+          <div className="template-confirm-actions">
+            <p style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 14px" }}>
               Vamos a cargar una base inicial para tu asistente. Después podés editar todo.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
@@ -462,13 +442,13 @@ function ConfirmModal({
                 {applying ? "Aplicando..." : "Usar plantilla"}
               </button>
             </div>
-          </>
+          </div>
         ) : (
-          <>
-            <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 14 }}>
+          <div className="template-confirm-actions">
+            <p style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 12px" }}>
               Ya tenés información cargada. Elegí si querés conservarla o reemplazarla.
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
               <button onClick={onMerge} disabled={applying} style={{ padding: "13px 16px", borderRadius: 12, border: "1px solid var(--green)", background: "var(--green-tint)", textAlign: "left", cursor: "pointer", opacity: applying ? 0.5 : 1 }}>
                 <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--green)" }}>Completar datos faltantes</span>
                 <span style={{ fontSize: 12, color: "var(--green)", opacity: 0.85 }}>Conserva lo que ya cargaste y suma sugerencias.</span>
@@ -479,10 +459,11 @@ function ConfirmModal({
               </button>
             </div>
             <button onClick={onCancel} disabled={applying} className="atd-btn secondary" style={{ width: "100%" }}>Cancelar</button>
-          </>
+          </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -510,9 +491,13 @@ function UpgradeModal({
     }
   }
 
-  return (
-    <div className="atd-overlay sheet" style={{ zIndex: 150 }}>
-      <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
+  return createPortal(
+    <div className="atd-overlay" style={{ zIndex: 150 }} onClick={onClose}>
+      <div
+        className="atd-modal"
+        style={{ width: "100%", maxWidth: 400, padding: 24 }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h4 style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", margin: 0 }}>
           {template.emoji} {template.name}
         </h4>
@@ -528,6 +513,7 @@ function UpgradeModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
