@@ -194,59 +194,61 @@ export default function HomeScreen() {
           </div>
         </header>
 
-        <section className="liquid-card" style={{ padding: 22 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: data.waConnected ? "var(--green)" : "var(--accent)", marginBottom: 12 }}>
-            <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "currentColor" }} />
-            {data.waConnected ? "WhatsApp conectado" : "Próxima acción"}
-          </div>
-          <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 1fr)", alignItems: "end" }}>
-            <div>
-              <h2 style={{ fontSize: "clamp(30px, 8vw, 54px)", lineHeight: 0.95, fontWeight: 760, letterSpacing: 0, margin: 0, color: "var(--ink)" }}>
-                {data.waConnected ? "Tu asistente está atendiendo." : "Conectá WhatsApp para empezar."}
-              </h2>
-              <p style={{ fontSize: 14.5, lineHeight: 1.55, margin: "14px 0 0", color: "var(--ink-3)", maxWidth: 520 }}>
-                {data.waConnected
-                  ? data.needsAttention > 0
-                    ? "Hay conversaciones esperando una respuesta humana. Entrá al inbox y tomá las importantes."
-                    : `${data.todayConversations} ${data.todayConversations === 1 ? "conversación nueva" : "conversaciones nuevas"} hoy. Todo sigue simple desde un solo lugar.`
-                  : "Vinculá el número del negocio y dejá Atendé listo para responder, tomar datos y derivarte chats cuando haga falta."}
-              </p>
+        <div className="home-overview-grid">
+          <section className="liquid-card" style={{ padding: 26, minHeight: 250, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: data.waConnected ? "var(--green)" : "var(--accent)", marginBottom: 16 }}>
+              <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "currentColor" }} />
+              {data.waConnected ? "WhatsApp conectado" : "Próxima acción"}
             </div>
-            <button
-              onClick={() => router.push(data.waConnected ? "/app/conversations" : "/app/connect")}
-              className={`liquid-action ${data.waConnected ? "primary" : "accent"}`}
-              style={{ width: "fit-content" }}
-            >
-              {data.waConnected ? "Abrir inbox" : "Conectar ahora"}
-            </button>
-          </div>
-        </section>
+            <div style={{ display: "grid", gap: 22, alignItems: "end" }}>
+              <div>
+                <h2 style={{ fontSize: "clamp(34px, 4.4vw, 68px)", lineHeight: 0.95, fontWeight: 760, letterSpacing: 0, margin: 0, color: "var(--ink)", maxWidth: 760 }}>
+                  {data.waConnected ? "Tu asistente está atendiendo." : "Conectá WhatsApp para empezar."}
+                </h2>
+                <p style={{ fontSize: 15, lineHeight: 1.6, margin: "16px 0 0", color: "var(--ink-3)", maxWidth: 680 }}>
+                  {data.waConnected
+                    ? data.needsAttention > 0
+                      ? "Hay conversaciones esperando una respuesta humana. Entrá al inbox y tomá las importantes."
+                      : `${data.todayConversations} ${data.todayConversations === 1 ? "conversación nueva" : "conversaciones nuevas"} hoy. Todo sigue simple desde un solo lugar.`
+                    : "Vinculá el número del negocio y dejá Atendé listo para responder, tomar datos y derivarte chats cuando haga falta."}
+                </p>
+              </div>
+              <button
+                onClick={() => router.push(data.waConnected ? "/app/conversations" : "/app/connect")}
+                className={`liquid-action ${data.waConnected ? "primary" : "accent"}`}
+                style={{ width: "fit-content" }}
+              >
+                {data.waConnected ? "Abrir inbox" : "Conectar ahora"}
+              </button>
+            </div>
+          </section>
 
-        <section className="liquid-card" style={{ padding: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, marginBottom: 12 }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 720, color: "var(--ink)" }}>Dejá Atendé listo</h3>
-              <p style={{ fontSize: 13, color: "var(--muted)", margin: "3px 0 0" }}>
-                {allDone ? "Configuración completa" : `${doneCount} de ${totalSteps} pasos completados`}
-              </p>
+          <section className="liquid-card" style={{ padding: 20, minHeight: 250, display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, marginBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 720, color: "var(--ink)" }}>Dejá Atendé listo</h3>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "3px 0 0" }}>
+                  {allDone ? "Configuración completa" : `${doneCount} de ${totalSteps} pasos completados`}
+                </p>
+              </div>
+              <strong className="mono" style={{ fontSize: 20, color: "var(--green)" }}>{pct}%</strong>
             </div>
-            <strong className="mono" style={{ fontSize: 20, color: "var(--green)" }}>{pct}%</strong>
-          </div>
-          <div style={{ height: 9, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", border: "1px solid var(--glass-border)" }}>
-            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, var(--green), var(--green-soft))", transition: "width .35s var(--ease-ios)" }} />
-          </div>
-          {!allDone && nextStep && (
-            <button
-              onClick={() => router.push(nextStep.href)}
-              className="liquid-panel"
-              style={{ marginTop: 14, width: "100%", padding: 13, border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", color: "var(--ink)" }}
-            >
-              <span style={{ width: 22, height: 22, borderRadius: 999, border: "1.5px solid var(--green)", flexShrink: 0 }} />
-              <span style={{ flex: 1, fontSize: 14, fontWeight: 650 }}>{nextStep.label}</span>
-              <Arrow size={16} style={{ color: "var(--muted)" }} />
-            </button>
-          )}
-        </section>
+            <div style={{ height: 9, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", border: "1px solid var(--glass-border)" }}>
+              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, var(--green), var(--green-soft))", transition: "width .35s var(--ease-ios)" }} />
+            </div>
+            {!allDone && nextStep && (
+              <button
+                onClick={() => router.push(nextStep.href)}
+                className="liquid-panel"
+                style={{ marginTop: 14, width: "100%", padding: 13, border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", color: "var(--ink)" }}
+              >
+                <span style={{ width: 22, height: 22, borderRadius: 999, border: "1.5px solid var(--green)", flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 650 }}>{nextStep.label}</span>
+                <Arrow size={16} style={{ color: "var(--muted)" }} />
+              </button>
+            )}
+          </section>
+        </div>
 
         <div className="liquid-grid cols-3">
           {[

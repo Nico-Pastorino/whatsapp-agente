@@ -46,7 +46,7 @@ export default function SupportScreen() {
   ];
 
   return (
-    <DashboardContentShell maxWidth={760}>
+    <DashboardContentShell>
       <div className="page-header">
         <div>
           <div className="page-sub">ayuda y soporte</div>
@@ -54,19 +54,12 @@ export default function SupportScreen() {
         </div>
       </div>
 
-      <div
-        style={{
-          padding: "4px 0 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
+      <div className="support-options-grid" style={{ padding: "4px 0 0" }}>
         {options.map((opt) => (
           <section
             key={opt.title}
             className="atd-card"
-            style={{ padding: 14, display: "flex", alignItems: "center", gap: 12 }}
+            style={{ padding: 16, display: "flex", alignItems: "center", gap: 12 }}
           >
             <span
               style={{

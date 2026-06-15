@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 
 export default function DashboardContentShell({
   children,
-  maxWidth = 1120,
   bottomPadding = 100,
 }: {
   children: ReactNode;
+  /** Compatibilidad con pantallas existentes; el dashboard ahora usa ancho fluido. */
   maxWidth?: number;
   bottomPadding?: number;
 }) {
@@ -14,7 +14,6 @@ export default function DashboardContentShell({
       <div
         className="liquid-container liquid-enter"
         style={{
-          maxWidth,
           paddingBottom: bottomPadding,
         }}
       >

@@ -562,7 +562,8 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           </div>
         )}
 
-        <div style={{ margin: "0 0 12px", padding: 16, borderRadius: 14, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+        <div className="plan-desktop-grid">
+        <div style={{ padding: 16, borderRadius: 14, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
             <div>
               <div className="page-sub" style={{ marginBottom: 3 }}>plan actual</div>
@@ -611,9 +612,9 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           </div>
         )}
 
-        <div className="lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-3">
+        <div className="plan-desktop-grid">
           {/* Usage */}
-          <div className="atd-card" style={{ margin: "0 0 12px", padding: 16 }}>
+          <div className="atd-card" style={{ padding: 16 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>uso del plan</div>
             {[
               { label: "Usuarios", used: 1, limit: plan.users_limit },
@@ -637,7 +638,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           </div>
 
           {/* Features */}
-          <div className="atd-card" style={{ margin: "0 0 12px", padding: 16 }}>
+          <div className="atd-card" style={{ padding: 16 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>incluido en {plan.plan_name}</div>
             <div className="grid gap-x-6 lg:grid-cols-2">
               <div>
@@ -663,7 +664,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
         {/* Upgrade cards */}
         {plan.upgrade_options.length > 0 && plan.upgrade_options.map((opt) => (
-          <div key={opt.code} className="atd-card" style={{ margin: "0 0 10px", padding: 16, background: "var(--accent-soft)", borderColor: "transparent" }}>
+          <div key={opt.code} className="atd-card" style={{ padding: 16, background: "var(--accent-soft)", borderColor: "transparent" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
               <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--accent)", color: "var(--on-accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>✦</span>
               <div>
@@ -690,7 +691,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
         {/* Downgrade options */}
         {plan.downgrade_options.length > 0 && (
-          <div className="atd-card" style={{ margin: "0 0 10px", padding: 16 }}>
+          <div className="atd-card" style={{ padding: 16 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>bajar de plan</div>
             {plan.downgrade_options.map((opt) => (
               <button key={opt.code} onClick={() => { setDowngradeTarget(opt); setShowDowngradeModal(true); }}
@@ -702,7 +703,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         )}
 
         {(plan.status === "canceled" || plan.status === "past_due") && (
-          <div style={{ margin: "0 0 10px" }}>
+          <div className="wide">
             <button onClick={() => startCheckout()} disabled={checkoutLoading} className="atd-btn green" style={{ width: "100%" }}>
               {checkoutLoading ? "Redirigiendo..." : "Renovar plan"}
             </button>
@@ -710,7 +711,10 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         )}
 
         {/* Soporte */}
-        <SupportCard />
+        <div className="wide">
+          <SupportCard />
+        </div>
+        </div>
 
       {/* Cancel modal */}
       {showCancelModal && (

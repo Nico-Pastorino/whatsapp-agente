@@ -284,16 +284,19 @@ export default function BusinessConfig() {
 
         </div>
 
+        <div className="business-desktop-grid">
         {/* Plantillas por Rubro */}
-        <TemplateSelector
-          profileIsEmpty={profileIsEmpty}
-          onApplied={reloadProfile}
-        />
+        <div>
+          <TemplateSelector
+            profileIsEmpty={profileIsEmpty}
+            onApplied={reloadProfile}
+          />
+        </div>
 
         <TrainingPriorityGuide />
 
         {/* Información principal */}
-        <section id="datos-negocio" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="datos-negocio" className="atd-card wide" style={{ padding: 20 }}>
           <SectionHeader
             label="Básico"
             title="Qué tiene que saber el asistente"
@@ -327,7 +330,7 @@ export default function BusinessConfig() {
           </div>
         </section>
 
-        <section id="info-clave" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="info-clave" className="atd-card" style={{ padding: 20 }}>
           <SectionHeader
             label="Respuestas"
             title="Datos frecuentes"
@@ -353,7 +356,7 @@ export default function BusinessConfig() {
           </div>
         </section>
 
-        <section id="fuentes-externas" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="fuentes-externas" className="atd-card" style={{ padding: 20 }}>
           <SectionHeader
             label="Carga rápida"
             title="Link externo"
@@ -362,7 +365,7 @@ export default function BusinessConfig() {
           <KnowledgeSourcesSection />
         </section>
 
-        <section id="tono-respuesta" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="tono-respuesta" className="atd-card wide" style={{ padding: 20 }}>
           <SectionHeader
             label="Estilo"
             title="Cómo querés que hable"
@@ -405,7 +408,7 @@ export default function BusinessConfig() {
           </div>
         </section>
 
-        <details className="atd-card business-advanced-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <details className="atd-card business-advanced-card wide" style={{ padding: 20 }}>
           <AdvancedSummary
             title="Opciones avanzadas"
             description="Preguntas frecuentes, reservas, avisos y respuestas del equipo."
@@ -811,7 +814,7 @@ export default function BusinessConfig() {
           </div>
         </details>
 
-        <section id="probar-asistente" className="atd-card" style={{ margin: "12px 0 0", padding: 20 }}>
+        <section id="probar-asistente" className="atd-card wide" style={{ padding: 20 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
             <SectionHeader
               label="Prueba"
@@ -823,6 +826,7 @@ export default function BusinessConfig() {
             </button>
           </div>
         </section>
+        </div>
 
         <div className="business-save-dock" role="status" aria-live="polite">
           <span className={`business-save-state ${saveError ? "error" : saved ? "ok" : ""}`}>

@@ -186,44 +186,48 @@ export default function AgendaScreen() {
           </button>
         </div>
 
-        <div className="atd-card" style={{ padding: 14, marginBottom: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          <Summary label="Pendientes" value={pendingCount} />
-          <Summary label="Confirmadas" value={confirmedCount} />
-          <Summary label="IA" value={assistantCount} />
-        </div>
+        <div className="agenda-desktop-grid">
+          <aside>
+            <div className="atd-card agenda-summary-grid" style={{ padding: 14, marginBottom: 12 }}>
+              <Summary label="Pendientes" value={pendingCount} />
+              <Summary label="Confirmadas" value={confirmedCount} />
+              <Summary label="IA" value={assistantCount} />
+            </div>
 
-        {/* Filtros por estado */}
-        {appointments.length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-            {([
-              ["all", `Todas ${appointments.length}`],
-              ["pending", `Pendientes ${countByStatus("pending")}`],
-              ["confirmed", `Confirmadas ${countByStatus("confirmed")}`],
-              ["done", `Completadas ${countByStatus("done")}`],
-              ["cancelled", `Canceladas ${countByStatus("cancelled")}`],
-            ] as [StatusFilter, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setStatusFilter(key)}
-                className="atd-pill"
-                style={{
-                  background: statusFilter === key ? "var(--ink)" : "var(--surface)",
-                  color: statusFilter === key ? "var(--bg)" : "var(--ink-2)",
-                  borderColor: statusFilter === key ? "transparent" : "var(--hairline-2)",
-                  cursor: "pointer",
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
+            {/* Filtros por estado */}
+            {appointments.length > 0 && (
+              <div className="atd-card" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, padding: 12 }}>
+                {([
+                  ["all", `Todas ${appointments.length}`],
+                  ["pending", `Pendientes ${countByStatus("pending")}`],
+                  ["confirmed", `Confirmadas ${countByStatus("confirmed")}`],
+                  ["done", `Completadas ${countByStatus("done")}`],
+                  ["cancelled", `Canceladas ${countByStatus("cancelled")}`],
+                ] as [StatusFilter, string][]).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setStatusFilter(key)}
+                    className="atd-pill"
+                    style={{
+                      background: statusFilter === key ? "var(--ink)" : "var(--surface)",
+                      color: statusFilter === key ? "var(--bg)" : "var(--ink-2)",
+                      borderColor: statusFilter === key ? "transparent" : "var(--hairline-2)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </aside>
 
-        {loadError && (
-          <div className="atd-card" style={{ padding: 14, marginBottom: 14, color: "#b42318", borderColor: "#fca5a5" }}>
-            {loadError}
-          </div>
-        )}
+          <main>
+          {loadError && (
+            <div className="atd-card" style={{ padding: 14, marginBottom: 14, color: "#b42318", borderColor: "#fca5a5" }}>
+              {loadError}
+            </div>
+          )}
 
         {loading ? (
           <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Cargando…</div>
@@ -243,7 +247,7 @@ export default function AgendaScreen() {
         ) : (
           <>
             {upcoming.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
+              <div className="agenda-card-grid" style={{ marginBottom: 22 }}>
                 {upcoming.map((a) => (
                   <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} />
                 ))}
@@ -254,7 +258,7 @@ export default function AgendaScreen() {
                 <p style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", margin: "0 0 10px" }}>
                   Completadas / canceladas
                 </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: 0.72 }}>
+                <div className="agenda-card-grid" style={{ opacity: 0.72 }}>
                   {past.map((a) => (
                     <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} />
                   ))}
@@ -263,6 +267,8 @@ export default function AgendaScreen() {
             )}
           </>
         )}
+          </main>
+        </div>
       </div>
 
       {showForm && (

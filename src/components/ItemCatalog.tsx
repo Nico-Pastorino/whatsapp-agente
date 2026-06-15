@@ -1317,7 +1317,7 @@ export default function ItemCatalog() {
   }
 
   return (
-    <DashboardContentShell maxWidth={1200}>
+    <DashboardContentShell>
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div>
@@ -1422,8 +1422,8 @@ export default function ItemCatalog() {
         </div>
       )}
 
-      <div className="atd-card" style={{ margin: "4px 0 0", padding: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+      <div className="atd-card" style={{ margin: "4px 0 0", padding: 18 }}>
+        <div className="catalog-stats-grid">
           {[
             ["Productos", activeProducts],
             ["Servicios", activeServices],
@@ -1534,20 +1534,22 @@ export default function ItemCatalog() {
 
       {/* ── Search ────────────────────────────────────────────────────────── */}
       {state.items.length > 0 && (
-        <div style={{ padding: "10px 0 0" }}>
+        <div className="catalog-toolbar" style={{ padding: "10px 0 0" }}>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, categoría o descripción..."
             className="atd-input"
-            style={{ maxWidth: 400 }}
           />
+          <div style={{ display: "flex", justifyContent: "flex-end", color: "var(--muted)", fontSize: 12.5 }}>
+            {filteredItems.length} visibles
+          </div>
         </div>
       )}
 
       {/* ── Items Grid ────────────────────────────────────────────────────── */}
-      <div style={{ padding: "12px 20px 20px" }}>
+      <div className="catalog-items-wrap">
         {filteredItems.length === 0 ? (
           <div
             style={{
@@ -1620,14 +1622,7 @@ export default function ItemCatalog() {
             )}
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: 14,
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-              alignItems: "start",
-            }}
-          >
+          <div className="dashboard-wide-grid" style={{ alignItems: "start" }}>
             {filteredItems.map((item) => (
               <ItemCard
                 key={item.id}

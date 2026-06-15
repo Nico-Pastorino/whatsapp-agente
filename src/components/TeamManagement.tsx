@@ -347,7 +347,8 @@ export default function TeamManagement() {
           </div>
         )}
 
-        <section className="atd-card" style={{ margin: "12px 0 0", padding: 16 }}>
+        <div className="team-desktop-grid" style={{ margin: "12px 0 0" }}>
+        <section className="atd-card" style={{ padding: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
             <div>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Invitar persona</h3>
@@ -424,9 +425,9 @@ export default function TeamManagement() {
           </div>
         </section>
 
-        <section className="atd-card" style={{ margin: "12px 0 0", padding: 16 }}>
+        <section className="atd-card" style={{ padding: 16 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 12px" }}>Miembros</h3>
-          <div style={{ display: "grid", gap: 8 }}>
+          <div className="team-member-grid">
             {data.members.length === 0 ? (
               <div style={{ padding: "28px 20px", textAlign: "center", border: "2px dashed var(--hairline)", borderRadius: 14, fontSize: 13, color: "var(--muted)" }}>
                 No hay miembros cargados en este negocio.
@@ -517,7 +518,7 @@ export default function TeamManagement() {
           </div>
         </section>
 
-        <section className="atd-card" style={{ margin: "12px 0 0", padding: 16 }}>
+        <section className="atd-card wide" style={{ padding: 16 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 12px" }}>Invitaciones</h3>
 
           <div style={{ display: "grid", gap: 8 }}>
@@ -575,6 +576,7 @@ export default function TeamManagement() {
             )}
           </div>
         </section>
+        </div>
     </DashboardContentShell>
   );
 }

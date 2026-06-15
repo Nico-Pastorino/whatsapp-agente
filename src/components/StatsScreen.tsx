@@ -167,7 +167,7 @@ export default function StatsScreen() {
     : 0;
 
   return (
-    <DashboardContentShell maxWidth={1180}>
+    <DashboardContentShell>
       <div className="page-header">
         <div>
           <div className="page-sub">métricas</div>
@@ -189,7 +189,7 @@ export default function StatsScreen() {
       </div>
 
       {/* ── KPIs principales ── */}
-      <div className="lg:grid lg:grid-cols-3 lg:gap-3" style={{ margin: "0 0 12px", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+      <div className="stats-kpi-grid" style={{ margin: "0 0 12px" }}>
         <StatCard
           label="Total"
           value={stats.total_conversations}
