@@ -15,6 +15,7 @@ interface CatalogState {
 }
 
 type TabFilter = "all" | "product" | "service" | "promotion" | "featured";
+type ImportField = "ignore" | "name" | "price" | "description" | "category" | "stock_status" | "notes" | "item_type";
 
 interface FormState {
   item_type: CatalogItemType;
@@ -113,6 +114,43 @@ const STOCK_LABELS: Record<StockStatus, string> = {
   unavailable: "Sin stock",
   on_demand: "Bajo pedido",
 };
+
+const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
+  ignore: "Ignorar",
+  name: "Nombre",
+  price: "Precio",
+  description: "Descripción",
+  category: "Categoría",
+  stock_status: "Stock",
+  notes: "Notas",
+  item_type: "Tipo",
+};
+
+interface ImportPreviewItem {
+  row: number;
+  item_type: CatalogItemType;
+  name: string;
+  price: string;
+  description: string;
+  category: string;
+  stock_status: StockStatus;
+  notes: string;
+  status: "ready" | "needs_review" | "duplicate" | "empty";
+  warnings: string[];
+}
+
+interface ImportPreview {
+  headers: string[];
+  mapping: Record<string, ImportField>;
+  items: ImportPreviewItem[];
+  summary: {
+    total: number;
+    ready: number;
+    needs_review: number;
+    duplicate: number;
+    empty: number;
+  };
+}
 
 // ── Summary Cards ─────────────────────────────────────────────────────────────
 
@@ -857,6 +895,172 @@ function ItemForm({
   );
 }
 
+function ImportModal({
+  busy,
+  error,
+  preview,
+  onPreview,
+  onMappingChange,
+  onCommit,
+  onClose,
+}: {
+  busy: boolean;
+  error: string | null;
+  preview: ImportPreview | null;
+  onPreview: (file: File, defaultType: CatalogItemType, mapping?: Record<string, ImportField>) => void;
+  onMappingChange: (mapping: Record<string, ImportField>) => void;
+  onCommit: () => void;
+  onClose: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [defaultType, setDefaultType] = useState<CatalogItemType>("product");
+
+  const visibleItems = preview?.items.filter((item) => item.status !== "empty").slice(0, 80) ?? [];
+  const saveable = preview?.items.filter((item) => item.status !== "duplicate" && item.status !== "empty" && item.name).length ?? 0;
+
+  return (
+    <div className="atd-overlay sheet" style={{ zIndex: 55 }}>
+      <div className="atd-modal" style={{ width: "100%", maxWidth: 980, maxHeight: "92svh", padding: 0, display: "flex", flexDirection: "column" }}>
+        <div className="atd-sheet-grabber md:hidden" />
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--ink)" }}>Importar catálogo</h3>
+            <p style={{ fontSize: 12.5, color: "var(--muted)", margin: "4px 0 0" }}>
+              Excel, CSV o TSV. Primero revisás la vista previa y después se guarda en productos/servicios.
+            </p>
+          </div>
+          <button onClick={onClose} style={{ fontSize: 22, lineHeight: 1, color: "var(--muted)", background: "none", border: "none", cursor: "pointer" }}>×</button>
+        </div>
+
+        <div style={{ overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="atd-card" style={{ padding: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 180px auto", gap: 10, alignItems: "end" }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Archivo</label>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.tsv"
+                  className="atd-input"
+                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Tipo por defecto</label>
+                <select className="atd-input" value={defaultType} onChange={(event) => setDefaultType(event.target.value as CatalogItemType)}>
+                  <option value="product">Producto</option>
+                  <option value="service">Servicio</option>
+                </select>
+              </div>
+              <button
+                className="atd-btn primary"
+                disabled={!file || busy}
+                onClick={() => file && onPreview(file, defaultType, preview?.mapping)}
+              >
+                {busy ? "Leyendo..." : "Vista previa"}
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "#fff0ee", border: "1px solid #fca5a5", fontSize: 13, color: "#b91c1c" }}>
+              {error}
+            </div>
+          )}
+
+          {preview && (
+            <>
+              <div className="atd-card" style={{ padding: 14 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, margin: "0 0 10px", color: "var(--ink)" }}>Columnas detectadas</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
+                  {preview.headers.map((header) => (
+                    <label key={header} style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 12, color: "var(--ink-3)" }}>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{header}</span>
+                      <select
+                        className="atd-input"
+                        value={preview.mapping[header] ?? "ignore"}
+                        onChange={(event) => {
+                          const next = { ...preview.mapping, [header]: event.target.value as ImportField };
+                          onMappingChange(next);
+                          if (file) onPreview(file, defaultType, next);
+                        }}
+                      >
+                        {(Object.keys(IMPORT_FIELD_LABELS) as ImportField[]).map((field) => (
+                          <option key={field} value={field}>{IMPORT_FIELD_LABELS[field]}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                {[
+                  ["Listos", preview.summary.ready],
+                  ["Revisar", preview.summary.needs_review],
+                  ["Duplicados", preview.summary.duplicate],
+                  ["Vacíos", preview.summary.empty],
+                ].map(([label, value]) => (
+                  <div key={label} className="atd-card" style={{ padding: 12 }}>
+                    <p style={{ fontSize: 20, fontWeight: 750, margin: 0, color: "var(--ink)" }}>{value}</p>
+                    <p style={{ fontSize: 12, color: "var(--muted)", margin: "2px 0 0" }}>{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="atd-card" style={{ padding: 0, overflow: "hidden" }}>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                    <thead>
+                      <tr style={{ background: "var(--surface-2)", color: "var(--ink-2)", textAlign: "left" }}>
+                        {["Fila", "Estado", "Nombre", "Precio", "Descripción", "Categoría", "Stock", "Notas"].map((head) => (
+                          <th key={head} style={{ padding: "10px 12px", fontWeight: 700, whiteSpace: "nowrap" }}>{head}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleItems.map((item) => (
+                        <tr key={item.row} style={{ borderTop: "1px solid var(--hairline)" }}>
+                          <td style={{ padding: "10px 12px", color: "var(--muted)" }}>{item.row}</td>
+                          <td style={{ padding: "10px 12px", minWidth: 120 }}>
+                            <span className="atd-pill" style={{
+                              border: "none",
+                              fontSize: 10,
+                              background: item.status === "ready" ? "var(--green-tint)" : item.status === "duplicate" ? "#fff3cd" : "#fff0ee",
+                              color: item.status === "ready" ? "var(--green)" : item.status === "duplicate" ? "#7a5800" : "#b91c1c",
+                            }}>
+                              {item.status === "ready" ? "Listo" : item.status === "duplicate" ? "Duplicado" : "Revisar"}
+                            </span>
+                            {item.warnings.length > 0 && (
+                              <p style={{ margin: "5px 0 0", color: "var(--muted)", fontSize: 11 }}>{item.warnings.join(" ")}</p>
+                            )}
+                          </td>
+                          <td style={{ padding: "10px 12px", minWidth: 150, color: "var(--ink)" }}>{item.name || "—"}</td>
+                          <td style={{ padding: "10px 12px", minWidth: 100 }}>{item.price || "—"}</td>
+                          <td style={{ padding: "10px 12px", minWidth: 220 }}>{item.description || "—"}</td>
+                          <td style={{ padding: "10px 12px", minWidth: 120 }}>{item.category || "—"}</td>
+                          <td style={{ padding: "10px 12px", minWidth: 100 }}>{STOCK_LABELS[item.stock_status]}</td>
+                          <td style={{ padding: "10px 12px", minWidth: 160 }}>{item.notes || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div style={{ padding: "14px 20px", borderTop: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <button className="atd-btn secondary" onClick={onClose} disabled={busy}>Cancelar</button>
+          <button className="atd-btn primary" onClick={onCommit} disabled={!preview || saveable === 0 || busy}>
+            {busy ? "Importando..." : `Guardar ${saveable}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ItemCatalog() {
@@ -880,6 +1084,10 @@ export default function ItemCatalog() {
   const [featuringId, setFeaturingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
 
   const loadItems = useCallback(async () => {
     try {
@@ -999,6 +1207,59 @@ export default function ItemCatalog() {
     setFeaturingId(null);
   }
 
+  async function handleImportPreview(
+    file: File,
+    defaultType: CatalogItemType,
+    mapping?: Record<string, ImportField>
+  ) {
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      form.set("defaultType", defaultType);
+      if (mapping) form.set("mapping", JSON.stringify(mapping));
+      const res = await fetch("/api/business/items/import", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        setImportError(data.error ?? "No pudimos leer el archivo.");
+        return;
+      }
+      setImportPreview(data);
+    } catch {
+      setImportError("Error leyendo el archivo. Probá de nuevo.");
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  async function handleImportCommit() {
+    if (!importPreview) return;
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const res = await fetch("/api/business/items/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: importPreview.items }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setImportError(data.error ?? "No pudimos importar el catálogo.");
+        return;
+      }
+      setShowImport(false);
+      setImportPreview(null);
+      await loadItems();
+      const skipped = Array.isArray(data.skipped) ? data.skipped.length : 0;
+      showSuccess(`Importación lista: ${data.created ?? 0} guardados${skipped ? `, ${skipped} omitidos` : ""}.`);
+    } catch {
+      setImportError("Error importando. Probá de nuevo.");
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
   function handleDuplicate(item: CatalogItem) {
     const form = itemToForm(item);
     form.name = `${form.name} (copia)`;
@@ -1063,19 +1324,31 @@ export default function ItemCatalog() {
           <div className="page-sub">catálogo</div>
           <h1 className="page-title">Catálogo</h1>
         </div>
-        <button
-          onClick={() => {
-            setEditItem(null);
-            setPrefillForm(null);
-            setFormError(null);
-            setActionError(null);
-            setShowForm(true);
-          }}
-          disabled={atLimit}
-          className="atd-btn primary sm"
-        >
-          Agregar
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button
+            onClick={() => {
+              setImportError(null);
+              setImportPreview(null);
+              setShowImport(true);
+            }}
+            className="atd-btn secondary sm"
+          >
+            Importar Excel
+          </button>
+          <button
+            onClick={() => {
+              setEditItem(null);
+              setPrefillForm(null);
+              setFormError(null);
+              setActionError(null);
+              setShowForm(true);
+            }}
+            disabled={atLimit}
+            className="atd-btn primary sm"
+          >
+            Agregar
+          </button>
+        </div>
       </div>
 
       {/* ── Error de carga ─────────────────────────────────────────────────── */}
@@ -1388,6 +1661,24 @@ export default function ItemCatalog() {
             setShowForm(false);
             setEditItem(null);
             setPrefillForm(null);
+          }}
+        />
+      )}
+
+      {showImport && (
+        <ImportModal
+          busy={importBusy}
+          error={importError}
+          preview={importPreview}
+          onPreview={handleImportPreview}
+          onMappingChange={(mapping) => {
+            if (importPreview) setImportPreview({ ...importPreview, mapping });
+          }}
+          onCommit={handleImportCommit}
+          onClose={() => {
+            setShowImport(false);
+            setImportPreview(null);
+            setImportError(null);
           }}
         />
       )}

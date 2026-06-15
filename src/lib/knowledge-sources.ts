@@ -370,7 +370,9 @@ export async function getEnabledSourcesContent(
 ): Promise<Array<{ label: string; content: string; lastFetchedAt: string | null }>> {
   const sources = await listKnowledgeSources(businessId).catch(() => []);
   return sources
-    .filter((s) => s.enabled && s.content)
+    // Las planillas no entran crudas al prompt: deben importarse al catalogo
+    // estructurado para evitar precios/stock mezclados o contradictorios.
+    .filter((s) => s.enabled && s.content && s.source_type !== "sheet")
     .map((s) => ({
       label: s.label || s.url.replace(/^https?:\/\//, "").slice(0, 60),
       content: s.content!,
