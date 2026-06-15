@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { getBusinessProfile } from "./db";
 import { buildBusinessAIContext, sanitizeForPrompt } from "./ai-context";
 import { SYSTEM_PROMPT } from "./system-prompt";
@@ -21,11 +21,19 @@ const client = new OpenAI({
   ...(BASE_URL && { baseURL: BASE_URL }),
 });
 
+const transcriptionClient = process.env.OPENAI_API_KEY?.trim()
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY.trim() })
+  : null;
+
 // Model: soporta OPENAI_MODEL (primario) y OPENROUTER_MODEL (alias legacy).
 const MODEL =
   process.env.OPENAI_MODEL?.trim() ||
   process.env.OPENROUTER_MODEL?.trim() ||
   "gpt-4o-mini";
+
+const AUDIO_TRANSCRIPTION_MODEL =
+  process.env.AUDIO_TRANSCRIPTION_MODEL?.trim() ||
+  "whisper-1";
 
 export type ConversationActionEvent = "none" | "appointment_request" | "appointment_ready" | "human_handoff" | "hot_lead";
 
@@ -199,6 +207,35 @@ export async function generateReply(history: Message[], businessId: string): Pro
     response.choices[0]?.message?.content?.trim() ??
     "No pude generar una respuesta."
   );
+}
+
+export async function transcribeAudioBuffer(
+  audio: Buffer,
+  mimeType = "audio/ogg"
+): Promise<string> {
+  if (!transcriptionClient) {
+    throw new Error("Falta OPENAI_API_KEY para transcribir audios.");
+  }
+
+  const extension = mimeType.includes("mpeg")
+    ? "mp3"
+    : mimeType.includes("mp4")
+    ? "mp4"
+    : mimeType.includes("webm")
+    ? "webm"
+    : mimeType.includes("wav")
+    ? "wav"
+    : mimeType.includes("m4a")
+    ? "m4a"
+    : "ogg";
+
+  const response = await transcriptionClient.audio.transcriptions.create({
+    file: await toFile(audio, `whatsapp-audio.${extension}`, { type: mimeType }),
+    model: AUDIO_TRANSCRIPTION_MODEL,
+    language: "es",
+  });
+
+  return response.text.trim();
 }
 
 export async function analyzeConversationAction(

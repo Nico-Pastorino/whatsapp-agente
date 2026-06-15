@@ -1,4 +1,4 @@
-import type { WASocket } from "@whiskeysockets/baileys";
+import { downloadMediaMessage, type WASocket } from "@whiskeysockets/baileys";
 import {
   canUseAssistant,
   derivePhoneNumberFromMessage,
@@ -62,7 +62,56 @@ function isConsultReply(text: string): boolean {
 }
 import { extractPhoneFromJid } from "../whatsapp-jid";
 import { getConnectionState } from "../db";
-import { analyzeConversationAction, generateReply, type ConversationAction } from "../openrouter";
+import { analyzeConversationAction, generateReply, transcribeAudioBuffer, type ConversationAction } from "../openrouter";
+
+const AI_REPLY_DEBOUNCE_MS = readPositiveInt(process.env.AI_REPLY_DEBOUNCE_MS, 8000);
+const AI_REPLY_MAX_WAIT_MS = readPositiveInt(process.env.AI_REPLY_MAX_WAIT_MS, 20_000);
+const ENABLE_AUDIO_TRANSCRIPTION = process.env.ENABLE_AUDIO_TRANSCRIPTION !== "false";
+
+type PendingInboundMessage = {
+  messageId: string;
+  text: string;
+  externalId: string | null;
+  receivedAt: number;
+  kind: "text" | "audio" | "audio_fallback";
+};
+
+type ConversationBuffer = {
+  businessId: string;
+  conversationId: string;
+  contactId: string;
+  remoteJid: string;
+  phoneNumberIfKnown: string | null;
+  timer: ReturnType<typeof setTimeout> | null;
+  firstReceivedAt: number;
+  processing: boolean;
+  items: PendingInboundMessage[];
+};
+
+const conversationBuffers = new Map<string, ConversationBuffer>();
+const processingGroupIds = new Set<string>();
+
+function readPositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function bufferKey(businessId: string, remoteJid: string): string {
+  return `${businessId}:${remoteJid}`;
+}
+
+function safeTextPreview(text: string): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, 80);
+}
+
+function normalizeReplyForDedup(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function buildHumanHandoffMessage(input: {
   customerLabel: string;
@@ -144,6 +193,60 @@ async function getAgentPhone(businessId: string): Promise<string | null> {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getMessageContent(msg: any): any {
+  return (
+    msg.message?.ephemeralMessage?.message ??
+    msg.message?.viewOnceMessage?.message ??
+    msg.message?.documentWithCaptionMessage?.message ??
+    msg.message
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractTextFromMessage(msg: any): string | null {
+  const content = getMessageContent(msg);
+  const text =
+    content?.conversation ??
+    content?.extendedTextMessage?.text ??
+    content?.imageMessage?.caption ??
+    content?.videoMessage?.caption ??
+    content?.documentMessage?.caption;
+  return typeof text === "string" && text.trim() ? text.trim() : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getAudioMessage(msg: any): { mimetype: string | null; seconds: number | null } | null {
+  const audio = getMessageContent(msg)?.audioMessage;
+  if (!audio) return null;
+  return {
+    mimetype: typeof audio.mimetype === "string" ? audio.mimetype : null,
+    seconds: typeof audio.seconds === "number" ? audio.seconds : null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function transcribeWhatsAppAudio(msg: any, businessId: string): Promise<string | null> {
+  if (!ENABLE_AUDIO_TRANSCRIPTION) return null;
+
+  const audio = getAudioMessage(msg);
+  if (!audio) return null;
+
+  try {
+    const buffer = await downloadMediaMessage(msg, "buffer", {});
+    console.log(
+      `[audio/${businessId}] downloaded bytes=${buffer.length} seconds=${audio.seconds ?? ""} mime=${audio.mimetype ?? "unknown"}`
+    );
+    const transcript = await transcribeAudioBuffer(buffer, audio.mimetype ?? "audio/ogg");
+    if (!transcript) return null;
+    console.log(`[audio/${businessId}] transcription ok chars=${transcript.length}`);
+    return transcript;
+  } catch (err) {
+    console.warn(`[audio/${businessId}] transcription failed:`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processMessage(sock: WASocket, msg: any, businessId: string): Promise<void> {
   const remoteJid: string = msg.key.remoteJid ?? "";
   const fromMe: boolean = !!msg.key.fromMe;
@@ -165,19 +268,6 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
     return;
   }
 
-  const text: string | undefined =
-    msg.message?.conversation ??
-    msg.message?.extendedTextMessage?.text ??
-    msg.message?.ephemeralMessage?.message?.conversation ??
-    msg.message?.ephemeralMessage?.message?.extendedTextMessage?.text ??
-    msg.message?.viewOnceMessage?.message?.conversation ??
-    msg.message?.documentWithCaptionMessage?.message?.imageMessage?.caption;
-
-  if (!text?.trim()) {
-    console.log(`[bot/${businessId}] Ignorado: sin texto (probablemente media)`);
-    return;
-  }
-
   // Deduplication: skip if this Baileys message ID was already stored.
   if (externalId) {
     const isDup = await isExternalMessageDuplicate(externalId, businessId);
@@ -185,6 +275,26 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
       console.log(`[baileys/${businessId}] skipped duplicate external_message_id=${externalId}`);
       return;
     }
+  }
+
+  const audioMessage = getAudioMessage(msg);
+  let text: string | null = extractTextFromMessage(msg);
+  let inboundKind: PendingInboundMessage["kind"] = "text";
+
+  if (!text && audioMessage && !fromMe) {
+    const transcript = await transcribeWhatsAppAudio(msg, businessId);
+    if (transcript) {
+      text = transcript;
+      inboundKind = "audio";
+    } else {
+      text = "Audio recibido, pero no se pudo entender bien. Pedir al cliente que lo repita o lo mande por texto.";
+      inboundKind = "audio_fallback";
+    }
+  }
+
+  if (!text?.trim()) {
+    console.log(`[bot/${businessId}] Ignorado: sin texto ni audio transcribible`);
+    return;
   }
 
   // ── fromMe=true: mensaje enviado desde el celular/web del dueño ──
@@ -236,23 +346,160 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   console.log(`[wa/incoming/${businessId}] resolved_contact_id=${convo.contact_id}`);
   console.log(`[wa/incoming/${businessId}] resolved_conversation_id=${convo.id}`);
 
-  await insertMessage(convo.id, "user", text, externalId, businessId);
+  const userMessage = await insertMessage(convo.id, "user", text, externalId, businessId);
   await recordInboundMessageUsage(businessId);
+  scheduleBufferedReply({
+    businessId,
+    conversationId: convo.id,
+    contactId: convo.contact_id,
+    remoteJid,
+    phoneNumberIfKnown,
+    item: {
+      messageId: userMessage.id,
+      text,
+      externalId: externalId ?? null,
+      receivedAt: Date.now(),
+      kind: inboundKind,
+    },
+    sock,
+  });
+  return;
+}
 
-  let fresh = await getConversationById(convo.id, businessId);
+function scheduleBufferedReply(input: {
+  businessId: string;
+  conversationId: string;
+  contactId: string;
+  remoteJid: string;
+  phoneNumberIfKnown: string | null;
+  item: PendingInboundMessage;
+  sock: WASocket;
+}): void {
+  const key = bufferKey(input.businessId, input.remoteJid);
+  let buffer = conversationBuffers.get(key);
+  if (!buffer) {
+    buffer = {
+      businessId: input.businessId,
+      conversationId: input.conversationId,
+      contactId: input.contactId,
+      remoteJid: input.remoteJid,
+      phoneNumberIfKnown: input.phoneNumberIfKnown,
+      timer: null,
+      firstReceivedAt: input.item.receivedAt,
+      processing: false,
+      items: [],
+    };
+    conversationBuffers.set(key, buffer);
+  }
+
+  buffer.conversationId = input.conversationId;
+  buffer.contactId = input.contactId;
+  buffer.phoneNumberIfKnown = input.phoneNumberIfKnown;
+  buffer.items.push(input.item);
+
+  console.log(
+    `[buffer/${input.businessId}] queued key=${key} count=${buffer.items.length} kind=${input.item.kind} preview="${safeTextPreview(input.item.text)}"`
+  );
+  armBufferTimer(key, buffer, input.sock);
+}
+
+function armBufferTimer(key: string, buffer: ConversationBuffer, sock: WASocket): void {
+  if (buffer.timer) clearTimeout(buffer.timer);
+
+  const ageMs = Date.now() - buffer.firstReceivedAt;
+  const waitMs = Math.max(0, Math.min(AI_REPLY_DEBOUNCE_MS, AI_REPLY_MAX_WAIT_MS - ageMs));
+  console.log(
+    `[buffer/${buffer.businessId}] timer key=${key} count=${buffer.items.length} wait_ms=${waitMs}`
+  );
+
+  buffer.timer = setTimeout(() => {
+    void flushBufferedReply(key, sock);
+  }, waitMs);
+}
+
+function buildGroupedHistory(history: Awaited<ReturnType<typeof getRecentHistory>>, items: PendingInboundMessage[]) {
+  const pendingIds = new Set(items.map((item) => item.messageId));
+  const groupedText = items
+    .map((item) => item.text.trim())
+    .filter(Boolean)
+    .join("\n");
+  const firstPending = history.find((message) => pendingIds.has(message.id));
+  const withoutPending = history.filter((message) => !pendingIds.has(message.id));
+
+  if (!firstPending || !groupedText) return history;
+
+  return [
+    ...withoutPending,
+    {
+      ...firstPending,
+      content: groupedText,
+      created_at: Math.floor(Date.now() / 1000),
+    },
+  ];
+}
+
+async function flushBufferedReply(key: string, sock: WASocket): Promise<void> {
+  const buffer = conversationBuffers.get(key);
+  if (!buffer || buffer.processing || buffer.items.length === 0) return;
+
+  const items = buffer.items;
+  buffer.items = [];
+  buffer.processing = true;
+  if (buffer.timer) {
+    clearTimeout(buffer.timer);
+    buffer.timer = null;
+  }
+
+  const groupId = items.map((item) => item.externalId || item.messageId).join("|");
+  if (processingGroupIds.has(groupId)) {
+    console.log(`[buffer/${buffer.businessId}] duplicate group skipped size=${items.length}`);
+    buffer.processing = false;
+    return;
+  }
+  processingGroupIds.add(groupId);
+
+  try {
+    await processBufferedReply(buffer, items, sock);
+  } catch (err) {
+    console.error(`[buffer/${buffer.businessId}] flush failed:`, err);
+  } finally {
+    processingGroupIds.delete(groupId);
+    buffer.processing = false;
+    if (buffer.items.length > 0) {
+      buffer.firstReceivedAt = buffer.items[0]?.receivedAt ?? Date.now();
+      armBufferTimer(key, buffer, sock);
+    } else {
+      conversationBuffers.delete(key);
+    }
+  }
+}
+
+async function processBufferedReply(
+  buffer: ConversationBuffer,
+  items: PendingInboundMessage[],
+  sock: WASocket
+): Promise<void> {
+  const { businessId, conversationId, remoteJid, phoneNumberIfKnown } = buffer;
+  const groupedText = items.map((item) => item.text.trim()).filter(Boolean).join("\n");
+  const t0 = Date.now();
+
+  console.log(
+    `[buffer/${businessId}] flushing conversation_id=${conversationId} count=${items.length} audio=${items.some((item) => item.kind === "audio")} fallback_audio=${items.some((item) => item.kind === "audio_fallback")}`
+  );
+
+  let fresh = await getConversationById(conversationId, businessId);
   if (!fresh) {
     console.log(`[bot/${businessId}] Conversación no encontrada — no respondo`);
     return;
   }
 
   if (fresh.mode === "HUMAN") {
-    // Auto-return to AI if the human has been inactive for too long.
     const inactivityMs = HUMAN_INACTIVITY_MINUTES * 60 * 1000;
     const lastActivity = fresh.human_last_activity ? fresh.human_last_activity * 1000 : null;
     const isStale = !lastActivity || Date.now() - lastActivity > inactivityMs;
     if (isStale) {
       console.log(`[bot/${businessId}] Modo HUMAN inactivo (>${HUMAN_INACTIVITY_MINUTES}min) — volviendo a AI`);
-      await setMode(convo.id, "AI", businessId);
+      await setMode(conversationId, "AI", businessId);
       fresh = { ...fresh, mode: "AI" };
     } else {
       console.log(`[bot/${businessId}] Modo HUMAN activo — no respondo automáticamente`);
@@ -283,10 +530,9 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
     return;
   }
 
-  const history = await getRecentHistory(convo.id, 20, businessId);
-  const t0 = Date.now();
-
-  const action = await analyzeConversationAction(history, businessId, {
+  const history = await getRecentHistory(conversationId, 20, businessId);
+  const groupedHistory = buildGroupedHistory(history, items);
+  const action = await analyzeConversationAction(groupedHistory, businessId, {
     customerName: fresh.name,
     customerPhone: fresh.phone_number,
   }).catch((err) => {
@@ -297,15 +543,17 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   let reply: string | null = null;
   let createdAppointmentId: string | null = null;
 
-  if (action && action.confidence >= 0.62) {
+  if (items.every((item) => item.kind === "audio_fallback")) {
+    reply = "Te escuché, pero no pude entender bien el audio. ¿Me lo podés repetir o mandar por texto?";
+  } else if (action && action.confidence >= 0.62) {
     if (hasUsableAppointment(action)) {
       const recentAppointments = await listAppointments(businessId, {
         includeCancelled: true,
         limit: 25,
       }).catch(() => []);
-      const duplicateRecent = recentAppointments.some((a) => {
-        if (a.conversation_id !== convo.id || a.source !== "ai") return false;
-        const createdAt = new Date(a.created_at).getTime();
+      const duplicateRecent = recentAppointments.some((appointment) => {
+        if (appointment.conversation_id !== conversationId || appointment.source !== "ai") return false;
+        const createdAt = new Date(appointment.created_at).getTime();
         return !Number.isNaN(createdAt) && Date.now() - createdAt < 15 * 60 * 1000;
       });
 
@@ -315,7 +563,7 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
         const notes = [
           appointment.notes,
           action.summary ? `Resumen: ${action.summary}` : null,
-          `Último mensaje: ${text.trim()}`,
+          `Últimos mensajes:\n${groupedText}`,
         ].filter(Boolean).join("\n");
 
         const created = await createAppointment(
@@ -327,8 +575,8 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
             notes,
             status: "pending",
             source: "ai",
-            conversation_id: convo.id,
-            contact_id: convo.contact_id,
+            conversation_id: conversationId,
+            contact_id: buffer.contactId,
           },
           businessId
         ).catch((err) => {
@@ -349,18 +597,22 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   }
 
   if (!reply) {
-    console.log(`[bot/${businessId}] Llamando LLM con ${history.length} mensajes...`);
-    reply = await generateReply(history, businessId);
+    console.log(`[bot/${businessId}] Llamando LLM con ${groupedHistory.length} mensajes, grouped=${items.length}...`);
+    reply = await generateReply(groupedHistory, businessId);
+  }
+
+  const lastAssistant = [...history].reverse().find((message) => message.role === "assistant");
+  if (lastAssistant && normalizeReplyForDedup(lastAssistant.content) === normalizeReplyForDedup(reply)) {
+    console.warn(`[bot/${businessId}] respuesta duplicada omitida conversation_id=${conversationId}`);
+    return;
   }
 
   const elapsed = Date.now() - t0;
   console.log(`[bot/${businessId}] respuesta lista en ${elapsed}ms appointment=${createdAppointmentId ?? ""}`);
 
-  // Usar directamente el remoteJid del mensaje entrante para responder.
-  const replyJid = remoteJid;
+  const replyJid = fresh.safe_outgoing_jid || fresh.primary_jid || remoteJid;
   console.log(`[wa/incoming/${businessId}] selected_reply_jid=${replyJid}`);
 
-  // Nunca responder al propio número conectado
   const agentPhone = await getAgentPhone(businessId);
   const replyPhone = extractPhoneFromJid(replyJid);
   if (agentPhone && replyPhone && replyPhone === agentPhone) {
@@ -368,22 +620,17 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
     return;
   }
 
-  const assistantMsg = await insertMessage(convo.id, "assistant", reply, undefined, businessId);
+  const assistantMsg = await insertMessage(conversationId, "assistant", reply, undefined, businessId);
   await recordAiReplyUsage(businessId);
 
-  // Si la respuesta de la IA deriva al cliente a un asesor, cambia el modo a HUMAN
-  // y marca la conversación para que el equipo sepa que necesita atención.
   const shouldHandoff =
     isHandoffReply(reply) ||
     (action?.event === "human_handoff" && action.confidence >= 0.62);
-
-  // Consulta pendiente: la IA quedó debiendo un dato pero la conversación
-  // sigue en modo AI. Aviso interno + needs_attention, sin silenciar al bot.
   const consultPending = !shouldHandoff && isConsultReply(reply);
 
   if (consultPending) {
     console.log(`[bot/${businessId}] Consulta pendiente — aviso al equipo SIN pasar a HUMAN`);
-    await setNeedsAttention(convo.id, true, businessId).catch(() => undefined);
+    await setNeedsAttention(conversationId, true, businessId).catch(() => undefined);
 
     const day = new Date().toISOString().slice(0, 10);
     const customerPhone = fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
@@ -391,12 +638,12 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
     await enqueueInternalNotification(
       {
         event_type: "unanswered",
-        dedup_key: `consult:${convo.id}:${day}`,
+        dedup_key: `consult:${conversationId}:${day}`,
         content: [
           "🤔 *El asistente quedó debiendo una respuesta*",
           `Cliente: ${who}`,
           customerPhone ? `WhatsApp: ${customerPhone}` : null,
-          `Preguntó: ${text.trim()}`,
+          `Preguntó: ${groupedText}`,
           `El asistente respondió: "${reply}"`,
           "El asistente sigue atendiendo el chat. Cargá la info que falta o respondé desde el panel.",
         ].filter(Boolean).join("\n"),
@@ -407,22 +654,21 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
 
   if (shouldHandoff) {
     console.log(`[bot/${businessId}] Handoff detectado — cambiando a HUMAN + needs_attention`);
-    await setMode(convo.id, "HUMAN", businessId).catch(() => undefined);
-    await setNeedsAttention(convo.id, true, businessId).catch(() => undefined);
+    await setMode(conversationId, "HUMAN", businessId).catch(() => undefined);
+    await setNeedsAttention(conversationId, true, businessId).catch(() => undefined);
 
-    // Aviso interno al encargado (dedup por conversación + día para no spamear).
     const day = new Date().toISOString().slice(0, 10);
     const customerPhone = fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
     const who = fresh.name || customerPhone || "Un cliente";
     await enqueueInternalNotification(
       {
         event_type: "human_handoff",
-        dedup_key: `handoff:${convo.id}:${day}`,
+        dedup_key: `handoff:${conversationId}:${day}`,
         content: buildHumanHandoffMessage({
           customerLabel: who,
           customerPhone,
           reason: action?.reason ?? "Necesita confirmación del equipo",
-          lastMessage: text.trim(),
+          lastMessage: groupedText,
           summary: action?.summary ?? null,
           assistantReply: reply,
         }),
@@ -438,11 +684,11 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
     await enqueueInternalNotification(
       {
         event_type: "hot_lead",
-        dedup_key: `appointment_request:${convo.id}:${day}`,
+        dedup_key: `appointment_request:${conversationId}:${day}`,
         content: buildAppointmentInterestMessage({
           customerLabel: who,
           customerPhone,
-          lastMessage: text.trim(),
+          lastMessage: groupedText,
           summary: action.summary ?? null,
           missingFields: action.appointment?.missing_fields ?? [],
         }),
@@ -458,13 +704,13 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
     await enqueueInternalNotification(
       {
         event_type: "hot_lead",
-        dedup_key: `hot_lead:${convo.id}:${day}`,
+        dedup_key: `hot_lead:${conversationId}:${day}`,
         content: [
           "🔥 *Cliente interesado*",
           `Cliente: ${who}`,
           customerPhone ? `WhatsApp: ${customerPhone}` : null,
           action.reason ? `Motivo: ${action.reason}` : null,
-          `Último mensaje: ${text.trim()}`,
+          `Últimos mensajes:\n${groupedText}`,
           action.summary ? `Resumen: ${action.summary}` : null,
           "Revisar en el panel de Atende.",
         ].filter(Boolean).join("\n"),
@@ -474,9 +720,8 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   }
 
   const sentResult = await sock.sendMessage(replyJid, { text: reply });
-  console.log(`[wa/outgoing/${businessId}] conversation_id=${convo.id} target_jid=${replyJid} source=ai status=sent`);
+  console.log(`[wa/outgoing/${businessId}] conversation_id=${conversationId} target_jid=${replyJid} source=ai status=sent grouped=${items.length}`);
 
-  // Guardar el key.id de Baileys para deduplicar el echo fromMe
   const sentId = sentResult?.key?.id;
   if (sentId) {
     await setMessageExternalId(assistantMsg.id, sentId, businessId).catch(() => undefined);
