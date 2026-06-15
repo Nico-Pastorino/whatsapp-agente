@@ -3359,12 +3359,35 @@ export interface CatalogCapacity {
 const CATALOG_SELECT =
   "id, business_id, item_type, name, category, description, price_text, promo_price, stock_status, duration, requires_booking, payment_options, financing_options, internal_notes, is_active, is_featured, promotion_label, promotion_ends_at, sort_order, created_at, updated_at";
 
+const CATALOG_PLACEHOLDER_PATTERNS = [
+  /^\$?\s*x+\s*$/i,
+  /^\$?\s*\?\s*$/i,
+  /^\[.*\]$/i,
+  /^-+$/i,
+  /^(n\/a|na|no aplica|sin dato|sin datos|sin definir|pendiente|por confirmar|a confirmar|tbd)$/i,
+  /^(completar|completar precio|precio|precio a consultar|consultar|consultar precio)$/i,
+  /^(no tengo|no se|no sé|desconocido)$/i,
+];
+
+function isCatalogPlaceholder(value: string): boolean {
+  const normalized = value
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return CATALOG_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
 function nullableCatalogText(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && !isCatalogPlaceholder(trimmed) ? trimmed : null;
 }
 
 function requiredCatalogText(value: string | null | undefined): string {
-  return typeof value === "string" ? value.trim() : "";
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  return trimmed.length > 0 && !isCatalogPlaceholder(trimmed) ? trimmed : "";
 }
 
 function mapRowToCatalogItem(row: Record<string, unknown>): CatalogItem {
@@ -3376,12 +3399,12 @@ function mapRowToCatalogItem(row: Record<string, unknown>): CatalogItem {
     category: (row.category as string | null) ?? null,
     description: nullableCatalogText(row.description),
     price: nullableCatalogText(row.price_text),
-    promo_price: (row.promo_price as string | null) ?? null,
+    promo_price: nullableCatalogText(row.promo_price),
     stock_status: (row.stock_status as StockStatus | null) ?? null,
-    duration: (row.duration as string | null) ?? null,
+    duration: nullableCatalogText(row.duration),
     requires_booking: (row.requires_booking as boolean) ?? false,
-    payment_options: (row.payment_options as string | null) ?? null,
-    financing_options: (row.financing_options as string | null) ?? null,
+    payment_options: nullableCatalogText(row.payment_options),
+    financing_options: nullableCatalogText(row.financing_options),
     internal_notes: (row.internal_notes as string | null) ?? null,
     is_active: (row.is_active as boolean) ?? true,
     is_featured: (row.is_featured as boolean) ?? false,

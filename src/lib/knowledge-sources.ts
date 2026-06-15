@@ -367,15 +367,14 @@ export async function deleteKnowledgeSource(id: string, businessId: string): Pro
 /** Fuentes habilitadas con contenido, para el prompt de la IA. */
 export async function getEnabledSourcesContent(
   businessId: string
-): Promise<Array<{ label: string; content: string; lastFetchedAt: string | null }>> {
+): Promise<Array<{ label: string; content: string; sourceType: KnowledgeSource["source_type"]; lastFetchedAt: string | null }>> {
   const sources = await listKnowledgeSources(businessId).catch(() => []);
   return sources
-    // Las planillas no entran crudas al prompt: deben importarse al catalogo
-    // estructurado para evitar precios/stock mezclados o contradictorios.
-    .filter((s) => s.enabled && s.content && s.source_type !== "sheet")
+    .filter((s) => s.enabled && s.content)
     .map((s) => ({
       label: s.label || s.url.replace(/^https?:\/\//, "").slice(0, 60),
       content: s.content!,
+      sourceType: s.source_type,
       lastFetchedAt: s.last_fetched_at,
     }));
 }

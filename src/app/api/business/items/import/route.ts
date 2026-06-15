@@ -40,6 +40,15 @@ const FIELD_ALIASES: Record<Exclude<ImportField, "ignore">, string[]> = {
   item_type: ["tipo", "type", "producto o servicio"],
 };
 
+const PLACEHOLDER_PRICE_PATTERNS = [
+  /^\$?\s*x+\s*$/i,
+  /^\$?\s*\?\s*$/i,
+  /^\[.*\]$/i,
+  /^-+$/i,
+  /^(n\/a|na|no aplica|sin dato|sin datos|sin definir|pendiente|por confirmar|a confirmar|tbd)$/i,
+  /^(completar|completar precio|precio|precio a consultar|consultar|consultar precio)$/i,
+];
+
 function clean(value: unknown, max = 500): string {
   return String(value ?? "")
     .replace(/\s+/g, " ")
@@ -58,6 +67,15 @@ function normalizeKey(value: string): string {
 
 function normalizeName(value: string): string {
   return normalizeKey(value).replace(/\s+/g, " ");
+}
+
+function isPlaceholderPrice(value: string): boolean {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  return PLACEHOLDER_PRICE_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 function detectField(header: string): ImportField {
@@ -165,7 +183,8 @@ function buildPreview(input: {
     }
 
     const name = clean(byField.name, 140);
-    const price = clean(byField.price, 120);
+    const rawPrice = clean(byField.price, 120);
+    const price = rawPrice && !isPlaceholderPrice(rawPrice) ? rawPrice : "";
     const description = clean(byField.description, 900);
     const category = clean(byField.category, 100);
     const notes = clean(byField.notes, 500);
@@ -176,6 +195,7 @@ function buildPreview(input: {
 
     if (!name && !price && !description && !category) warnings.push("Fila vacia.");
     if (!name) warnings.push("Falta nombre.");
+    if (rawPrice && !price) warnings.push("Precio invalido o placeholder.");
     if (!price) warnings.push("Falta precio.");
     if (!description) warnings.push("Falta descripcion.");
     if (key && input.existingNames.has(key)) warnings.push("Ya existe en el catalogo. Se conserva el producto cargado manualmente.");
