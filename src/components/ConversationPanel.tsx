@@ -292,7 +292,7 @@ export default function ConversationPanel({
 
       {/* Delete modal */}
       {showDeleteConfirm && (
-        <div className="atd-overlay" style={{ zIndex: 50 }}>
+        <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ padding: 24, maxWidth: 340, width: "100%" }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Borrar conversación</h3>
             <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>

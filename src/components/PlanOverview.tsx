@@ -714,7 +714,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
       {/* Cancel modal */}
       {showCancelModal && (
-        <div className="atd-overlay" style={{ zIndex: 50 }}>
+        <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
             <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Cancelar el plan?</h3>
             <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>
@@ -732,7 +732,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
       {/* Downgrade modal */}
       {showDowngradeModal && downgradeTarget && (
-        <div className="atd-overlay" style={{ zIndex: 50 }}>
+        <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
             <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Bajar a {downgradeTarget.name}?</h3>
             <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 20 }}>

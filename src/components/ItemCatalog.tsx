@@ -486,7 +486,7 @@ function ItemForm({
   }
 
   return (
-    <div className="atd-overlay sheet" style={{ zIndex: 50 }}>
+    <div className="atd-overlay sheet" style={{ zIndex: 140 }}>
       <div
         className="atd-modal"
         style={{
@@ -919,7 +919,7 @@ function ImportModal({
   const saveable = preview?.items.filter((item) => item.status !== "duplicate" && item.status !== "empty" && item.name).length ?? 0;
 
   return (
-    <div className="atd-overlay sheet" style={{ zIndex: 55 }}>
+    <div className="atd-overlay sheet" style={{ zIndex: 140 }}>
       <div className="atd-modal" style={{ width: "100%", maxWidth: 980, maxHeight: "92svh", padding: 0, display: "flex", flexDirection: "column" }}>
         <div className="atd-sheet-grabber md:hidden" />
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", gap: 12 }}>
@@ -1685,7 +1685,7 @@ export default function ItemCatalog() {
 
       {/* ── Delete Confirmation ───────────────────────────────────────────── */}
       {deleteConfirmId && (
-        <div className="atd-overlay" style={{ zIndex: 50 }}>
+        <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ width: "100%", maxWidth: 380, padding: 24 }}>
             <p style={{ fontSize: 28, marginBottom: 8 }}>🗑️</p>
             <h4 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 8 }}>
