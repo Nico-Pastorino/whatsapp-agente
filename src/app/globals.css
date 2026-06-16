@@ -1081,6 +1081,61 @@ body {
   }
 }
 
+.plan-overview-grid,
+.plan-actions-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+.plan-panel {
+  height: 100%;
+}
+.plan-feature-list {
+  display: grid;
+  gap: 0 22px;
+  grid-template-columns: 1fr;
+}
+.plan-support-wrap .atd-card {
+  margin-top: 0 !important;
+}
+.support-card-body {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+  align-items: center;
+}
+.support-card-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.support-card-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 980px) {
+  .plan-actions-grid {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+  .support-card-body {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.6fr);
+  }
+  .support-card-actions {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+}
+@media (min-width: 1280px) {
+  .plan-overview-grid {
+    grid-template-columns: minmax(340px, 1fr) minmax(320px, 0.78fr) minmax(420px, 1.08fr);
+  }
+  .plan-feature-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .team-member-grid,
 .agenda-card-grid {
   display: grid;

@@ -562,25 +562,34 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           </div>
         )}
 
-        <div className="plan-desktop-grid">
-        <div style={{ padding: 16, borderRadius: 14, background: "var(--surface)", border: "1px solid var(--hairline)" }}>
+        {checkoutError && (
+          <div style={{ margin: "0 0 12px", padding: 12, borderRadius: 12, background: "rgba(192,57,43,0.1)", color: "#c0392b", fontSize: 13 }}>
+            {checkoutError}
+          </div>
+        )}
+
+        <div className="plan-overview-grid">
+        <div className="atd-card plan-panel" style={{ padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
             <div>
               <div className="page-sub" style={{ marginBottom: 3 }}>plan actual</div>
-              <div style={{ fontSize: 24, fontWeight: 750, lineHeight: 1, color: "var(--ink)" }}>{plan.plan_name}</div>
-              <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "7px 0 0" }}>{PLAN_TAGLINE[currentCode] ?? ""}</p>
+              <div style={{ fontSize: 32, fontWeight: 760, lineHeight: 1, color: "var(--ink)" }}>{plan.plan_name}</div>
+              <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "9px 0 0", maxWidth: 420 }}>{PLAN_TAGLINE[currentCode] ?? ""}</p>
             </div>
-            <span className="mono" style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>
-              {plan.status === "active" ? "activo" : plan.status} · vence {formatDate(plan.current_period_end)}
+            <span className="atd-pill green" style={{ whiteSpace: "nowrap" }}>
+              {plan.status === "active" ? "Activo" : plan.status}
             </span>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <p className="mono" style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 18px" }}>
+            Vence {formatDate(plan.current_period_end)}
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {plan.upgrade_options.length > 0 && (
               <button
                 onClick={() => startCheckout(plan.upgrade_options[0].code, "upgrade")}
                 disabled={checkoutLoading}
                 className="atd-btn primary sm"
-                style={{ flex: 1 }}
+                style={{ flex: "1 1 190px" }}
               >
                 {checkoutLoading ? "..." : `Mejorar a ${plan.upgrade_options[0].name}`}
               </button>
@@ -589,6 +598,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
               <button
                 onClick={() => setShowCancelModal(true)}
                 className="atd-btn ghost sm"
+                style={{ flex: "0 1 auto" }}
               >
                 Cancelar
               </button>
@@ -606,15 +616,8 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
             )}
         </div>
 
-        {checkoutError && (
-          <div style={{ margin: "0 0 12px", padding: 12, borderRadius: 12, background: "rgba(192,57,43,0.1)", color: "#c0392b", fontSize: 13 }}>
-            {checkoutError}
-          </div>
-        )}
-
-        <div className="plan-desktop-grid">
           {/* Usage */}
-          <div className="atd-card" style={{ padding: 16 }}>
+          <div className="atd-card plan-panel" style={{ padding: 18 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>uso del plan</div>
             {[
               { label: "Usuarios", used: 1, limit: plan.users_limit },
@@ -638,9 +641,9 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           </div>
 
           {/* Features */}
-          <div className="atd-card" style={{ padding: 16 }}>
+          <div className="atd-card plan-panel" style={{ padding: 18 }}>
             <div className="page-sub" style={{ marginBottom: 10 }}>incluido en {plan.plan_name}</div>
-            <div className="grid gap-x-6 lg:grid-cols-2">
+            <div className="plan-feature-list">
               <div>
                 {includedFeatures.map((f) => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: includedFeatures.indexOf(f) ? "1px dashed var(--hairline-2)" : "none", fontSize: 13, color: "var(--ink-2)" }}>
@@ -662,6 +665,8 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           </div>
         </div>
 
+        {(plan.upgrade_options.length > 0 || plan.downgrade_options.length > 0 || plan.status === "canceled" || plan.status === "past_due") && (
+          <div className="plan-actions-grid" style={{ marginTop: 12 }}>
         {/* Upgrade cards */}
         {plan.upgrade_options.length > 0 && plan.upgrade_options.map((opt) => (
           <div key={opt.code} className="atd-card" style={{ padding: 16, background: "var(--accent-soft)", borderColor: "transparent" }}>
@@ -703,17 +708,18 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         )}
 
         {(plan.status === "canceled" || plan.status === "past_due") && (
-          <div className="wide">
+          <div className="atd-card" style={{ padding: 16 }}>
             <button onClick={() => startCheckout()} disabled={checkoutLoading} className="atd-btn green" style={{ width: "100%" }}>
               {checkoutLoading ? "Redirigiendo..." : "Renovar plan"}
             </button>
           </div>
         )}
+          </div>
+        )}
 
         {/* Soporte */}
-        <div className="wide">
+        <div className="plan-support-wrap" style={{ marginTop: 12 }}>
           <SupportCard />
-        </div>
         </div>
 
       {/* Cancel modal */}

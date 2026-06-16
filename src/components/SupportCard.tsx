@@ -15,46 +15,47 @@ import {
 export default function SupportCard() {
   return (
     <section className="atd-card" style={{ margin: "12px 0 0", padding: 18 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <span
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 12,
-            flexShrink: 0,
-            background: "var(--green-tint)",
-            color: "var(--green-ink)",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 20,
-          }}
-        >
-          💬
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>
-            ¿Necesitás ayuda?
-          </h3>
-          <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>
-            Te ayudamos a configurar tu asistente, conectar WhatsApp o resolver dudas sobre tu plan.
-          </p>
+      <div className="support-card-body">
+        <div className="support-card-copy">
+          <span
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              flexShrink: 0,
+              background: "var(--green-tint)",
+              color: "var(--green-ink)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 20,
+            }}
+          >
+            💬
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>
+              ¿Necesitás ayuda?
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>
+              Te ayudamos a configurar tu asistente, conectar WhatsApp o resolver dudas sobre tu plan.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+      <div className="support-card-actions">
         {HAS_SUPPORT_WHATSAPP ? (
           <a
             href={SUPPORT_WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="atd-btn green sm"
-            style={{ flex: "1 1 160px", textDecoration: "none" }}
+            style={{ textDecoration: "none" }}
           >
             Escribir por WhatsApp
           </a>
         ) : (
-          <button className="atd-btn green sm" disabled style={{ flex: "1 1 160px" }}>
+          <button className="atd-btn green sm" disabled>
             Escribir por WhatsApp
           </button>
         )}
@@ -63,15 +64,16 @@ export default function SupportCard() {
           <a
             href={SUPPORT_MAILTO}
             className="atd-btn ghost sm"
-            style={{ flex: "1 1 140px", textDecoration: "none" }}
+            style={{ textDecoration: "none" }}
           >
             Enviar correo
           </a>
         ) : (
-          <button className="atd-btn ghost sm" disabled style={{ flex: "1 1 140px" }}>
+          <button className="atd-btn ghost sm" disabled>
             Enviar correo
           </button>
         )}
+      </div>
       </div>
 
       {!HAS_ANY_SUPPORT && (
