@@ -202,7 +202,7 @@ export default function QRScreen({ onConnected }: Props) {
           >
             {requestingCode ? "Pidiendo código…" : "Generar código"}
           </button>
-          {codeError && <p style={{ fontSize: 12.5, color: "#b42318", marginTop: 10 }}>{codeError}</p>}
+          {codeError && <p style={{ fontSize: 12.5, color: "var(--danger-ink)", marginTop: 10 }}>{codeError}</p>}
         </>
       )}
     </div>
@@ -230,7 +230,7 @@ export default function QRScreen({ onConnected }: Props) {
           <div className="atd-spinner lg" />
           {showBotOfflineHint ? (
             <div style={{ padding: "0 16px" }}>
-              <p style={{ fontSize: 12, color: "#c0392b", fontWeight: 500, marginBottom: 4 }}>Asistente iniciando</p>
+              <p style={{ fontSize: 12, color: "var(--danger)", fontWeight: 500, marginBottom: 4 }}>Asistente iniciando</p>
               <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", lineHeight: 1.5 }}>
                 El asistente está arrancando, puede tardar 1–2 minutos. Si el código no aparece, contactá a soporte.
               </p>
@@ -388,7 +388,7 @@ export default function QRScreen({ onConnected }: Props) {
             {qrCard}
 
             {data.qrPng && (
-              <div className="mono" style={{ fontSize: 11, color: qrIsStale ? "#c0392b" : "var(--muted)", marginBottom: 20 }}>
+              <div className="mono" style={{ fontSize: 11, color: qrIsStale ? "var(--danger)" : "var(--muted)", marginBottom: 20 }}>
                 {qrIsStale ? "⏳ actualizando código..." : "escanear antes de que expire"}
               </div>
             )}

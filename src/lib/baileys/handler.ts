@@ -63,6 +63,7 @@ function isConsultReply(text: string): boolean {
 import { extractPhoneFromJid } from "../whatsapp-jid";
 import { getConnectionState } from "../db";
 import { analyzeConversationAction, generateReply, transcribeAudioBuffer, type ConversationAction } from "../openrouter";
+import { sendThrottledText } from "./client";
 
 const AI_REPLY_DEBOUNCE_MS = readPositiveInt(process.env.AI_REPLY_DEBOUNCE_MS, 8000);
 const AI_REPLY_MAX_WAIT_MS = readPositiveInt(process.env.AI_REPLY_MAX_WAIT_MS, 20_000);
@@ -719,7 +720,8 @@ async function processBufferedReply(
     ).catch((err) => console.error(`[notify/${businessId}] hot_lead enqueue falló:`, err));
   }
 
-  const sentResult = await sock.sendMessage(replyJid, { text: reply });
+  // Anti-ban: enviamos con "escribiendo…", jitter y tope horario.
+  const sentResult = await sendThrottledText(businessId, replyJid, reply);
   console.log(`[wa/outgoing/${businessId}] conversation_id=${conversationId} target_jid=${replyJid} source=ai status=sent grouped=${items.length}`);
 
   const sentId = sentResult?.key?.id;

@@ -3027,6 +3027,65 @@ export async function updateWorkerHeartbeat(
   if (error) throw error;
 }
 
+/**
+ * Anti-ban — lock de sesión única. Evita que dos instancias del worker abran
+ * sesión Baileys para el mismo número (lo que provoca conflicto 440 y baneo).
+ *
+ * Toma/renueva la propiedad de la fila whatsapp_sessions para `ownerId` con un
+ * vencimiento de 90s. Devuelve true si este proceso es el dueño legítimo.
+ *
+ * FAIL-OPEN: si la migración 031 (columnas owned_by/owner_expires_at) todavía no
+ * se aplicó o hay un error de DB, devolvemos true para NO bloquear al worker.
+ * Solo devolvemos false cuando confirmamos que otra instancia viva es la dueña.
+ */
+export async function tryAdoptSessionOwnership(
+  businessId: string,
+  instanceName: string,
+  ownerId: string,
+  ttlMs = 90_000
+): Promise<boolean> {
+  try {
+    const supabase = getSupabaseAdminClient();
+    const nowIso = new Date().toISOString();
+    const expiresIso = new Date(Date.now() + ttlMs).toISOString();
+    const { data, error } = await supabase
+      .from("whatsapp_sessions")
+      .update({ owned_by: ownerId, owner_expires_at: expiresIso, updated_at: nowIso })
+      .eq("business_id", businessId)
+      .eq("instance_name", instanceName)
+      .or(`owned_by.is.null,owned_by.eq.${ownerId},owner_expires_at.lt.${nowIso}`)
+      .select("owned_by");
+    if (error) {
+      console.warn(`[session-lock/${businessId}] No se pudo evaluar el lock (¿falta migración 031?): ${error.message}. Continúo (fail-open).`);
+      return true;
+    }
+    return (data?.length ?? 0) > 0;
+  } catch (err) {
+    console.warn(`[session-lock/${businessId}] Error en lock, continúo (fail-open):`, err);
+    return true;
+  }
+}
+
+/** Renueva el vencimiento del lock mientras este proceso siga siendo el dueño. */
+export async function renewSessionOwnership(
+  businessId: string,
+  instanceName: string,
+  ownerId: string,
+  ttlMs = 90_000
+): Promise<void> {
+  try {
+    const supabase = getSupabaseAdminClient();
+    await supabase
+      .from("whatsapp_sessions")
+      .update({ owner_expires_at: new Date(Date.now() + ttlMs).toISOString() })
+      .eq("business_id", businessId)
+      .eq("instance_name", instanceName)
+      .eq("owned_by", ownerId);
+  } catch {
+    // best-effort; el lock vencerá solo si dejamos de renovarlo.
+  }
+}
+
 export async function enqueueOutbox(
   conversationId: string,
   content: string,

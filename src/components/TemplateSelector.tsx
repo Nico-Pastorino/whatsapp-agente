@@ -140,7 +140,7 @@ export default function TemplateSelector({ profileIsEmpty, onApplied }: Props) {
             </span>
           )}
           {error && (
-            <span style={{ fontSize: 13, color: "#c0392b", fontWeight: 600 }}>
+            <span style={{ fontSize: 13, color: "var(--danger)", fontWeight: 600 }}>
               {error}
             </span>
           )}

@@ -341,8 +341,8 @@ function ItemCard({
               fontSize: 10,
               alignSelf: "flex-start",
               border: "none",
-              background: item.stock_status === "unavailable" ? "#ffeaea" : "#fff3cd",
-              color: item.stock_status === "unavailable" ? "#c0392b" : "#7a5800",
+              background: item.stock_status === "unavailable" ? "#ffeaea" : "var(--warning-tint)",
+              color: item.stock_status === "unavailable" ? "var(--danger)" : "var(--warning-ink)",
             }}
           >
             {STOCK_LABELS[item.stock_status]}
@@ -378,7 +378,7 @@ function ItemCard({
             color: "var(--muted)",
             disabled: toggling,
           },
-          { label: "Eliminar", onClick: onDelete, color: "#c0392b" },
+          { label: "Eliminar", onClick: onDelete, color: "var(--danger)" },
         ].map((action, i) => (
           <button
             key={i}
@@ -799,7 +799,7 @@ function ItemForm({
                     padding: "10px 12px",
                     borderRadius: 10,
                     border: "1px solid var(--hairline)",
-                    background: form.is_featured ? "#fffbeb" : "var(--surface)",
+                    background: form.is_featured ? "var(--warning-tint)" : "var(--surface)",
                     fontSize: 13,
                     color: "var(--ink)",
                   }}
@@ -864,21 +864,6 @@ function ItemForm({
                 />
               </div>
               </details>
-
-              {error && (
-                <div
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    background: "#fff0ee",
-                    border: "1px solid #fca5a5",
-                    fontSize: 13,
-                    color: "#b91c1c",
-                  }}
-                >
-                  {error}
-                </div>
-              )}
             </>
           )}
         </div>
@@ -888,12 +873,20 @@ function ItemForm({
           <div
             style={{
               display: "flex",
+              flexDirection: "column",
               gap: 10,
               padding: "14px 20px",
               borderTop: "1px solid var(--hairline)",
               flexShrink: 0,
             }}
           >
+            {/* Error siempre visible (footer fijo), no perdido al fondo del scroll. */}
+            {error && (
+              <div role="alert" style={{ padding: "8px 12px", borderRadius: 10, background: "var(--danger-tint)", border: "1px solid var(--danger-border)", fontSize: 13, color: "var(--danger-ink)" }}>
+                {error}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
             <button onClick={onClose} disabled={saving} className="atd-btn secondary" style={{ flex: 1 }}>
               Cancelar
             </button>
@@ -905,6 +898,7 @@ function ItemForm({
             >
               {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Agregar al catálogo"}
             </button>
+            </div>
           </div>
         )}
       </div>
@@ -1017,7 +1011,7 @@ function ImportModal({
           </div>
 
           {error && (
-            <div style={{ padding: "10px 14px", borderRadius: 10, background: "#fff0ee", border: "1px solid #fca5a5", fontSize: 13, color: "#b91c1c" }}>
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--danger-tint)", border: "1px solid var(--danger-border)", fontSize: 13, color: "var(--danger-ink)" }}>
               {error}
             </div>
           )}
@@ -1080,8 +1074,8 @@ function ImportModal({
                             <span className="atd-pill" style={{
                               border: "none",
                               fontSize: 10,
-                              background: item.status === "ready" ? "var(--green-tint)" : item.status === "duplicate" ? "#fff3cd" : "#fff0ee",
-                              color: item.status === "ready" ? "var(--green)" : item.status === "duplicate" ? "#7a5800" : "#b91c1c",
+                              background: item.status === "ready" ? "var(--green-tint)" : item.status === "duplicate" ? "var(--warning-tint)" : "var(--danger-tint)",
+                              color: item.status === "ready" ? "var(--green)" : item.status === "duplicate" ? "var(--warning-ink)" : "var(--danger-ink)",
                             }}>
                               {item.status === "ready" ? "Listo" : item.status === "duplicate" ? "Duplicado" : "Revisar"}
                             </span>
@@ -1117,6 +1111,11 @@ function ImportModal({
                   </table>
                 </div>
               </div>
+              {preview.items.filter((it) => it.status !== "empty").length > visibleItems.length && (
+                <p style={{ fontSize: 12, color: "var(--muted)", margin: 0, textAlign: "center" }}>
+                  Mostrando {visibleItems.length} filas para revisar. Se importarán las {saveable} válidas igual.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -1457,10 +1456,10 @@ export default function ItemCatalog() {
             margin: "10px 0 0",
             padding: "12px 16px",
             borderRadius: 12,
-            border: "1px solid #fca5a5",
-            background: "#fff0ee",
+            border: "1px solid var(--danger-border)",
+            background: "var(--danger-tint)",
             fontSize: 13,
-            color: "#b91c1c",
+            color: "var(--danger-ink)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1474,7 +1473,7 @@ export default function ItemCatalog() {
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: "#b91c1c",
+              color: "var(--danger-ink)",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -1492,10 +1491,10 @@ export default function ItemCatalog() {
             margin: "10px 0 0",
             padding: "10px 16px",
             borderRadius: 12,
-            border: "1px solid #fca5a5",
-            background: "#fff0ee",
+            border: "1px solid var(--danger-border)",
+            background: "var(--danger-tint)",
             fontSize: 13,
-            color: "#b91c1c",
+            color: "var(--danger-ink)",
             fontWeight: 500,
           }}
         >
@@ -1536,7 +1535,7 @@ export default function ItemCatalog() {
           ))}
         </div>
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--hairline-2)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <span style={{ fontSize: 12.5, color: loadError ? "#c0392b" : "var(--ink-3)" }}>
+          <span style={{ fontSize: 12.5, color: loadError ? "var(--danger)" : "var(--ink-3)" }}>
             {loadError ? "No sincronizado" : lastUpdated ? `Actualizado ${lastUpdated.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}` : "Listo para el asistente"}
           </span>
           <span style={{ fontSize: 12, color: "var(--muted)" }}>{state.count}/{state.limit === 9999 ? "∞" : state.limit}</span>
@@ -1552,9 +1551,9 @@ export default function ItemCatalog() {
               {state.count} / {state.limit === 9999 ? "∞" : state.limit}
             </strong>
           </span>
-          {atLimit && <span style={{ color: "#c0392b", fontWeight: 600 }}>Límite alcanzado</span>}
+          {atLimit && <span style={{ color: "var(--danger)", fontWeight: 600 }}>Límite alcanzado</span>}
           {pct >= 80 && !atLimit && (
-            <span style={{ color: "#d97706", fontWeight: 600 }}>Casi al límite ({Math.round(pct)}%)</span>
+            <span style={{ color: "var(--warning)", fontWeight: 600 }}>Casi al límite ({Math.round(pct)}%)</span>
           )}
         </div>
         {state.limit !== 9999 && (
@@ -1570,7 +1569,7 @@ export default function ItemCatalog() {
               style={{
                 height: "100%",
                 borderRadius: 99,
-                background: atLimit ? "#c0392b" : pct >= 80 ? "#d97706" : "var(--green)",
+                background: atLimit ? "var(--danger)" : pct >= 80 ? "var(--warning)" : "var(--green)",
                 width: `${pct}%`,
                 transition: "width 0.4s",
               }}
@@ -1579,7 +1578,7 @@ export default function ItemCatalog() {
         )}
         {atLimit && (
           <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <p style={{ fontSize: 12, color: "#c0392b", margin: 0 }}>
+            <p style={{ fontSize: 12, color: "var(--danger)", margin: 0 }}>
               Llegaste al límite de tu plan. Mejorá para agregar más productos.
             </p>
             <Link href="/app/plan" style={{ fontSize: 12, fontWeight: 700, color: "var(--green)", whiteSpace: "nowrap" }}>
@@ -1804,7 +1803,7 @@ export default function ItemCatalog() {
                   flex: 1,
                   padding: "10px 16px",
                   borderRadius: 12,
-                  background: "#c0392b",
+                  background: "var(--danger)",
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 600,

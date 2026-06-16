@@ -268,7 +268,7 @@ export default function TeamManagement() {
   if (!data) {
     return (
       <DashboardContentShell maxWidth={1180}>
-        <div style={{ maxWidth: 600, margin: "0 auto", borderRadius: 18, border: "1px solid #f5c2bb", background: "#fff0ee", padding: 20, color: "var(--accent)", fontSize: 14 }}>
+        <div style={{ maxWidth: 600, margin: "0 auto", borderRadius: 18, border: "1px solid var(--danger-border)", background: "var(--danger-tint)", padding: 20, color: "var(--accent)", fontSize: 14 }}>
           {error ?? "No se pudo cargar el equipo."}
         </div>
       </DashboardContentShell>
@@ -300,8 +300,8 @@ export default function TeamManagement() {
           <div style={{
             margin: 0,
             padding: "10px 14px", borderRadius: 12, fontSize: 13,
-            border: error ? "1px solid #f5c2bb" : "1px solid var(--green)",
-            background: error ? "#fff0ee" : "var(--green-tint)",
+            border: error ? "1px solid var(--danger-border)" : "1px solid var(--green)",
+            background: error ? "var(--danger-tint)" : "var(--green-tint)",
             color: error ? "var(--accent)" : "var(--green)",
           }}>
             {error ?? success}
@@ -337,8 +337,8 @@ export default function TeamManagement() {
         )}
 
         {isLimitReached && (
-          <div style={{ margin: 0, padding: "14px 16px", borderRadius: 14, border: "1px solid #ffe5a0", background: "#fffbeb" }}>
-            <p style={{ fontSize: 13, fontWeight: 500, color: "#7a5800", marginBottom: 10 }}>
+          <div style={{ margin: 0, padding: "14px 16px", borderRadius: 14, border: "1px solid var(--warning-border)", background: "var(--warning-tint)" }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: "var(--warning-ink)", marginBottom: 10 }}>
               Alcanzaste el límite de usuarios de tu plan.
             </p>
             <Link href="/app/plan" className="atd-btn primary sm" style={{ display: "inline-flex" }}>
@@ -405,7 +405,7 @@ export default function TeamManagement() {
                 </button>
               </div>
               {!data.can_invite && data.invite_block_reason && (
-                <p style={{ fontSize: 13, color: "#7a5800" }}>{data.invite_block_reason}</p>
+                <p style={{ fontSize: 13, color: "var(--warning-ink)" }}>{data.invite_block_reason}</p>
               )}
             </form>
           ) : (
@@ -419,7 +419,7 @@ export default function TeamManagement() {
                   width: typeof data.limit === "number" && data.limit > 0 ? `${Math.min(100, (data.used_total / data.limit) * 100)}%` : "0%",
                   height: "100%",
                   borderRadius: 999,
-                  background: isLimitReached ? "#c0392b" : "var(--green-soft)",
+                  background: isLimitReached ? "var(--danger)" : "var(--green-soft)",
                 }}
               />
           </div>
@@ -499,7 +499,7 @@ export default function TeamManagement() {
                             type="button"
                             onClick={() => handleRemove(member.id, member.email)}
                             disabled={rowBusy || member.role === "owner"}
-                            style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 13, fontWeight: 500, color: "#c0392b", cursor: "pointer", opacity: (rowBusy || member.role === "owner") ? 0.5 : 1 }}
+                            style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid var(--danger-border)", background: "var(--danger-tint)", fontSize: 13, fontWeight: 500, color: "var(--danger)", cursor: "pointer", opacity: (rowBusy || member.role === "owner") ? 0.5 : 1 }}
                           >
                             Quitar
                           </button>
@@ -564,7 +564,7 @@ export default function TeamManagement() {
                           type="button"
                           onClick={() => handleRevoke(invitation.id)}
                           disabled={rowBusy || invitation.status !== "pending"}
-                          style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #f5c2bb", background: "#fff0ee", fontSize: 12, fontWeight: 500, color: "#c0392b", cursor: "pointer", opacity: (rowBusy || invitation.status !== "pending") ? 0.5 : 1 }}
+                          style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid var(--danger-border)", background: "var(--danger-tint)", fontSize: 12, fontWeight: 500, color: "var(--danger)", cursor: "pointer", opacity: (rowBusy || invitation.status !== "pending") ? 0.5 : 1 }}
                         >
                           Revocar
                         </button>

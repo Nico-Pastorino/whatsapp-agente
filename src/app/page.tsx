@@ -231,7 +231,7 @@ export default function HomePage() {
                   <p style={{ fontSize: 15.5, fontWeight: 600, color: "var(--ink)", margin: 0, lineHeight: 1.4 }}>“{m.text}”</p>
                   <span className="mono" style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}>{m.time}</span>
                 </div>
-                <p style={{ fontSize: 12.5, color: "#c0392b", margin: 0, fontWeight: 500 }}>✕ {m.status}</p>
+                <p style={{ fontSize: 12.5, color: "var(--danger)", margin: 0, fontWeight: 500 }}>✕ {m.status}</p>
               </div>
             ))}
           </Reveal>

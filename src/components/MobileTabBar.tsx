@@ -13,7 +13,9 @@ interface Props {
 
 function activeTab(activeView: MobileView): string {
   if (activeView === "conversations") return "chats";
-  if (activeView === "business" || activeView === "catalog") return "business";
+  // Catálogo es el núcleo del producto: la tab abre el catálogo, y "Mi negocio"
+  // (business) también la deja activa porque están emparentados.
+  if (activeView === "catalog" || activeView === "business") return "catalog";
   if (activeView === "home") return "home";
   if (activeView === "plan") return "plan";
   if (activeView === "agenda") return "agenda";
@@ -30,7 +32,7 @@ export default function MobileTabBar({ activeView, role = "owner" }: Props) {
   // y entra "Turnos" (agenda) para no dejar la barra vacía.
   const allTabs: Array<{ key: string; view: DashboardView; label: string; Icon: React.ComponentType<{ size?: number }>; href: string; center?: boolean }> = [
     { key: "chats",    view: "conversations", label: "Chats",   Icon: Chat,     href: "/app/conversations" },
-    { key: "business", view: "business",      label: "Asistente", Icon: Shop,     href: "/app/business" },
+    { key: "catalog",  view: "catalog",       label: "Catálogo", Icon: Shop,    href: "/app/catalog" },
     { key: "home",     view: "home",          label: "Inicio",  Icon: Spark,    href: "/app/home", center: true },
     { key: "plan",     view: "plan",          label: "Plan",    Icon: Layers,   href: "/app/plan" },
     { key: "agenda",   view: "agenda",        label: "Turnos",  Icon: Calendar, href: "/app/agenda" },

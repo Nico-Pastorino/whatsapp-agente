@@ -224,7 +224,7 @@ export default function AgendaScreen() {
 
           <main>
           {loadError && (
-            <div className="atd-card" style={{ padding: 14, marginBottom: 14, color: "#b42318", borderColor: "#fca5a5" }}>
+            <div className="atd-card" style={{ padding: 14, marginBottom: 14, color: "var(--danger-ink)", borderColor: "var(--danger-border)" }}>
               {loadError}
             </div>
           )}
@@ -326,7 +326,7 @@ export default function AgendaScreen() {
               </div>
             </Field>
 
-            {error && <p style={{ color: "#b42318", fontSize: 13, margin: "4px 0 0" }}>{error}</p>}
+            {error && <p style={{ color: "var(--danger-ink)", fontSize: 13, margin: "4px 0 0" }}>{error}</p>}
 
             <button onClick={save} disabled={saving} className="atd-btn green" style={{ width: "100%", marginTop: 14, opacity: saving ? 0.6 : 1 }}>
               {saving ? "Guardando…" : editing ? "Guardar cambios" : "Crear reserva"}
@@ -400,7 +400,7 @@ function AppointmentCard({
         )}
         <button onClick={() => onEdit(a)} className="atd-chip">Editar</button>
         {a.status !== "cancelled" && (
-          <button onClick={() => onStatus(a, "cancelled")} className="atd-chip" style={{ color: "#b42318" }}>Cancelar</button>
+          <button onClick={() => onStatus(a, "cancelled")} className="atd-chip" style={{ color: "var(--danger-ink)" }}>Cancelar</button>
         )}
       </div>
     </div>

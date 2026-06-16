@@ -16,11 +16,25 @@ import pino from "pino";
 import qrcodeTerminal from "qrcode-terminal";
 import path from "node:path";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 import { getBaileysAuthBasePath, getWorkerInstanceName } from "../env";
-import { setConnectionState, getConnectionState, updateWorkerHeartbeat } from "../db";
+import {
+  setConnectionState,
+  getConnectionState,
+  updateWorkerHeartbeat,
+  tryAdoptSessionOwnership,
+  renewSessionOwnership,
+} from "../db";
 import { setupMessageHandler } from "./handler";
 
 const logger = pino({ level: "silent" });
+
+// Anti-ban: id único de este proceso worker, para el lock de sesión única.
+const PROCESS_ID = randomUUID();
+// El lock requiere la migración 031. Se activa con WA_SESSION_LOCK=true.
+function isSessionLockEnabled(): boolean {
+  return process.env.WA_SESSION_LOCK?.toLowerCase() === "true";
+}
 
 export interface BotHandle {
   sock: WASocket;
@@ -42,6 +56,16 @@ interface SessionState {
    * startSession (un socket nuevo permite un código nuevo).
    */
   pairingRequested: boolean;
+  /**
+   * Anti-ban: contador de intentos de reconexión consecutivos para aplicar
+   * backoff exponencial. Se resetea al conectar (connection === "open").
+   */
+  reconnectAttempts: number;
+  /**
+   * Anti-ban: marcas de tiempo (ms) de los últimos envíos, para limitar el
+   * volumen por hora y no parecer un bot que dispara mensajes en ráfaga.
+   */
+  sendTimestamps: number[];
 }
 
 // Map de businessId → estado de sesión
@@ -63,6 +87,8 @@ function getOrCreateSession(businessId: string): SessionState {
       manualDisconnectInProgress: false,
       connected: false,
       pairingRequested: false,
+      reconnectAttempts: 0,
+      sendTimestamps: [],
     });
   }
   return sessions.get(businessId)!;
@@ -87,6 +113,18 @@ export async function startSession(businessId: string): Promise<void> {
 
   const authDir = getAuthDir(businessId);
   const instanceName = getWorkerInstanceName();
+
+  // Anti-ban: lock de sesión única. Si otra instancia viva ya gestiona este
+  // número, NO abrimos un segundo socket (evita conflicto 440 → baneo).
+  if (isSessionLockEnabled()) {
+    const adopted = await tryAdoptSessionOwnership(businessId, instanceName, PROCESS_ID).catch(() => true);
+    if (!adopted) {
+      console.warn(
+        `[worker/${businessId}] Otra instancia tiene la sesión activa — no abro socket (lock anti-doble-sesión).`
+      );
+      return;
+    }
+  }
 
   if (!fs.existsSync(authDir)) {
     fs.mkdirSync(authDir, { recursive: true });
@@ -142,6 +180,9 @@ export async function startSession(businessId: string): Promise<void> {
     await updateWorkerHeartbeat(authDir, businessId).catch((err) => {
       console.error(`[worker/${businessId}] Error actualizando heartbeat:`, err);
     });
+    if (isSessionLockEnabled()) {
+      renewSessionOwnership(businessId, instanceName, PROCESS_ID).catch(() => undefined);
+    }
 
     if (qr) {
       console.log(`[worker/${businessId}] QR generado — escanea desde el dashboard`);
@@ -191,7 +232,10 @@ export async function startSession(businessId: string): Promise<void> {
 
     if (connection === "open") {
       const openSession = sessions.get(businessId);
-      if (openSession) openSession.connected = true;
+      if (openSession) {
+        openSession.connected = true;
+        openSession.reconnectAttempts = 0; // reconexión exitosa: reiniciamos backoff
+      }
       const rawId = sock.user?.id ?? "";
       const phone = rawId.split(":")[0];
       console.log(`[worker/${businessId}] Conectado como ${phone}`);
@@ -248,15 +292,40 @@ export async function startSession(businessId: string): Promise<void> {
   await updateWorkerHeartbeat(authDir, businessId);
 }
 
+// Anti-ban: backoff de reconexión.
+const RECONNECT_BASE_MS = 5_000;
+const RECONNECT_MAX_MS = 5 * 60_000; // tope 5 min
+// Code 440 = connectionReplaced (otra sesión abrió WhatsApp Web del mismo número).
+// Reconectar agresivamente "roba" la sesión en ping-pong y degrada el número:
+// tras varios intentos dejamos la sesión quieta y esperamos acción del dueño.
+const MAX_REPLACED_ATTEMPTS = 5;
+
 function scheduleReconnect(businessId: string, code: number | undefined): void {
   const session = sessions.get(businessId);
   if (!session) return;
   if (session.manualDisconnectInProgress) return;
   if (session.reconnectTimer) return;
 
-  // Code 440 = connectionReplaced — esperar más para evitar loop
-  const delay = code === 440 ? 15_000 : 5_000;
-  console.log(`[worker/${businessId}] Reconectando en ${delay / 1000}s...`);
+  session.reconnectAttempts += 1;
+  const attempt = session.reconnectAttempts;
+
+  // Ante 440 repetido, frenamos para no entrar en loop con la otra sesión.
+  if (code === 440 && attempt > MAX_REPLACED_ATTEMPTS) {
+    console.warn(
+      `[worker/${businessId}] Conexión reemplazada ${attempt} veces (otra sesión activa). ` +
+        `Dejo la sesión quieta para no degradar el número. Reconectá desde el dashboard cuando corresponda.`
+    );
+    session.reconnectAttempts = 0;
+    return;
+  }
+
+  // Backoff exponencial con jitter: 5s, 10s, 20s, 40s… con tope de 5 min.
+  // El 440 arranca un escalón más arriba (espera más desde el principio).
+  const base = code === 440 ? RECONNECT_BASE_MS * 2 : RECONNECT_BASE_MS;
+  const expo = Math.min(base * 2 ** (attempt - 1), RECONNECT_MAX_MS);
+  const jitter = Math.floor(Math.random() * 1_000);
+  const delay = expo + jitter;
+  console.log(`[worker/${businessId}] Reconectando en ${Math.round(delay / 1000)}s (intento ${attempt})...`);
 
   session.reconnectTimer = setTimeout(() => {
     session.reconnectTimer = null;
@@ -304,4 +373,78 @@ export function isSessionConnected(businessId: string): boolean {
 
 export function getAllSessionBusinessIds(): string[] {
   return Array.from(sessions.keys());
+}
+
+// ── Anti-ban: envío con presencia humana, jitter y tope por hora ──────────────
+// Baileys imita a WhatsApp Web: enviar al instante, en ráfaga y sin "escribiendo…"
+// es un patrón de bot que acelera el baneo. Este emisor:
+//   1) Limita el volumen por hora por número (cap configurable).
+//   2) Muestra "escribiendo…" y espera un tiempo proporcional al texto (con jitter).
+//   3) Recién entonces envía.
+// Todos los envíos salientes (respuestas de IA, outbox del dashboard, avisos)
+// deberían pasar por acá.
+
+const MAX_SENDS_PER_HOUR = Number(process.env.WA_MAX_SENDS_PER_HOUR) || 250;
+const TYPING_MIN_MS = 700;
+const TYPING_MAX_MS = 3_500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** ¿El número superó el tope de envíos en la última hora? (poda la ventana). */
+function isOverHourlyCap(session: SessionState): boolean {
+  const now = Date.now();
+  const cutoff = now - 60 * 60_000;
+  session.sendTimestamps = session.sendTimestamps.filter((t) => t > cutoff);
+  return session.sendTimestamps.length >= MAX_SENDS_PER_HOUR;
+}
+
+export class SendRateLimitedError extends Error {
+  constructor() {
+    super("WhatsApp send rate cap reached for this hour");
+    this.name = "SendRateLimitedError";
+  }
+}
+
+/**
+ * Envía un texto por WhatsApp simulando comportamiento humano y respetando el
+ * tope horario. Devuelve el resultado de Baileys (con key.id) o lanza si no hay
+ * sesión o se alcanzó el tope.
+ */
+export async function sendThrottledText(
+  businessId: string,
+  jid: string,
+  text: string
+): Promise<Awaited<ReturnType<WASocket["sendMessage"]>>> {
+  const session = sessions.get(businessId);
+  const sock = session?.handle?.sock;
+  if (!session || !sock) {
+    throw new Error(`No hay sesión activa de WhatsApp para ${businessId}`);
+  }
+
+  if (isOverHourlyCap(session)) {
+    console.warn(
+      `[wa/throttle/${businessId}] Tope de ${MAX_SENDS_PER_HOUR} envíos/hora alcanzado — se difiere el envío`
+    );
+    throw new SendRateLimitedError();
+  }
+
+  // "Escribiendo…": tiempo proporcional a la longitud del texto, con jitter, acotado.
+  const typingMs = Math.min(
+    TYPING_MAX_MS,
+    Math.max(TYPING_MIN_MS, text.length * 28 + Math.floor(Math.random() * 600))
+  );
+  try {
+    await sock.presenceSubscribe(jid).catch(() => undefined);
+    await sock.sendPresenceUpdate("composing", jid).catch(() => undefined);
+    await sleep(typingMs);
+    await sock.sendPresenceUpdate("paused", jid).catch(() => undefined);
+  } catch {
+    // La presencia es best-effort: si falla, igual enviamos.
+  }
+
+  const result = await sock.sendMessage(jid, { text });
+  session.sendTimestamps.push(Date.now());
+  return result;
 }

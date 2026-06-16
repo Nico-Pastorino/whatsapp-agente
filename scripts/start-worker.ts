@@ -48,6 +48,7 @@ import {
   getAllSessionBusinessIds,
   isSessionConnected,
   beginManualDisconnect,
+  sendThrottledText,
 } from "../src/lib/baileys/client";
 import { getWorkerInstanceName, getBaileysAuthBasePath } from "../src/lib/env";
 import { refreshStaleSources } from "../src/lib/knowledge-sources";
@@ -162,8 +163,8 @@ setInterval(async () => {
           console.warn(`[outbox/${businessId}] warning: intentando enviar a @lid`);
         }
 
-        const { sock } = handle;
-        const sentResult = await sock.sendMessage(targetJid, { text: item.content });
+        // Anti-ban: envío con presencia, jitter y tope horario.
+        const sentResult = await sendThrottledText(businessId, targetJid, item.content);
         const sentId = sentResult?.key?.id;
         if (sentId) {
           await setOutboxExternalId(item.id, sentId, businessId).catch(() => undefined);
@@ -204,8 +205,8 @@ setInterval(async () => {
     const pending = await getPendingInternalNotifications(10, businessId).catch(() => []);
     for (const notif of pending) {
       try {
-        const { sock } = handle;
-        await sock.sendMessage(notif.target_jid, { text: notif.content });
+        // Anti-ban: envío con presencia, jitter y tope horario.
+        await sendThrottledText(businessId, notif.target_jid, notif.content);
         await markInternalNotificationSent(notif.id, businessId);
         console.log(`[notify/${businessId}] sent ok=${notif.id} event=${notif.event_type}`);
       } catch (err) {

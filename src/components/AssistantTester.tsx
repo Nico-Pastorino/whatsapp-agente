@@ -127,7 +127,7 @@ export default function AssistantTester({ onClose }: { onClose: () => void }) {
         </div>
 
         {error && (
-          <div style={{ padding: "8px 16px", fontSize: 12.5, color: "#c0392b", background: "var(--surface)", borderTop: "1px solid var(--hairline)" }}>
+          <div style={{ padding: "8px 16px", fontSize: 12.5, color: "var(--danger)", background: "var(--surface)", borderTop: "1px solid var(--hairline)" }}>
             {error}
           </div>
         )}

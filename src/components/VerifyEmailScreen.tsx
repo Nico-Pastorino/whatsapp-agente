@@ -82,7 +82,7 @@ export default function VerifyEmailScreen({ email }: { email: string }) {
         </div>
 
         {notice && <p style={{ fontSize: 13, color: "var(--green-soft)", marginTop: 14, fontWeight: 500 }}>{notice}</p>}
-        {error && <p style={{ fontSize: 13, color: "#b42318", marginTop: 14 }}>{error}</p>}
+        {error && <p style={{ fontSize: 13, color: "var(--danger-ink)", marginTop: 14 }}>{error}</p>}
       </div>
     </div>
   );

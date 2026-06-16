@@ -13,7 +13,7 @@
   --ink:          #0c1410;
   --ink-2:        #2a3331;
   --ink-3:        #4a534f;
-  --muted:        #76776f;
+  --muted:        #5f655d;
   --hairline:     rgba(12, 20, 16, 0.08);
   --hairline-2:   rgba(12, 20, 16, 0.14);
   --hairline-3:   rgba(12, 20, 16, 0.22);
@@ -35,6 +35,19 @@
   --accent-soft:  #ffe1d8;
   --accent-ink:   #2b0c04;
   --on-accent:    #2b0c04;
+
+  /* Estados semánticos (error / advertencia / éxito). Tokenizados para que el
+     modo oscuro funcione; antes había hex hardcodeados que no cambiaban. */
+  --danger:       #c0392b;
+  --danger-tint:  #fff0ee;
+  --danger-border:#f5c2bb;
+  --danger-ink:   #b42318;
+  --warning:      #b8860b;
+  --warning-tint: #fffbeb;
+  --warning-border:#ffe5a0;
+  --warning-ink:  #854d0e;
+  --success:      #1f8f5f;
+  --success-tint: var(--green-tint);
 
   /* "Feature card" oscura (hero del inicio, etc.) — oscura en ambos temas */
   --feature-bg:      #0c1410;
@@ -100,6 +113,18 @@
   --accent-soft:  rgba(255, 122, 92, 0.18);
   --accent-ink:   #ffd7cb;
   --on-accent:    #2b0c04;
+
+  /* Estados semánticos en modo oscuro. */
+  --danger:       #ff6b5c;
+  --danger-tint:  rgba(255, 107, 92, 0.16);
+  --danger-border:rgba(255, 107, 92, 0.34);
+  --danger-ink:   #ff9d92;
+  --warning:      #e3b15f;
+  --warning-tint: rgba(227, 177, 95, 0.15);
+  --warning-border:rgba(227, 177, 95, 0.34);
+  --warning-ink:  #f3d49a;
+  --success:      #3ddc97;
+  --success-tint: var(--green-tint);
 
   --feature-bg:      #11201a;
   --feature-bg-soft: rgba(255, 255, 255, 0.06);
@@ -569,8 +594,11 @@ body {
 .atd-btn.accent  { background: var(--accent); color: var(--on-accent); }
 .atd-btn.ghost   { background: var(--glass); color: var(--ink); border-color: var(--glass-border); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); box-shadow: inset 0 1px 0 var(--glass-glow); }
 .atd-btn.secondary { background: var(--surface-2); color: var(--ink-2); border-color: var(--hairline); }
+.atd-btn.danger  { background: var(--danger-tint); color: var(--danger-ink); border-color: var(--danger-border); }
+.atd-btn.danger:hover:not(:disabled) { background: color-mix(in oklab, var(--danger) 18%, var(--danger-tint)); }
 .atd-btn.lg      { height: 52px; padding: 0 22px; font-size: 16px; }
-.atd-btn.sm      { height: 34px; padding: 0 12px; font-size: 13px; }
+/* min-height 40px (área táctil): subimos de 34 para acercarnos al mínimo accesible. */
+.atd-btn.sm      { height: 40px; padding: 0 14px; font-size: 13px; }
 
 /* Chip de acción (turnos, etc.) */
 .atd-chip {
@@ -626,6 +654,11 @@ body {
 .atd-bub {
   max-width: 78%; padding: 9px 12px 8px;
   border-radius: 18px; font-size: 14px; line-height: 1.4;
+  /* Respetar saltos de línea del mensaje y cortar texto largo / URLs sin espacios
+     para que no desborden la burbuja horizontalmente. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .atd-bub.in  { background: var(--surface-2); color: var(--ink); border-top-left-radius: 6px; align-self: flex-start; }
 .atd-bub.out { background: var(--green-tint); color: var(--green-ink); border-top-right-radius: 6px; align-self: flex-end; }
@@ -642,6 +675,20 @@ body {
   outline: none; transition: border-color .15s, box-shadow .15s, background .15s;
 }
 .atd-input:focus { border-color: var(--green-soft); box-shadow: 0 0 0 4px color-mix(in oklab, var(--green) 18%, transparent); background: var(--glass-strong); }
+
+/* Accesibilidad: foco visible por teclado en todos los controles interactivos.
+   Antes solo .atd-input tenía foco; la navegación por teclado era invisible. */
+:focus-visible {
+  outline: 2px solid var(--green-soft);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.atd-btn:focus-visible,
+.atd-tab:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--green-soft);
+  outline-offset: 2px;
+}
 .atd-input::placeholder { color: var(--muted); }
 
 /* ── Page header ───────────────────────────────────────────── */
@@ -753,9 +800,11 @@ body {
   }
   .conversation-panel {
     position: relative;
-    padding-top: 84px;
   }
-  .conversation-list {
+  /* El padding-top solo aplica cuando está el trial banner (antes dejaba 84px
+     de aire muerto arriba del chat cuando no había banner). */
+  .app-mobile-content.has-trial-banner .conversation-panel,
+  .app-mobile-content.has-trial-banner .conversation-list {
     padding-top: 84px;
   }
   .conversation-messages {
@@ -1166,8 +1215,14 @@ body {
   .liquid-enter { animation: liquid-enter .42s var(--ease-ios) both; }
 }
 @keyframes liquid-enter {
+  /* IMPORTANTE: el keyframe final NO debe dejar transform ni filter residual.
+     Con animation-fill-mode: both, un `filter: blur(0)` retenido convierte a
+     .liquid-container en "containing block" de sus descendientes position:fixed,
+     y los modales (.atd-overlay) quedaban anclados al contenedor scrolleado en
+     vez del viewport (había que scrollear para verlos). Sin filter retenido,
+     los overlays vuelven a anclarse al viewport y aparecen centrados al frente. */
   from { opacity: 0; transform: translateY(10px) scale(.985); filter: blur(5px); }
-  to { opacity: 1; transform: none; filter: blur(0); }
+  to { opacity: 1; }
 }
 
 /* ── Landing: animaciones y microinteracciones ─────────────── */

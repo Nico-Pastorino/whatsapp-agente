@@ -270,7 +270,7 @@ export default function BusinessConfig() {
           <section className="atd-card" style={{ padding: 14 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
               <div>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Asistente {progress}% listo</h2>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: 0 }}>Datos del negocio · {progress}% completo</h2>
                 <p style={{ fontSize: 12.5, color: "var(--ink-3)", margin: "4px 0 0" }}>
                   {nextStep ? `Falta: ${nextStep.label}` : "Listo para probar."}
                 </p>
@@ -615,7 +615,7 @@ export default function BusinessConfig() {
                       style={{
                         paddingRight: 36,
                         borderColor: profile.notify_phone && !phoneValidation.valid
-                          ? "#fca5a5"
+                          ? "var(--danger-border)"
                           : profile.notify_phone && phoneValidation.valid
                           ? "var(--green)"
                           : undefined,

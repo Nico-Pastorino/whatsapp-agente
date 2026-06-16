@@ -211,7 +211,7 @@ function OnboardingGuide({
         </div>
 
         {checkoutError && (
-          <div className="rounded-xl px-4 py-3 text-sm" style={{ border: "1px solid rgba(180,35,24,0.3)", background: "rgba(180,35,24,0.08)", color: "#b42318" }}>
+          <div className="rounded-xl px-4 py-3 text-sm" style={{ border: "1px solid rgba(180,35,24,0.3)", background: "rgba(180,35,24,0.08)", color: "var(--danger-ink)" }}>
             {checkoutError}
           </div>
         )}
@@ -479,7 +479,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
   if (!plan || error) {
     return (
       <div style={{ height: "100%", background: "var(--bg)", padding: 20 }}>
-        <div className="atd-card" style={{ padding: 16, color: "#c0392b", background: "rgba(192,57,43,0.07)", borderColor: "rgba(192,57,43,0.2)" }}>
+        <div className="atd-card" style={{ padding: 16, color: "var(--danger)", background: "rgba(192,57,43,0.07)", borderColor: "rgba(192,57,43,0.2)" }}>
           {error ?? "No se pudo cargar el estado del plan."}
         </div>
       </div>
@@ -557,13 +557,13 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
         )}
 
         {plan.status === "trial" && plan.can_use_app && (plan.days_left_trial ?? 0) <= 3 && (
-          <div style={{ margin: "0 0 14px", padding: 12, borderRadius: 12, background: "rgba(234,179,8,0.12)", color: "#854d0e", fontSize: 13 }}>
+          <div style={{ margin: "0 0 14px", padding: 12, borderRadius: 12, background: "rgba(234,179,8,0.12)", color: "var(--warning-ink)", fontSize: 13 }}>
             Tu prueba gratuita termina pronto. Activá tu plan para que el bot siga respondiendo sin interrupciones.
           </div>
         )}
 
         {checkoutError && (
-          <div style={{ margin: "0 0 12px", padding: 12, borderRadius: 12, background: "rgba(192,57,43,0.1)", color: "#c0392b", fontSize: 13 }}>
+          <div style={{ margin: "0 0 12px", padding: 12, borderRadius: 12, background: "rgba(192,57,43,0.1)", color: "var(--danger)", fontSize: 13 }}>
             {checkoutError}
           </div>
         )}
@@ -625,7 +625,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
               { label: "Mensajes IA", used: plan.ai_replies_count, limit: plan.monthly_ai_reply_limit },
             ].map(({ label, used, limit }, i) => {
               const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
-              const barColor = pct >= 90 ? "#c0392b" : pct >= 70 ? "var(--human)" : "var(--green-soft)";
+              const barColor = pct >= 90 ? "var(--danger)" : pct >= 70 ? "var(--human)" : "var(--green-soft)";
               return (
                 <div key={label} style={{ padding: "10px 0", borderTop: i ? "1px dashed var(--hairline-2)" : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6, color: "var(--ink-2)" }}>
@@ -732,7 +732,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setShowCancelModal(false)} className="atd-btn ghost sm" style={{ flex: 1 }}>Mantener</button>
-              <button onClick={handleCancelPlan} disabled={cancelLoading} className="atd-btn sm" style={{ flex: 1, background: "#c0392b", color: "#fff", border: "none" }}>
+              <button onClick={handleCancelPlan} disabled={cancelLoading} className="atd-btn sm" style={{ flex: 1, background: "var(--danger)", color: "#fff", border: "none" }}>
                 {cancelLoading ? "..." : "Cancelar al vencer"}
               </button>
             </div>

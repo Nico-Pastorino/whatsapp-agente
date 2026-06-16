@@ -117,7 +117,7 @@ export default function KnowledgeSourcesSection() {
                 <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {s.label ? `${s.label} · ${sourceUrl}` : sourceUrl}
                 </p>
-                <p style={{ fontSize: 11.5, margin: "2px 0 0", color: s.status === "error" ? "#b42318" : "var(--muted)" }}>
+                <p style={{ fontSize: 11.5, margin: "2px 0 0", color: s.status === "error" ? "var(--danger-ink)" : "var(--muted)" }}>
                   {s.status === "error"
                     ? s.error_message ?? "Error al leer el link"
                     : contentLength > 0
@@ -194,7 +194,7 @@ export default function KnowledgeSourcesSection() {
       )}
 
       {notice && <p style={{ fontSize: 13, color: "var(--green-soft)", marginTop: 10, fontWeight: 500 }}>{notice}</p>}
-      {error && <p style={{ fontSize: 13, color: "#b42318", marginTop: 10 }}>{error}</p>}
+      {error && <p style={{ fontSize: 13, color: "var(--danger-ink)", marginTop: 10 }}>{error}</p>}
     </section>
   );
 }

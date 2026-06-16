@@ -82,7 +82,7 @@ function TrendBadge({ pct }: { pct: number | null }) {
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 3,
       fontSize: 12, fontWeight: 600,
-      color: up ? "var(--green-soft)" : "#c0392b",
+      color: up ? "var(--green-soft)" : "var(--danger)",
     }}>
       {up ? "↑" : "↓"} {Math.abs(pct)}% vs semana anterior
     </span>
@@ -155,7 +155,7 @@ export default function StatsScreen() {
   if (error || !stats) {
     return (
       <div style={{ height: "100%", background: "var(--bg)", padding: 20 }}>
-        <div className="atd-card" style={{ padding: 16, color: "#c0392b", background: "rgba(192,57,43,0.07)", borderColor: "rgba(192,57,43,0.2)" }}>
+        <div className="atd-card" style={{ padding: 16, color: "var(--danger)", background: "rgba(192,57,43,0.07)", borderColor: "rgba(192,57,43,0.2)" }}>
           {error ?? "No se pudieron cargar las métricas."}
         </div>
       </div>

@@ -167,7 +167,7 @@ export default function HomeScreen() {
       <div className="liquid-container liquid-enter" style={{ display: "grid", gap: 16 }}>
         <header className="page-header">
           <div>
-            <div className="page-sub">centro de control</div>
+            <div className="page-sub">tu negocio</div>
             <h1 className="page-title">{data.businessName}</h1>
           </div>
           <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
