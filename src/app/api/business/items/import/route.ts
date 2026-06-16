@@ -9,6 +9,7 @@ type ImportField =
   | "ignore"
   | "name"
   | "price"
+  | "promo_price"
   | "description"
   | "category"
   | "stock_status"
@@ -22,6 +23,7 @@ interface PreviewItem {
   item_type: CatalogItemType;
   name: string;
   price: string;
+  promo_price: string;
   description: string;
   category: string;
   stock_status: StockStatus;
@@ -32,7 +34,10 @@ interface PreviewItem {
 
 const FIELD_ALIASES: Record<Exclude<ImportField, "ignore">, string[]> = {
   name: ["nombre", "producto", "servicio", "item", "articulo", "artículo", "titulo", "título", "name"],
-  price: ["precio", "price", "importe", "valor", "monto", "$", "ars", "usd"],
+  // promo_price ANTES que price: "precio promo" incluye "precio", así que debe
+  // evaluarse primero para no caer en price.
+  promo_price: ["precio promo", "promo", "precio oferta", "oferta", "precio descuento", "descuento", "promocion", "promoción"],
+  price: ["precio", "price", "importe", "valor", "monto", "$", "ars", "usd", "precio lista", "precio normal"],
   description: ["descripcion", "descripción", "detalle", "detalles", "descripcion corta", "description"],
   category: ["categoria", "categoría", "rubro", "familia", "linea", "línea", "category"],
   stock_status: ["stock", "disponibilidad", "estado", "available", "availability"],
@@ -152,7 +157,12 @@ function rowsToObjects(matrix: unknown[][]): { headers: string[]; rows: Record<s
 async function readWorkbookRows(file: File, buffer: ArrayBuffer): Promise<{ headers: string[]; rows: Record<string, unknown>[] }> {
   const name = file.name.toLowerCase();
   if (name.endsWith(".csv") || name.endsWith(".tsv")) {
-    const text = new TextDecoder("utf-8").decode(buffer);
+    // Excel suele exportar CSV en Latin-1 (Windows-1252). Si la decodificación
+    // UTF-8 deja caracteres de reemplazo (tildes/ñ rotas), reintentamos en latin1.
+    let text = new TextDecoder("utf-8").decode(buffer);
+    if (text.includes("�")) {
+      text = new TextDecoder("latin1").decode(buffer);
+    }
     return rowsToObjects(parseDelimited(text, name.endsWith(".tsv") ? "\t" : ","));
   }
   const rows = await readSheet(Buffer.from(buffer));
@@ -185,6 +195,8 @@ function buildPreview(input: {
     const name = clean(byField.name, 140);
     const rawPrice = clean(byField.price, 120);
     const price = rawPrice && !isPlaceholderPrice(rawPrice) ? rawPrice : "";
+    const rawPromo = clean(byField.promo_price, 120);
+    const promo_price = rawPromo && !isPlaceholderPrice(rawPromo) ? rawPromo : "";
     const description = clean(byField.description, 900);
     const category = clean(byField.category, 100);
     const notes = clean(byField.notes, 500);
@@ -212,6 +224,7 @@ function buildPreview(input: {
       item_type,
       name,
       price,
+      promo_price,
       description,
       category,
       stock_status,
@@ -231,7 +244,7 @@ function previewItemToCatalogInput(item: PreviewItem): CatalogItemInput {
     category: item.category || null,
     description: item.description || null,
     price: item.price || null,
-    promo_price: null,
+    promo_price: item.promo_price || null,
     stock_status: item.stock_status,
     duration: null,
     requires_booking: item.item_type === "service" ? false : false,
