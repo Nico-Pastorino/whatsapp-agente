@@ -41,11 +41,10 @@ export async function POST(req: NextRequest) {
       // All content now goes into `extra`; knowledge_base is kept empty for new applies
       const _templateKnowledgeBase = buildKnowledgeBaseFromTemplate(template);
       const templateToneCode = mapTemplateTone(template);
-      const templateProducts = template.suggestedCategories.map((cat) => ({
-        name: cat,
-        price: "",
-        description: "",
-      }));
+      // Las plantillas NO crean productos. Antes generaban ítems con name=categoría
+      // y precio/descripción vacíos, que ensuciaban el catálogo y el contador, y el
+      // asistente no podía usarlos (sin precio = placeholder). Las categorías
+      // sugeridas se usan solo como ayuda/autocompletado al cargar productos.
       const templateBookingConfig = template.bookingConfig ?? "";
 
       if (mode === "replace") {
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
           {
             name: current.name,
             description: template.botGoal,
-            products: templateProducts,
+            products: current.products ?? [],
             extra: templateExtra,
             knowledge_base: "",
             booking_enabled: Boolean(templateBookingConfig),
@@ -68,15 +67,8 @@ export async function POST(req: NextRequest) {
           ? current.description
           : template.botGoal;
 
-        const existingNames = new Set(
-          (current.products ?? []).map((p) => p.name.toLowerCase().trim())
-        );
-        const newProducts = [
-          ...(current.products ?? []),
-          ...templateProducts.filter(
-            (p) => !existingNames.has(p.name.toLowerCase().trim())
-          ),
-        ];
+        // No tocamos el catálogo: las plantillas solo aportan textos/configuración.
+        const newProducts = current.products ?? [];
 
         const existingExtra = current.extra?.trim() ?? "";
         // Evitar duplicación: si esta plantilla ya fue aplicada (el bloque ya

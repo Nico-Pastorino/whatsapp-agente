@@ -15,7 +15,7 @@ interface CatalogState {
 }
 
 type TabFilter = "all" | "product" | "service" | "promotion" | "featured";
-type ImportField = "ignore" | "name" | "price" | "description" | "category" | "stock_status" | "notes" | "item_type";
+type ImportField = "ignore" | "name" | "price" | "promo_price" | "description" | "category" | "stock_status" | "notes" | "item_type";
 
 interface FormState {
   item_type: CatalogItemType;
@@ -119,6 +119,7 @@ const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   ignore: "Ignorar",
   name: "Nombre",
   price: "Precio",
+  promo_price: "Precio promo",
   description: "Descripción",
   category: "Categoría",
   stock_status: "Stock",
@@ -131,6 +132,7 @@ interface ImportPreviewItem {
   item_type: CatalogItemType;
   name: string;
   price: string;
+  promo_price: string;
   description: string;
   category: string;
   stock_status: StockStatus;
@@ -642,6 +644,20 @@ function ItemForm({
                 />
               </div>
 
+              <details className="catalog-more-details">
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--ink-2)",
+                    padding: "8px 0",
+                    listStyle: "none",
+                  }}
+                >
+                  Más detalles (opcional)
+                </summary>
+
               {/* Product-specific */}
               {!isService && (
                 <>
@@ -847,6 +863,7 @@ function ItemForm({
                   className={`${inputClass} resize-none`}
                 />
               </div>
+              </details>
 
               {error && (
                 <div
@@ -895,12 +912,29 @@ function ItemForm({
   );
 }
 
+function downloadCatalogTemplate() {
+  const rows = [
+    ["Nombre", "Precio", "Precio promo", "Categoría", "Descripción", "Stock"],
+    ["iPhone 15 Pro", "$1.200.000", "$1.100.000", "Celulares", "128GB, sellado, 1 año de garantía", "Disponible"],
+    ["Funda silicona", "$8.000", "", "Accesorios", "Varios colores", "Bajo pedido"],
+  ];
+  const csv = rows.map((r) => r.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(",")).join("\n");
+  const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "modelo-catalogo-atende.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function ImportModal({
   busy,
   error,
   preview,
   onPreview,
   onMappingChange,
+  onItemChange,
   onCommit,
   onClose,
 }: {
@@ -909,6 +943,7 @@ function ImportModal({
   preview: ImportPreview | null;
   onPreview: (file: File, defaultType: CatalogItemType, mapping?: Record<string, ImportField>) => void;
   onMappingChange: (mapping: Record<string, ImportField>) => void;
+  onItemChange: (row: number, patch: Partial<ImportPreviewItem>) => void;
   onCommit: () => void;
   onClose: () => void;
 }) {
@@ -917,6 +952,15 @@ function ImportModal({
 
   const visibleItems = preview?.items.filter((item) => item.status !== "empty").slice(0, 80) ?? [];
   const saveable = preview?.items.filter((item) => item.status !== "duplicate" && item.status !== "empty" && item.name).length ?? 0;
+  const cellInputStyle: React.CSSProperties = {
+    width: "100%",
+    border: "1px solid var(--hairline)",
+    borderRadius: 6,
+    padding: "6px 8px",
+    fontSize: 12.5,
+    background: "var(--surface)",
+    color: "var(--ink)",
+  };
 
   return (
     <div className="atd-overlay sheet" style={{ zIndex: 140 }}>
@@ -959,6 +1003,17 @@ function ImportModal({
                 {busy ? "Leyendo..." : "Vista previa"}
               </button>
             </div>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "10px 0 0" }}>
+              ¿No sabés cómo armarlo?{" "}
+              <button
+                type="button"
+                onClick={downloadCatalogTemplate}
+                style={{ background: "none", border: "none", padding: 0, color: "var(--green)", fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}
+              >
+                Descargá el Excel modelo
+              </button>{" "}
+              y completá tus productos. Después podés corregir cualquier dato en la vista previa.
+            </p>
           </div>
 
           {error && (
@@ -1012,7 +1067,7 @@ function ImportModal({
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
                     <thead>
                       <tr style={{ background: "var(--surface-2)", color: "var(--ink-2)", textAlign: "left" }}>
-                        {["Fila", "Estado", "Nombre", "Precio", "Descripción", "Categoría", "Stock", "Notas"].map((head) => (
+                        {["Fila", "Estado", "Nombre", "Precio", "Promo", "Descripción", "Categoría", "Stock"].map((head) => (
                           <th key={head} style={{ padding: "10px 12px", fontWeight: 700, whiteSpace: "nowrap" }}>{head}</th>
                         ))}
                       </tr>
@@ -1021,7 +1076,7 @@ function ImportModal({
                       {visibleItems.map((item) => (
                         <tr key={item.row} style={{ borderTop: "1px solid var(--hairline)" }}>
                           <td style={{ padding: "10px 12px", color: "var(--muted)" }}>{item.row}</td>
-                          <td style={{ padding: "10px 12px", minWidth: 120 }}>
+                          <td style={{ padding: "10px 12px", minWidth: 110 }}>
                             <span className="atd-pill" style={{
                               border: "none",
                               fontSize: 10,
@@ -1034,12 +1089,28 @@ function ImportModal({
                               <p style={{ margin: "5px 0 0", color: "var(--muted)", fontSize: 11 }}>{item.warnings.join(" ")}</p>
                             )}
                           </td>
-                          <td style={{ padding: "10px 12px", minWidth: 150, color: "var(--ink)" }}>{item.name || "—"}</td>
-                          <td style={{ padding: "10px 12px", minWidth: 100 }}>{item.price || "—"}</td>
-                          <td style={{ padding: "10px 12px", minWidth: 220 }}>{item.description || "—"}</td>
-                          <td style={{ padding: "10px 12px", minWidth: 120 }}>{item.category || "—"}</td>
-                          <td style={{ padding: "10px 12px", minWidth: 100 }}>{STOCK_LABELS[item.stock_status]}</td>
-                          <td style={{ padding: "10px 12px", minWidth: 160 }}>{item.notes || "—"}</td>
+                          <td style={{ padding: "6px 8px", minWidth: 160 }}>
+                            <input value={item.name} onChange={(e) => onItemChange(item.row, { name: e.target.value })} style={cellInputStyle} placeholder="Nombre" />
+                          </td>
+                          <td style={{ padding: "6px 8px", minWidth: 110 }}>
+                            <input value={item.price} onChange={(e) => onItemChange(item.row, { price: e.target.value })} style={cellInputStyle} placeholder="—" />
+                          </td>
+                          <td style={{ padding: "6px 8px", minWidth: 110 }}>
+                            <input value={item.promo_price} onChange={(e) => onItemChange(item.row, { promo_price: e.target.value })} style={cellInputStyle} placeholder="—" />
+                          </td>
+                          <td style={{ padding: "6px 8px", minWidth: 220 }}>
+                            <input value={item.description} onChange={(e) => onItemChange(item.row, { description: e.target.value })} style={cellInputStyle} placeholder="—" />
+                          </td>
+                          <td style={{ padding: "6px 8px", minWidth: 130 }}>
+                            <input value={item.category} onChange={(e) => onItemChange(item.row, { category: e.target.value })} style={cellInputStyle} placeholder="—" />
+                          </td>
+                          <td style={{ padding: "6px 8px", minWidth: 120 }}>
+                            <select value={item.stock_status} onChange={(e) => onItemChange(item.row, { stock_status: e.target.value as StockStatus })} style={cellInputStyle}>
+                              <option value="available">Disponible</option>
+                              <option value="unavailable">Sin stock</option>
+                              <option value="on_demand">Bajo pedido</option>
+                            </select>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1231,6 +1302,34 @@ export default function ItemCatalog() {
     } finally {
       setImportBusy(false);
     }
+  }
+
+  function handleImportItemChange(row: number, patch: Partial<ImportPreviewItem>) {
+    setImportPreview((prev) => {
+      if (!prev) return prev;
+      const items = prev.items.map((item) => {
+        if (item.row !== row) return item;
+        const next = { ...item, ...patch };
+        // Recalcular estado tras la edición (duplicado/vacío se conservan).
+        if (next.status !== "duplicate" && next.status !== "empty") {
+          next.status = next.name && next.price && next.description ? "ready" : "needs_review";
+          next.warnings = [
+            !next.name ? "Falta nombre." : null,
+            !next.price ? "Falta precio." : null,
+            !next.description ? "Falta descripcion." : null,
+          ].filter(Boolean) as string[];
+        }
+        return next;
+      });
+      const summary = {
+        total: items.length,
+        ready: items.filter((i) => i.status === "ready").length,
+        needs_review: items.filter((i) => i.status === "needs_review").length,
+        duplicate: items.filter((i) => i.status === "duplicate").length,
+        empty: items.filter((i) => i.status === "empty").length,
+      };
+      return { ...prev, items, summary };
+    });
   }
 
   async function handleImportCommit() {
@@ -1669,6 +1768,7 @@ export default function ItemCatalog() {
           onMappingChange={(mapping) => {
             if (importPreview) setImportPreview({ ...importPreview, mapping });
           }}
+          onItemChange={handleImportItemChange}
           onCommit={handleImportCommit}
           onClose={() => {
             setShowImport(false);

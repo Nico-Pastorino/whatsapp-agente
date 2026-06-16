@@ -120,10 +120,9 @@ export default function HomeScreen() {
       // Pasos de activación de alto nivel (Centro de control).
       const activation: ActivationStep[] = [
         { key: "connect", label: "Conectá tu WhatsApp", done: isConnected, href: "/app/connect" },
-        { key: "train", label: "Entrená tu asistente", done: assistantPct >= 100, href: "/app/business" },
         { key: "products", label: "Cargá tus productos o servicios", done: productCount > 0, href: "/app/catalog" },
+        { key: "train", label: "Completá los datos de tu negocio", done: assistantPct >= 100, href: "/app/business" },
         { key: "test", label: "Probá cómo responde", done: conversations.length > 0, href: "/app/business#probar-asistente" },
-        { key: "team", label: "Invitá a tu equipo", done: teamCount > 1, href: "/app/team" },
       ];
       setSteps(activation);
 
