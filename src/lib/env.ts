@@ -30,3 +30,20 @@ export function getBaileysAuthBasePath(): string {
 export function getWhatsappProvider(): string {
   return readEnv("WHATSAPP_PROVIDER") ?? DEFAULT_WHATSAPP_PROVIDER;
 }
+
+/**
+ * Fuentes externas (links web / scraping) como fuente de conocimiento de la IA.
+ *
+ * Quedó DESACTIVADO por defecto: el scraping de páginas web inyectaba ruido
+ * (menús, footers, banners) y snapshots desactualizados al prompt, lo que
+ * degradaba la calidad y producía respuestas inventadas. El conocimiento del
+ * asistente ahora se construye desde datos estructurados del negocio
+ * (catálogo, FAQs, horarios, promos).
+ *
+ * Para reactivarlo (server/worker): ENABLE_EXTERNAL_SOURCES=true
+ * Para reactivar la UI en el dashboard: NEXT_PUBLIC_ENABLE_EXTERNAL_SOURCES=true
+ */
+export function isExternalSourcesEnabled(): boolean {
+  const value = readEnv("ENABLE_EXTERNAL_SOURCES")?.toLowerCase();
+  return value === "true" || value === "1" || value === "yes";
+}

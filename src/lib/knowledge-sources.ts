@@ -11,6 +11,7 @@
  */
 
 import { getSupabaseAdminClient } from "./supabase";
+import { isExternalSourcesEnabled } from "./env";
 
 export interface KnowledgeSource {
   id: string;
@@ -368,6 +369,9 @@ export async function deleteKnowledgeSource(id: string, businessId: string): Pro
 export async function getEnabledSourcesContent(
   businessId: string
 ): Promise<Array<{ label: string; content: string; sourceType: KnowledgeSource["source_type"]; lastFetchedAt: string | null }>> {
+  // Desactivado por defecto: las fuentes externas no se inyectan al prompt de la IA
+  // salvo que se reactiven explícitamente con ENABLE_EXTERNAL_SOURCES.
+  if (!isExternalSourcesEnabled()) return [];
   const sources = await listKnowledgeSources(businessId).catch(() => []);
   return sources
     .filter((s) => s.enabled && s.content)
@@ -384,6 +388,8 @@ export async function getEnabledSourcesContent(
  * de más de `staleHours` horas. Errores no cortan el loop.
  */
 export async function refreshStaleSources(staleHours = 6): Promise<number> {
+  // Si las fuentes externas están desactivadas, no gastamos red ni costo refrescándolas.
+  if (!isExternalSourcesEnabled()) return 0;
   const supabase = getSupabaseAdminClient();
   const threshold = new Date(Date.now() - staleHours * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase

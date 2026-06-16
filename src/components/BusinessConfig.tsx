@@ -138,10 +138,14 @@ function AdvancedSummary({
   );
 }
 
+// Flag para reactivar la sección de links externos en el dashboard.
+// Por defecto oculta: el conocimiento se carga desde el catálogo y los datos del negocio.
+const SHOW_EXTERNAL_SOURCES = process.env.NEXT_PUBLIC_ENABLE_EXTERNAL_SOURCES === "true";
+
 function TrainingPriorityGuide() {
   return (
     <section className="business-priority-note">
-      <strong>Prioridad:</strong> catálogo y links → datos frecuentes → preguntas. Si falta algo, no inventa.
+      <strong>Prioridad:</strong> catálogo → datos frecuentes → preguntas. Si falta algo, el asistente lo consulta en vez de inventar.
     </section>
   );
 }
@@ -356,14 +360,16 @@ export default function BusinessConfig() {
           </div>
         </section>
 
-        <section id="fuentes-externas" className="atd-card" style={{ padding: 20 }}>
-          <SectionHeader
-            label="Carga rápida"
-            title="Link externo"
-            description="Web, carta o planilla con precios y stock."
-          />
-          <KnowledgeSourcesSection />
-        </section>
+        {SHOW_EXTERNAL_SOURCES && (
+          <section id="fuentes-externas" className="atd-card" style={{ padding: 20 }}>
+            <SectionHeader
+              label="Avanzado"
+              title="Link externo"
+              description="Planilla con precios y stock (opcional)."
+            />
+            <KnowledgeSourcesSection />
+          </section>
+        )}
 
         <section id="tono-respuesta" className="atd-card wide" style={{ padding: 20 }}>
           <SectionHeader
