@@ -175,12 +175,13 @@ async function handlePaymentEvent(mpPaymentId: string) {
     status: string;
     business_id: string;
     plan_code: string;
+    amount: number;
   };
 
   if (externalRef) {
     const { data } = await supabase
       .from("payments")
-      .select("id, status, business_id, plan_code")
+      .select("id, status, business_id, plan_code, amount")
       .eq("id", externalRef)
       .maybeSingle();
     paymentRecord = data;
@@ -189,7 +190,7 @@ async function handlePaymentEvent(mpPaymentId: string) {
   if (!paymentRecord && preapprovalId) {
     const { data } = await supabase
       .from("payments")
-      .select("id, status, business_id, plan_code")
+      .select("id, status, business_id, plan_code, amount")
       .eq("mp_preapproval_id", preapprovalId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -199,6 +200,13 @@ async function handlePaymentEvent(mpPaymentId: string) {
 
   if (!paymentRecord) {
     console.warn(`[mp/webhook] payment record not found for payment=${mpPaymentId}`);
+    return;
+  }
+
+  // Idempotencia: MP reintenta webhooks. Si ya procesamos este pago como aprobado,
+  // no volvemos a recalcular el período (evita extender la suscripción en reintentos).
+  if (paymentRecord.status === "approved" && payment.status === "approved") {
+    console.log(`[mp/webhook] payment ${mpPaymentId} ya estaba aprobado, omito reproceso`);
     return;
   }
 
@@ -222,6 +230,18 @@ async function handlePaymentEvent(mpPaymentId: string) {
     .eq("id", paymentRecord.id);
 
   if (payment.status === "approved") {
+    // Validación de monto: el plan se activa solo si lo realmente pagado coincide
+    // con el monto que registramos al crear el checkout (tolerancia 1 unidad por
+    // redondeos). Evita que un monto manipulado active un plan que no se pagó.
+    const paidAmount = Number(payment.transaction_amount ?? 0);
+    const expectedAmount = Number(paymentRecord.amount ?? 0);
+    if (expectedAmount > 0 && Math.abs(paidAmount - expectedAmount) > 1) {
+      console.error(
+        `[mp/webhook] MONTO NO COINCIDE payment=${mpPaymentId} pagado=${paidAmount} esperado=${expectedAmount} business=${paymentRecord.business_id}. No se activa el plan.`
+      );
+      return;
+    }
+
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     await supabase
       .from("subscriptions")
@@ -281,6 +301,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[mp/webhook] unexpected error:", err instanceof Error ? err.message : err);
-    return NextResponse.json({ ok: true });
+    // Devolvemos 5xx para que Mercado Pago reintente: un fallo transitorio de DB
+    // no debe dejar un pago aprobado sin activar el plan (MP no reintenta ante 200).
+    return NextResponse.json({ error: "Internal error, please retry" }, { status: 500 });
   }
 }
