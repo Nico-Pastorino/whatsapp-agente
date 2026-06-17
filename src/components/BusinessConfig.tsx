@@ -74,24 +74,50 @@ function serializeFaqs(faqs: FaqItem[]): string {
     .join("\n\n");
 }
 
+/** Reglas del negocio → líneas "REGLA: ..." (las lee la IA como obligatorias). */
+function serializeRules(rules: string[]): string {
+  return rules
+    .map((r) => r.trim())
+    .filter(Boolean)
+    .map((r) => `REGLA: ${r}`)
+    .join("\n\n");
+}
+
 /**
- * Parser tolerante: interpreta bloques "P:/R:" (también "Pregunta:/Respuesta:").
- * Lo que no matchea se conserva como texto legacy para no perder contenido de
- * usuarios que ya tenían texto libre en knowledge_base.
+ * Parser tolerante de knowledge_base: separa reglas ("REGLA: ..."), FAQs
+ * ("P:/R:" o "Pregunta:/Respuesta:") y texto libre legacy. Nada se pierde:
+ * lo que no matchea queda como legacy. Sin cambios de esquema.
  */
-function parseFaqs(text: string): { faqs: FaqItem[]; legacy: string } {
+function parseKnowledge(text: string): { rules: string[]; faqs: FaqItem[]; legacy: string } {
+  const rules: string[] = [];
   const faqs: FaqItem[] = [];
   const legacyParts: string[] = [];
   for (const block of (text ?? "").split(/\n\s*\n/)) {
-    const m = block.match(/^\s*(?:P|Pregunta)\s*:\s*([\s\S]*?)\n\s*(?:R|Respuesta)\s*:\s*([\s\S]*)$/i);
-    if (m && m[1].trim() && m[2].trim()) {
-      faqs.push({ q: m[1].trim(), a: m[2].trim() });
-    } else if (block.trim()) {
-      legacyParts.push(block.trim());
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+    const faqMatch = trimmed.match(/^\s*(?:P|Pregunta)\s*:\s*([\s\S]*?)\n\s*(?:R|Respuesta)\s*:\s*([\s\S]*)$/i);
+    if (faqMatch && faqMatch[1].trim() && faqMatch[2].trim()) {
+      faqs.push({ q: faqMatch[1].trim(), a: faqMatch[2].trim() });
+      continue;
     }
+    if (/^\s*REGLA\s*:/i.test(trimmed)) {
+      for (const line of trimmed.split(/\n/)) {
+        const lm = line.match(/^\s*REGLA\s*:\s*(.+)$/i);
+        if (lm && lm[1].trim()) rules.push(lm[1].trim());
+      }
+      continue;
+    }
+    legacyParts.push(trimmed);
   }
-  return { faqs, legacy: legacyParts.join("\n\n") };
+  return { rules, faqs, legacy: legacyParts.join("\n\n") };
 }
+
+const RULE_EXAMPLES = [
+  "Aceptamos plan canje desde el iPhone 13 en adelante",
+  "No tomamos equipos golpeados ni con piezas cambiadas",
+  "Hacemos envíos solo dentro de la ciudad",
+  "La seña para reservar es del 50%",
+];
 
 function SectionHeader({
   label,
@@ -171,7 +197,9 @@ export default function BusinessConfig() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [catalogCount, setCatalogCount] = useState(0);
-  // FAQs estructuradas (se serializan a knowledge_base al guardar).
+  // Reglas del negocio y FAQs (se serializan juntas a knowledge_base al guardar).
+  const [rules, setRules] = useState<string[]>([]);
+  const [newRule, setNewRule] = useState("");
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [faqLegacy, setFaqLegacy] = useState("");
   const [newFaqQ, setNewFaqQ] = useState("");
@@ -194,9 +222,10 @@ export default function BusinessConfig() {
           notify_events: Array.isArray(data.notify_events) ? data.notify_events : [],
           response_tone: typeof data.response_tone === "string" ? data.response_tone : "",
         });
-        const parsedFaqs = parseFaqs(data.knowledge_base ?? "");
-        setFaqs(parsedFaqs.faqs);
-        setFaqLegacy(parsedFaqs.legacy);
+        const parsed = parseKnowledge(data.knowledge_base ?? "");
+        setRules(parsed.rules);
+        setFaqs(parsed.faqs);
+        setFaqLegacy(parsed.legacy);
         setLoading(false);
       });
     fetch("/api/business/items", { cache: "no-store" })
@@ -223,8 +252,11 @@ export default function BusinessConfig() {
   async function handleSave() {
     setSaving(true);
     setSaveError(null);
-    // FAQs estructuradas + texto previo (legacy) componen knowledge_base.
-    const knowledgeBase = [faqLegacy.trim(), serializeFaqs(faqs)].filter(Boolean).join("\n\n");
+    // Reglas + FAQs + texto previo (legacy) componen knowledge_base. Las reglas
+    // van primero para que la IA las lea como condiciones obligatorias.
+    const knowledgeBase = [serializeRules(rules), serializeFaqs(faqs), faqLegacy.trim()]
+      .filter(Boolean)
+      .join("\n\n");
     try {
       const res = await fetch("/api/business", {
         method: "POST",
@@ -334,11 +366,84 @@ export default function BusinessConfig() {
           </div>
         </section>
 
+        <section id="reglas-negocio" className="atd-card" style={{ padding: 20 }}>
+          <SectionHeader
+            label="Importante"
+            title="Reglas del negocio"
+            description="Frases simples que el asistente respeta SIEMPRE. Qué aceptás, qué no y tus condiciones."
+          />
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input
+              value={newRule}
+              onChange={(e) => setNewRule(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const t = newRule.trim();
+                  if (t) { setRules((prev) => (prev.includes(t) ? prev : [...prev, t])); setNewRule(""); setSaved(false); }
+                }
+              }}
+              placeholder="Ej: Aceptamos plan canje desde el iPhone 13"
+              className={inputClass}
+              style={{ flex: 1 }}
+            />
+            <button
+              type="button"
+              className="atd-btn primary sm"
+              disabled={!newRule.trim()}
+              onClick={() => {
+                const t = newRule.trim();
+                if (t) { setRules((prev) => (prev.includes(t) ? prev : [...prev, t])); setNewRule(""); setSaved(false); }
+              }}
+            >
+              Agregar
+            </button>
+          </div>
+
+          {rules.length === 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>Tocá un ejemplo para sumarlo:</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {RULE_EXAMPLES.map((ex) => (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => { setRules((prev) => (prev.includes(ex) ? prev : [...prev, ex])); setSaved(false); }}
+                    style={{ fontSize: 12, padding: "5px 10px", borderRadius: 999, border: "1px solid var(--hairline-2)", background: "var(--surface-2)", color: "var(--ink-2)", cursor: "pointer" }}
+                  >
+                    + {ex}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {rules.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {rules.map((rule, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, background: "var(--surface-2)" }}>
+                  <span aria-hidden="true" style={{ color: "var(--green)", flexShrink: 0, fontWeight: 700 }}>✓</span>
+                  <span style={{ flex: 1, fontSize: 13.5, color: "var(--ink)" }}>{rule}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setRules((prev) => prev.filter((_, j) => j !== i)); setSaved(false); }}
+                    aria-label="Eliminar regla"
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid var(--hairline)", background: "var(--surface)", color: "var(--muted)", cursor: "pointer", fontSize: 15, lineHeight: 1, flexShrink: 0 }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section id="info-clave" className="atd-card" style={{ padding: 20 }}>
           <SectionHeader
             label="Respuestas"
             title="Datos frecuentes"
-            description="Horarios, ubicación, pagos, envíos y reglas."
+            description="Horarios, ubicación, pagos y envíos."
           />
           <textarea
             value={profile.extra}

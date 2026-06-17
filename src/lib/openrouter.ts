@@ -116,7 +116,7 @@ function normalizeAction(raw: Record<string, unknown> | null): ConversationActio
   };
 }
 
-async function buildSystemPrompt(businessId: string): Promise<string> {
+async function buildSystemPrompt(businessId: string, conversationSummary?: string | null): Promise<string> {
   const context = await buildBusinessAIContext(businessId);
   if (!context) return SYSTEM_PROMPT;
 
@@ -129,17 +129,27 @@ async function buildSystemPrompt(businessId: string): Promise<string> {
     hasExternalSources: context.stats.externalSources > 0,
   });
 
-  return `${context.prompt}\n\n${rules}`;
+  // Memoria: resumen de lo hablado hasta ahora (lo que ya quiso, datos dados,
+  // objeciones). Ayuda en conversaciones largas sin reenviar todo el historial.
+  const summary = conversationSummary?.trim()
+    ? `\n\nRESUMEN DE LA CONVERSACIÓN HASTA AHORA (memoria — usalo para no repreguntar lo ya dicho y para retomar donde quedaron):\n${sanitizeForPrompt(conversationSummary, 600)}`
+    : "";
+
+  return `${context.prompt}\n\n${rules}${summary}`;
 }
 
-export async function generateReply(history: Message[], businessId: string): Promise<string> {
+export async function generateReply(
+  history: Message[],
+  businessId: string,
+  conversationSummary?: string | null
+): Promise<string> {
   if (!API_KEY) {
     throw new Error(
       "Falta la API key para el LLM. Configurá OPENAI_API_KEY (OpenAI) o OPENROUTER_API_KEY (OpenRouter) en el entorno del worker."
     );
   }
 
-  const systemPrompt = await buildSystemPrompt(businessId);
+  const systemPrompt = await buildSystemPrompt(businessId, conversationSummary);
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },

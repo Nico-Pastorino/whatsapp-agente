@@ -4,7 +4,7 @@ import { toDashboardAuthResponse, withActiveRoleDashboardBusinessContext } from 
 import {
   getTemplateById,
   buildExtraFromTemplate,
-  buildKnowledgeBaseFromTemplate,
+  buildRulesBlockFromTemplate,
   mapTemplateTone,
 } from "@/lib/business-templates";
 
@@ -38,8 +38,9 @@ export async function POST(req: NextRequest) {
 
       const current = await getBusinessProfile(businessId);
       const templateExtra = buildExtraFromTemplate(template);
-      // All content now goes into `extra`; knowledge_base is kept empty for new applies
-      const _templateKnowledgeBase = buildKnowledgeBaseFromTemplate(template);
+      // Reglas de negocio de ejemplo del rubro → van a knowledge_base como "REGLA: ..."
+      // para que aparezcan en la lista "Reglas del negocio" y el comerciante las edite.
+      const templateRulesBlock = buildRulesBlockFromTemplate(template);
       const templateToneCode = mapTemplateTone(template);
       // Las plantillas NO crean productos. Antes generaban ítems con name=categoría
       // y precio/descripción vacíos, que ensuciaban el catálogo y el contador, y el
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
             description: template.botGoal,
             products: current.products ?? [],
             extra: templateExtra,
-            knowledge_base: "",
+            knowledge_base: templateRulesBlock,
             booking_enabled: Boolean(templateBookingConfig),
             booking_config: templateBookingConfig,
             response_tone: templateToneCode,
@@ -83,7 +84,8 @@ export async function POST(req: NextRequest) {
           ? existingExtra
           : `${existingExtra}\n\n---\nPlantilla: ${template.name}\n${templateExtra}`;
 
-        // In merge mode, don't touch knowledge_base if it has content (backwards compat)
+        // Merge: si el negocio ya tiene reglas/FAQs cargadas, las respetamos (no
+        // pisamos lo del comerciante). Si está vacío, sembramos las reglas del rubro.
         const existingKnowledgeBase = current.knowledge_base?.trim() ?? "";
 
         await setBusinessProfile(
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
             description: newDescription,
             products: newProducts,
             extra: newExtra,
-            knowledge_base: existingKnowledgeBase || "",
+            knowledge_base: existingKnowledgeBase || templateRulesBlock,
             booking_enabled: current.booking_enabled || Boolean(templateBookingConfig),
             booking_config: current.booking_config?.trim()
               ? current.booking_config

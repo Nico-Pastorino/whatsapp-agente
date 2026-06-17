@@ -96,6 +96,7 @@ export {
   resendBusinessInvitation,
   userBelongsToBusiness,
   updateWorkerHeartbeat,
+  updateConversationSummary,
   tryAdoptSessionOwnership,
   renewSessionOwnership,
   removeBusinessMember,

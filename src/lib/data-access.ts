@@ -2698,6 +2698,25 @@ export async function updateHumanActivity(
   if (error) throw error;
 }
 
+/**
+ * Memoria de conversación: guarda un resumen corto (interés, datos dados,
+ * objeciones) por conversación. Best-effort: si falta la migración 032 o falla,
+ * no rompe nada (el handler lo llama con .catch).
+ */
+export async function updateConversationSummary(
+  conversationId: string,
+  summary: string,
+  businessId = getBusinessId()
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("conversations")
+    .update({ ai_summary: summary.slice(0, 1000), ai_summary_updated_at: new Date().toISOString() })
+    .eq("business_id", businessId)
+    .eq("id", conversationId);
+  if (error) throw error;
+}
+
 // How long (minutes) without human activity before a HUMAN-mode conversation auto-returns to AI.
 export const HUMAN_INACTIVITY_MINUTES = 30;
 

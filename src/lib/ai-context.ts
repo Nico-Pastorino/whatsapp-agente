@@ -133,7 +133,31 @@ const MAX_KNOWLEDGE_CHARS = 2000;
 const MAX_BOOKING_CHARS = 1200;
 const MAX_DESCRIPTION_CHARS = 700;
 
+// "knowledge_pack" cacheado: el contexto del negocio cambia poco, pero el worker
+// lo reconstruía leyendo Supabase en CADA mensaje (perfil + catálogo + fuentes).
+// Cacheamos el resultado por business_id con TTL corto: menos lecturas/egress y
+// menos latencia. Tras editar datos, los cambios se ven dentro del TTL (≈60s).
+interface ContextCacheEntry {
+  value: BusinessAIContext | null;
+  expiresAt: number;
+}
+const contextCache = new Map<string, ContextCacheEntry>();
+const CONTEXT_CACHE_TTL_MS = 60_000;
+
+/** Fuerza el recálculo del contexto de un negocio (p. ej. tras guardar cambios). */
+export function invalidateBusinessAIContext(businessId: string): void {
+  contextCache.delete(businessId);
+}
+
 export async function buildBusinessAIContext(businessId: string): Promise<BusinessAIContext | null> {
+  const cached = contextCache.get(businessId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const value = await buildBusinessAIContextUncached(businessId);
+  contextCache.set(businessId, { value, expiresAt: Date.now() + CONTEXT_CACHE_TTL_MS });
+  return value;
+}
+
+async function buildBusinessAIContextUncached(businessId: string): Promise<BusinessAIContext | null> {
   const [profile, items, externalSources] = await Promise.all([
     getBusinessProfile(businessId).catch(() => null),
     listActiveItemsForPrompt(businessId).catch(() => []),
@@ -165,11 +189,14 @@ export async function buildBusinessAIContext(businessId: string): Promise<Busine
   appendCatalog(lines, items);
 
   const knowledge = [profile.extra, profile.knowledge_base].filter(Boolean).join("\n\n");
-  lines.push("", "DATOS FRECUENTES Y PREGUNTAS (FUENTE SECUNDARIA):");
+  lines.push(
+    "",
+    "REGLAS, CONDICIONES Y PREGUNTAS FRECUENTES DEL NEGOCIO (informacion oficial — respetala al pie de la letra, NO la contradigas):"
+  );
   if (knowledge) {
     lines.push(sanitizeForPrompt(knowledge, MAX_KNOWLEDGE_CHARS));
   } else {
-    lines.push("No hay datos frecuentes adicionales cargados.");
+    lines.push("No hay reglas ni condiciones adicionales cargadas.");
   }
 
   if (externalSources.length > 0) {

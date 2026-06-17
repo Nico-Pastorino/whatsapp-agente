@@ -821,6 +821,97 @@ export const BUSINESS_TEMPLATES: BusinessTemplate[] = [
   },
 ];
 
+/**
+ * Reglas de NEGOCIO de ejemplo por rubro (condiciones concretas, no instrucciones
+ * técnicas). Se precargan en la lista "Reglas del negocio" al aplicar una plantilla,
+ * para que el comerciante solo las EDITE con sus valores reales en vez de pensarlas
+ * desde cero. Son ejemplos editables; por eso van con valores típicos entre <…>.
+ */
+const TEMPLATE_SUGGESTED_RULES: Record<string, string[]> = {
+  tech_store: [
+    "Aceptamos plan canje desde el iPhone 13 en adelante",
+    "No tomamos equipos golpeados, con pantalla rota o piezas cambiadas",
+    "Todos los equipos tienen <6> meses de garantía",
+    "Hacemos envíos a todo el país; el costo lo coordina el equipo",
+  ],
+  clothing: [
+    "Aceptamos cambios dentro de los <30> días con la etiqueta puesta",
+    "No hacemos devolución de dinero, solo cambio por otro producto",
+    "Envío sin cargo en compras superiores a $<monto>",
+  ],
+  hair_salon: [
+    "Para reservar pedimos una seña del <50>%",
+    "Las cancelaciones se avisan con al menos <24> horas",
+    "Atendemos solo con turno previo",
+  ],
+  restaurant: [
+    "El delivery es solo dentro de <la ciudad / zona>",
+    "El pedido mínimo para delivery es de $<monto>",
+    "Las reservas de mesa se confirman con el equipo",
+  ],
+  events: [
+    "La edad mínima de ingreso es <18> años",
+    "La promo en la entrada es hasta las <1> hs",
+    "Las reservas VIP requieren consumición mínima de $<monto>",
+  ],
+  gym: [
+    "Ofrecemos <1> clase de prueba gratis",
+    "Para inscribirse se pide DNI y apto médico",
+    "La cuota se abona por mes adelantado",
+  ],
+  clinic: [
+    "Atendemos por <obras sociales: …> y también particular",
+    "Los turnos se sacan con anticipación, no por orden de llegada",
+    "Nunca damos diagnósticos ni indicaciones médicas por chat",
+  ],
+  real_estate: [
+    "Para alquilar se piden <garantía propietaria / recibo de sueldo>",
+    "Los honorarios son <…>",
+    "Las visitas se coordinan con un asesor",
+  ],
+  dealership: [
+    "Tomamos usados en parte de pago según tasación",
+    "La financiación es a partir de <…> con DNI y comprobante de ingresos",
+    "Los precios pueden variar; el equipo confirma el valor final",
+  ],
+  education: [
+    "La inscripción se confirma con el pago de la primera cuota",
+    "El certificado se entrega al completar el <…>% de asistencia",
+    "Los cupos son limitados por curso",
+  ],
+  tech_support: [
+    "Cobramos $<monto> de diagnóstico, que se descuenta si se hace la reparación",
+    "No damos precio final sin revisar el equipo",
+    "Las reparaciones tienen <…> de garantía",
+  ],
+  tourism_lodging: [
+    "Para reservar pedimos una seña del <30>%",
+    "El check-in es a partir de las <14> y el check-out hasta las <10>",
+    "Las cancelaciones sin cargo son hasta <…> días antes",
+  ],
+  sports_courts: [
+    "Para reservar la cancha pedimos una seña",
+    "Si llueve se reprograma el turno, no se devuelve la seña",
+    "El alquiler es por hora",
+  ],
+  general: [
+    "No hacemos envíos / hacemos envíos a <zona>",
+    "Aceptamos <efectivo, transferencia, Mercado Pago>",
+    "Los precios pueden cambiar; si hay duda, el equipo confirma",
+  ],
+};
+
+/** Reglas de ejemplo (editables) para un rubro. Vacío si el rubro no tiene. */
+export function getSuggestedRulesForTemplate(id: string): string[] {
+  return TEMPLATE_SUGGESTED_RULES[id] ?? [];
+}
+
+/** Reglas serializadas para guardar en knowledge_base (formato "REGLA: ..."). */
+export function buildRulesBlockFromTemplate(template: BusinessTemplate): string {
+  const rules = getSuggestedRulesForTemplate(template.id);
+  return rules.map((r) => `REGLA: ${r}`).join("\n\n");
+}
+
 export function getTemplateById(id: string): BusinessTemplate | undefined {
   return BUSINESS_TEMPLATES.find((t) => t.id === id);
 }

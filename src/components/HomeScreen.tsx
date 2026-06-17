@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Arrow } from "./atende/Icons";
 import { Avatar } from "./atende/Icons";
+import OnboardingWizard from "./OnboardingWizard";
 import {
   buildAssistantChecklist,
   assistantProgress,
@@ -55,6 +56,7 @@ export default function HomeScreen() {
   });
   const [steps, setSteps] = useState<ActivationStep[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -193,6 +195,22 @@ export default function HomeScreen() {
           </div>
         </header>
 
+        {!loading && data.productCount === 0 && (
+          <button
+            type="button"
+            onClick={() => setShowWizard(true)}
+            className="liquid-card"
+            style={{ display: "flex", alignItems: "center", gap: 14, padding: 18, cursor: "pointer", textAlign: "left", border: "1px solid var(--green)", width: "100%" }}
+          >
+            <span style={{ fontSize: 26, flexShrink: 0 }}>✨</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: "block", fontSize: 15.5, fontWeight: 700, color: "var(--ink)" }}>Configurá tu asistente en 3 pasos</span>
+              <span style={{ display: "block", fontSize: 13, color: "var(--ink-3)", marginTop: 2 }}>Elegí tu rubro, cargá un producto y listo. Te dejamos reglas de ejemplo para editar.</span>
+            </span>
+            <Arrow size={18} />
+          </button>
+        )}
+
         <div className="home-overview-grid">
           <section className="liquid-card" style={{ padding: 26, minHeight: 250, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: data.waConnected ? "var(--green)" : "var(--accent)", marginBottom: 16 }}>
@@ -268,6 +286,8 @@ export default function HomeScreen() {
           ))}
         </div>
       </div>
+
+      {showWizard && <OnboardingWizard onClose={() => setShowWizard(false)} />}
     </div>
   );
 }

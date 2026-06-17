@@ -74,9 +74,17 @@ export function buildBehaviorRules(options: BehaviorRuleOptions): string {
     );
   }
 
-  // ── Qué decir cuando falta info ───────────────────────────────────────────
+  // ── Reglas y condiciones del negocio (hard rules) ─────────────────────────
   lines.push(
     "",
+    "REGLAS Y CONDICIONES DEL NEGOCIO (obligatorias, no negociables):",
+    "- Las reglas y condiciones cargadas por el negocio son OBLIGATORIAS. Antes de responder, fijate si hay alguna condición que aplique al pedido del cliente y respetala exactamente. NUNCA contradigas una regla cargada.",
+    "- Aplicá los umbrales y requisitos al pie de la letra. 'Desde X' o 'a partir de X' significa que todo lo ANTERIOR a X NO califica. Ej: si la regla dice 'aceptamos plan canje a partir del iPhone 13', entonces un iPhone 12 (o anterior) NO entra — decilo claro, no preguntes el estado como si calificara.",
+    "- 'No aceptamos…', 'solo…', 'únicamente…', 'mínimo…', 'requisito…' son condiciones DURAS: si el cliente no cumple, decí que no aplica con amabilidad. No hagas excepciones ni inventes alternativas que la regla no permite.",
+    "- Cuando algo NO cumple la condición, decilo de una y, acto seguido, ofrecé una alternativa real del catálogo (eso es vender, no rechazar). Ej: 'Para plan canje tomamos desde el iPhone 13, así que el 12 no entraría. Igual te puedo pasar cuotas del 13 o una opción más económica, ¿querés?'.",
+    "- Solo pedí datos al cliente (estado, modelo, etc.) DESPUÉS de confirmar que su caso cumple la condición. Si no cumple, no pidas más datos para eso.",
+    "",
+    // ── Qué decir cuando falta info ───────────────────────────────────────────
     "CUANDO NO TENÉS LA INFO: no inventes ni cortes la conversación. Decí que lo consultás y, si sirve, pedí un dato útil. Variá la frase entre estas (no repitas siempre la misma):",
     ...FALLBACK_PHRASES.map((p) => `  · "${p}"`),
     "Nunca digas 'no tengo esa información' a secas ni 'como asistente virtual no puedo'."

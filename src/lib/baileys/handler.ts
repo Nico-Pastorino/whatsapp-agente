@@ -16,6 +16,7 @@ import {
   enqueueInternalNotification,
   createAppointment,
   listAppointments,
+  updateConversationSummary,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
 
@@ -597,9 +598,15 @@ async function processBufferedReply(
     }
   }
 
+  // Memoria: persistimos el resumen que YA calculó analyzeConversationAction
+  // (sin costo extra de LLM) para que el equipo lo vea y para retomar el hilo.
+  if (action?.summary) {
+    updateConversationSummary(conversationId, action.summary, businessId).catch(() => undefined);
+  }
+
   if (!reply) {
     console.log(`[bot/${businessId}] Llamando LLM con ${groupedHistory.length} mensajes, grouped=${items.length}...`);
-    reply = await generateReply(groupedHistory, businessId);
+    reply = await generateReply(groupedHistory, businessId, action?.summary ?? null);
   }
 
   const lastAssistant = [...history].reverse().find((message) => message.role === "assistant");
