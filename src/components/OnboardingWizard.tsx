@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import ModalPortal from "./ModalPortal";
 
 // Onboarding guiado de 3 pasos para que un comerciante deje el bot listo rápido:
 //  1) Elegí tu rubro  → aplica una plantilla que precarga tono, textos y REGLAS de ejemplo.
@@ -74,6 +75,7 @@ export default function OnboardingWizard({ onClose }: { onClose: () => void }) {
   }
 
   return (
+    <ModalPortal>
     <div className="atd-overlay" style={{ zIndex: 170 }} onClick={() => !busy && onClose()}>
       <div className="atd-modal" style={{ width: "min(94vw, 460px)", maxHeight: "90svh", overflow: "auto", padding: 22 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -161,5 +163,6 @@ export default function OnboardingWizard({ onClose }: { onClose: () => void }) {
         )}
       </div>
     </div>
+    </ModalPortal>
   );
 }

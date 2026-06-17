@@ -5,6 +5,7 @@ import type { UpgradeOption } from "@/lib/db";
 import { ANNUAL_DISCOUNT, formatARS } from "@/lib/plan-display";
 import DashboardContentShell from "./DashboardContentShell";
 import SupportCard from "./SupportCard";
+import ModalPortal from "./ModalPortal";
 import { ROLE_LABELS, type DashboardRole } from "@/lib/role-access";
 
 interface PlanSummary {
@@ -583,7 +584,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
           <p className="mono" style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 18px" }}>
             Vence {formatDate(plan.current_period_end)}
           </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="plan-panel-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {plan.upgrade_options.length > 0 && (
               <button
                 onClick={() => startCheckout(plan.upgrade_options[0].code, "upgrade")}
@@ -724,6 +725,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
 
       {/* Cancel modal */}
       {showCancelModal && (
+        <ModalPortal>
         <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
             <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Cancelar el plan?</h3>
@@ -738,10 +740,12 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Downgrade modal */}
       {showDowngradeModal && downgradeTarget && (
+        <ModalPortal>
         <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ width: "100%", maxWidth: 400, padding: 24 }}>
             <h3 className="serif" style={{ fontSize: 22, marginBottom: 10 }}>¿Bajar a {downgradeTarget.name}?</h3>
@@ -756,6 +760,7 @@ export default function PlanOverview({ role = "owner" }: { role?: DashboardRole 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </DashboardContentShell>
   );

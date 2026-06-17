@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Spark, Chat, Shop, Bolt, Layers, Users, QR, BarChart, Calendar, LifeBuoy, Logout } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
+import ModalPortal from "./ModalPortal";
 import { canAccessView, type DashboardRole } from "@/lib/role-access";
 
 type DashboardView =
@@ -244,6 +245,7 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
       </div>
 
       {showDisconnect && (
+        <ModalPortal>
         <div className="atd-overlay" style={{ zIndex: 160 }} onClick={() => !disconnecting && setShowDisconnect(false)}>
           <div className="atd-modal" style={{ width: "min(92vw, 380px)", padding: 22 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>Desconectar WhatsApp</h3>
@@ -263,6 +265,7 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </aside>
   );

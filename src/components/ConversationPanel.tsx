@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Dot3, Spark, Send } from "./atende/Icons";
 import { Avatar } from "./atende/Icons";
+import ModalPortal from "./ModalPortal";
 
 interface Message {
   id: string;
@@ -369,6 +370,7 @@ export default function ConversationPanel({
 
       {/* Delete modal */}
       {showDeleteConfirm && (
+        <ModalPortal>
         <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ padding: 24, maxWidth: 340, width: "100%" }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Borrar conversación</h3>
@@ -385,6 +387,7 @@ export default function ConversationPanel({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

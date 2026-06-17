@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Appointment, AppointmentStatus } from "@/lib/db";
 import DashboardContentShell from "./DashboardContentShell";
+import ModalPortal from "./ModalPortal";
 
 const STATUS_META: Record<AppointmentStatus, { label: string; bg: string; color: string }> = {
   pending: { label: "Pendiente", bg: "var(--accent-soft)", color: "var(--accent-ink)" },
@@ -272,6 +273,7 @@ export default function AgendaScreen() {
       </div>
 
       {showForm && (
+        <ModalPortal>
         <div
           onClick={() => !saving && setShowForm(false)}
           className="atd-overlay sheet"
@@ -333,6 +335,7 @@ export default function AgendaScreen() {
             </button>
           </div>
         </div>
+        </ModalPortal>
       )}
     </DashboardContentShell>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 import type { CatalogItem, CatalogItemType, StockStatus } from "@/lib/db";
 import DashboardContentShell from "./DashboardContentShell";
+import ModalPortal from "./ModalPortal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -488,6 +489,7 @@ function ItemForm({
   }
 
   return (
+    <ModalPortal>
     <div className="atd-overlay sheet" style={{ zIndex: 140 }}>
       <div
         className="atd-modal"
@@ -903,6 +905,7 @@ function ItemForm({
         )}
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
@@ -957,6 +960,7 @@ function ImportModal({
   };
 
   return (
+    <ModalPortal>
     <div className="atd-overlay sheet" style={{ zIndex: 140 }}>
       <div className="atd-modal" style={{ width: "100%", maxWidth: 980, maxHeight: "92svh", padding: 0, display: "flex", flexDirection: "column" }}>
         <div className="atd-sheet-grabber md:hidden" />
@@ -1128,6 +1132,7 @@ function ImportModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
@@ -1779,6 +1784,7 @@ export default function ItemCatalog() {
 
       {/* ── Delete Confirmation ───────────────────────────────────────────── */}
       {deleteConfirmId && (
+        <ModalPortal>
         <div className="atd-overlay" style={{ zIndex: 140 }}>
           <div className="atd-modal" style={{ width: "100%", maxWidth: 380, padding: 24 }}>
             <p style={{ fontSize: 28, marginBottom: 8 }}>🗑️</p>
@@ -1816,6 +1822,7 @@ export default function ItemCatalog() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </DashboardContentShell>
   );

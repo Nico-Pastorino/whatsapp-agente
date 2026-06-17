@@ -229,14 +229,19 @@ export default function QRScreen({ onConnected }: Props) {
         <div style={{ width: 220, height: 220, borderRadius: 14, background: "var(--surface-2)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <div className="atd-spinner lg" />
           {showBotOfflineHint ? (
-            <div style={{ padding: "0 16px" }}>
-              <p style={{ fontSize: 12, color: "var(--danger)", fontWeight: 500, marginBottom: 4 }}>Asistente iniciando</p>
+            <div style={{ padding: "0 16px", textAlign: "center" }}>
+              <p style={{ fontSize: 12, color: "var(--danger)", fontWeight: 500, marginBottom: 4 }}>Sin conexión con el asistente</p>
               <p style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", lineHeight: 1.5 }}>
-                El asistente está arrancando, puede tardar 1–2 minutos. Si el código no aparece, contactá a soporte.
+                El asistente está arrancando, puede tardar 1–2 minutos. Reintentamos solos. Si el código no aparece, tocá “Actualizar estado” o contactá a soporte.
               </p>
             </div>
           ) : (
-            <p className="mono" style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase" }}>Esperando...</p>
+            <div style={{ padding: "0 16px", textAlign: "center" }}>
+              <p className="mono" style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", marginBottom: 4 }}>Generando QR…</p>
+              <p style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.5 }}>
+                Estamos creando tu código. Suele tardar unos segundos.
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -256,12 +261,14 @@ export default function QRScreen({ onConnected }: Props) {
   );
 
   const statusPill = (
-    <div className="mono" style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+    <div className="mono" style={{ fontSize: 11, color: showBotOfflineHint && !data.qrPng ? "var(--danger)" : "var(--muted)", marginTop: 4 }}>
       {data.status === "connecting"
         ? "conectando…"
         : data.qrPng
         ? qrIsStale ? "⏳ actualizando código…" : "esperando que escanees el código"
-        : "esperando el código…"}
+        : showBotOfflineHint
+        ? "sin conexión — reintentando…"
+        : "generando QR…"}
     </div>
   );
 
@@ -380,24 +387,34 @@ export default function QRScreen({ onConnected }: Props) {
         </div>
       </div>
 
-      <div style={{ padding: "4px 20px 100px", textAlign: "center" }}>
-        {methodToggle}
+      <div style={{ padding: "4px 20px 100px" }}>
+        <div style={{ maxWidth: 420, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+          {methodToggle}
 
-        {method === "qr" ? (
-          <>
-            {qrCard}
+          {method === "qr" ? (
+            <>
+              {qrCard}
 
-            {data.qrPng && (
-              <div className="mono" style={{ fontSize: 11, color: qrIsStale ? "var(--danger)" : "var(--muted)", marginBottom: 20 }}>
-                {qrIsStale ? "⏳ actualizando código..." : "escanear antes de que expire"}
+              <div className="mono" style={{ fontSize: 11, color: data.qrPng ? (qrIsStale ? "var(--danger)" : "var(--muted)") : showBotOfflineHint ? "var(--danger)" : "var(--muted)", marginBottom: 16 }}>
+                {data.qrPng
+                  ? qrIsStale ? "⏳ actualizando código..." : "escanear antes de que expire"
+                  : data.status === "connecting"
+                  ? "conectando…"
+                  : showBotOfflineHint
+                  ? "sin conexión — reintentando…"
+                  : "generando QR…"}
               </div>
-            )}
 
-            {howToCard}
-          </>
-        ) : (
-          codeCard
-        )}
+              <div style={{ width: "100%", marginBottom: 16 }}>{howToCard}</div>
+
+              <button onClick={() => poll()} className="atd-btn ghost sm" style={{ minWidth: 180 }}>
+                Actualizar estado
+              </button>
+            </>
+          ) : (
+            <div style={{ width: "100%" }}>{codeCard}</div>
+          )}
+        </div>
       </div>
     </div>
   );

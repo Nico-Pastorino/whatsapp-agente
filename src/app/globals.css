@@ -192,7 +192,7 @@
 :root[data-theme] body > * { position: relative; z-index: 1; }
 :root[data-theme] body > .atd-overlay {
   position: fixed;
-  z-index: 120;
+  z-index: 200;
 }
 
 /* ── Base ──────────────────────────────────────────────────── */
@@ -207,6 +207,10 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Guarda defensiva: ningún contenido ancho debe provocar scroll horizontal en
+     mobile. Los sheets/overlays portaleados son position:fixed, así que no se
+     ven afectados por este clip. */
+  overflow-x: hidden;
 }
 
 /* ── Typography helpers ────────────────────────────────────── */
@@ -242,7 +246,7 @@ body {
 .atd-overlay {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -317,7 +321,10 @@ body {
     max-width: 100%;
     border-radius: 26px 26px 0 0;
     border-bottom: 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    /* Con el overlay portaleado a body, el sheet cubre TODO (incluido el tabbar).
+       Garantizamos que el último botón de acción quede por encima del home
+       indicator y nunca al ras del borde inferior. */
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
   .template-confirm-modal {
     max-height: calc(100svh - 64px);
@@ -769,13 +776,19 @@ body {
   flex-shrink: 0;
 }
 .atd-tab.active .tab-ic { background: var(--glass-strong); color: var(--ink); border: 1px solid var(--glass-border); box-shadow: inset 0 1px 0 var(--glass-glow), var(--shadow-1); }
-.atd-tab.center .tab-ic { background: transparent; color: inherit; }
-.atd-tab.center.active .tab-ic {
+/* Botón central (Inicio): SIEMPRE el círculo naranja, estés donde estés.
+   Es la acción ancla de la barra, por eso es más grande y resaltado. */
+.atd-tab.center .tab-ic {
+  width: 46px; height: 46px;
   background: var(--accent);
   color: var(--on-accent);
-  border-color: transparent;
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 28%, transparent), 0 16px 26px -14px var(--accent);
+  border: none;
+  box-shadow: 0 10px 22px -10px var(--accent);
 }
+.atd-tab.center.active .tab-ic {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent), 0 16px 28px -12px var(--accent);
+}
+.atd-tab.center.active { color: var(--ink); }
 .atd-tab .tab-label {
   display: block;
   max-width: 100%;
@@ -1139,6 +1152,14 @@ body {
 }
 .plan-panel {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+/* Empuja la fila de acciones de la tarjeta "plan actual" al fondo, para que la
+   tarjeta no quede con un hueco enorme cuando se estira a la altura de las
+   hermanas (uso / incluido). */
+.plan-panel-actions {
+  margin-top: auto;
 }
 .plan-feature-list {
   display: grid;
@@ -1176,12 +1197,27 @@ body {
     grid-template-columns: repeat(2, minmax(160px, 1fr));
   }
 }
-@media (min-width: 1280px) {
+/* En desktop intermedio (tablet landscape / laptop angosto) pasamos a 2
+   columnas: "plan actual" + "uso" arriba, "incluido" abajo a lo ancho. Así
+   evitamos las tarjetas full-width con huecos enormes. */
+@media (min-width: 860px) {
   .plan-overview-grid {
-    grid-template-columns: minmax(340px, 1fr) minmax(320px, 0.78fr) minmax(420px, 1.08fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .plan-overview-grid > :last-child {
+    grid-column: 1 / -1;
   }
   .plan-feature-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 28px;
+  }
+}
+@media (min-width: 1180px) {
+  .plan-overview-grid {
+    grid-template-columns: minmax(320px, 1fr) minmax(300px, 0.82fr) minmax(380px, 1.05fr);
+  }
+  .plan-overview-grid > :last-child {
+    grid-column: auto;
   }
 }
 
