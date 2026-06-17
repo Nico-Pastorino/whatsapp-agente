@@ -163,10 +163,29 @@ export async function generateReply(history: Message[], businessId: string): Pro
     presence_penalty: 0.3,
   });
 
-  return (
-    response.choices[0]?.message?.content?.trim() ??
-    "No pude generar una respuesta."
-  );
+  const raw = response.choices[0]?.message?.content?.trim() ?? "No pude generar una respuesta.";
+  return stripMarkdownForWhatsApp(raw);
+}
+
+/**
+ * WhatsApp no renderiza Markdown: un link '[texto](url)' se ve con los corchetes
+ * crudos y queda roto. Convertimos esos casos a la URL pelada y sacamos marcas de
+ * Markdown comunes, por si el modelo igual las emite.
+ */
+export function stripMarkdownForWhatsApp(text: string): string {
+  return text
+    // [texto](url) → url (lo útil para el cliente es el link)
+    .replace(/\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g, "$1")
+    // [texto](algo-no-url) → texto
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    // **negrita** / __negrita__ → texto
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    // `código` → código
+    .replace(/`([^`]+)`/g, "$1")
+    // encabezados markdown al inicio de línea
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .trim();
 }
 
 export async function transcribeAudioBuffer(
