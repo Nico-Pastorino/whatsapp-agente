@@ -105,12 +105,12 @@ function appendCatalog(lines: string[], items: CatalogItem[]): void {
   const regular = items.filter((item) => !item.is_featured);
 
   if (featured.length > 0) {
-    lines.push("Destacados:");
+    lines.push("Destacados (sugerilos o usalos para complementar una compra; podes decir que son de los mas pedidos):");
     for (const item of featured.slice(0, 12)) lines.push(formatItem(item, "*"));
   }
 
   if (promos.length > 0) {
-    lines.push("", "Promociones activas:");
+    lines.push("", "Promociones activas (usalas para incentivar la compra cuando el cliente muestre interes; menciona la fecha de fin si esta. No inventes ninguna):");
     for (const item of promos.slice(0, 12)) {
       const bits = [`- ${sanitizeForPrompt(item.name, 100)}`];
       if (item.promotion_label) bits.push(sanitizeForPrompt(item.promotion_label, 140));

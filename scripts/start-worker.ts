@@ -323,3 +323,13 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+
+// Red de seguridad: el worker es multi-tenant: un throw o promesa rechazada sin
+// atrapar (ej. un fallo puntual de Supabase) NO debe tumbar el proceso entero y
+// dejar a TODOS los negocios sin servicio. Los logueamos y seguimos vivos.
+process.on("unhandledRejection", (reason) => {
+  console.error("[worker] unhandledRejection (ignorada para no caer el proceso):", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[worker] uncaughtException (ignorada para no caer el proceso):", err);
+});

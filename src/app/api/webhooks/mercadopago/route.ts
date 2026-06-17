@@ -211,23 +211,6 @@ async function handlePaymentEvent(mpPaymentId: string) {
   }
 
   const now = new Date();
-  const mappedStatus =
-    payment.status === "approved"
-      ? "approved"
-      : payment.status === "rejected"
-        ? "rejected"
-        : payment.status === "cancelled"
-          ? "cancelled"
-          : "pending";
-
-  await supabase
-    .from("payments")
-    .update({
-      mp_payment_id: mpPaymentId,
-      status: mappedStatus,
-      updated_at: now.toISOString(),
-    })
-    .eq("id", paymentRecord.id);
 
   if (payment.status === "approved") {
     // Validación de monto: el plan se activa solo si lo realmente pagado coincide
@@ -242,8 +225,14 @@ async function handlePaymentEvent(mpPaymentId: string) {
       return;
     }
 
+    // ATOMICIDAD: activamos la suscripción PRIMERO. El pago se marca "approved"
+    // SOLO si la activación salió bien. Si la activación falla, lanzamos para que
+    // MP reintente: como el pago sigue sin estar "approved", el reintento no entra
+    // al early-return de idempotencia y vuelve a intentar activar.
+    // (Antes se marcaba el pago approved primero → si fallaba la activación, el
+    //  reintento se saltaba y quedaba "cobrado sin plan activado".)
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    await supabase
+    const { error: subErr } = await supabase
       .from("subscriptions")
       .update({
         plan_code: paymentRecord.plan_code,
@@ -258,9 +247,27 @@ async function handlePaymentEvent(mpPaymentId: string) {
         updated_at: now.toISOString(),
       })
       .eq("business_id", paymentRecord.business_id);
+    if (subErr) {
+      console.error(`[mp/webhook] No se pudo activar la suscripción (business=${paymentRecord.business_id}): ${subErr.message}. Forzando reintento de MP.`);
+      throw subErr;
+    }
+
+    await supabase
+      .from("payments")
+      .update({ mp_payment_id: mpPaymentId, status: "approved", updated_at: now.toISOString() })
+      .eq("id", paymentRecord.id);
+
     console.log(`[mp/webhook] payment approved business=${paymentRecord.business_id}`);
     return;
   }
+
+  // No aprobado: registramos el estado del pago sin tocar la activación.
+  const mappedStatus =
+    payment.status === "rejected" ? "rejected" : payment.status === "cancelled" ? "cancelled" : "pending";
+  await supabase
+    .from("payments")
+    .update({ mp_payment_id: mpPaymentId, status: mappedStatus, updated_at: now.toISOString() })
+    .eq("id", paymentRecord.id);
 
   if (["rejected", "cancelled"].includes(payment.status ?? "")) {
     await markSubscriptionPastDueIfTrialExpired(paymentRecord.business_id, "past_due");

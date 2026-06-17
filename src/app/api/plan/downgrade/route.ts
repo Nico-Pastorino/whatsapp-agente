@@ -1,27 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { downgradePlan } from "@/lib/db";
-import { toDashboardAuthResponse, withRoleDashboardBusinessContext } from "@/lib/route-auth";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: NextRequest) {
-  try {
-    return await withRoleDashboardBusinessContext(["owner"], async ({ businessId }) => {
-      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      const planCode =
-        typeof body.plan_code === "string" ? body.plan_code.trim() : "";
-
-      if (!planCode) {
-        return NextResponse.json({ error: "Plan inválido." }, { status: 400 });
-      }
-
-      await downgradePlan(businessId, planCode);
-      return NextResponse.json({
-        ok: true,
-        message: "El plan se actualizó correctamente.",
-      });
-    });
-  } catch (error) {
-    return toDashboardAuthResponse(error);
-  }
+// Downgrade deshabilitado por decisión de producto: no se permite bajar de plan
+// ni hay prorrateo. El endpoint queda bloqueado a propósito (la función interna
+// downgradePlan se conserva por si se necesita desde una herramienta de soporte).
+export async function POST() {
+  return NextResponse.json(
+    { error: "El cambio a un plan inferior no está disponible. Escribinos si necesitás ayuda con tu plan." },
+    { status: 403 }
+  );
 }

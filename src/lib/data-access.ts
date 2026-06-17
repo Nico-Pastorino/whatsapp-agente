@@ -1396,19 +1396,32 @@ export async function canUseAssistant(businessId = getBusinessId()): Promise<boo
   const access = evaluateAccountAccess(subscription);
   if (!access.canUseApp) return false;
 
+  // Límites efectivos: el override por negocio (subscription.monthly_*) tiene
+  // prioridad; si no hay, usamos el del plan (plans.*). Con límites en NULL la IA
+  // queda ilimitada (comportamiento actual), pero el enforcement ya está listo.
+  let planMsgLimit: number | null = null;
+  let planAiLimit: number | null = null;
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data: plan } = await supabase
+      .from("plans")
+      .select("conversation_limit, ai_reply_limit")
+      .eq("code", subscription.plan_code)
+      .maybeSingle();
+    planMsgLimit = (plan?.conversation_limit as number | null) ?? null;
+    planAiLimit = (plan?.ai_reply_limit as number | null) ?? null;
+  } catch {
+    // Fail-open: si no podemos leer el plan, no bloqueamos al cliente.
+  }
+
+  const msgLimit =
+    typeof subscription.monthly_message_limit === "number" ? subscription.monthly_message_limit : planMsgLimit;
+  const aiLimit =
+    typeof subscription.monthly_ai_reply_limit === "number" ? subscription.monthly_ai_reply_limit : planAiLimit;
+
   const usage = await getCurrentUsage(businessId);
-  if (
-    typeof subscription.monthly_message_limit === "number" &&
-    usage.inbound_messages_count >= subscription.monthly_message_limit
-  ) {
-    return false;
-  }
-  if (
-    typeof subscription.monthly_ai_reply_limit === "number" &&
-    usage.ai_replies_count >= subscription.monthly_ai_reply_limit
-  ) {
-    return false;
-  }
+  if (typeof msgLimit === "number" && usage.inbound_messages_count >= msgLimit) return false;
+  if (typeof aiLimit === "number" && usage.ai_replies_count >= aiLimit) return false;
   return true;
 }
 
@@ -1465,11 +1478,12 @@ export async function getPlanSummary(
     ? (featuresObj!.template_tiers as string[])
     : [];
 
-  // Fetch upgrade options (plans with higher rank)
+  // Fetch upgrade options (plans with higher rank). Incluimos growth para que un
+  // usuario en Starter vea Growth ("Más popular") como opción de upgrade.
   const { data: allPlans } = await supabase
     .from("plans")
     .select("code, name, price_monthly, currency")
-    .in("code", ["starter", "pro"]);
+    .in("code", ["starter", "growth", "pro"]);
 
   const upgradeOptions: UpgradeOption[] = (allPlans ?? [])
     .filter(
@@ -1485,19 +1499,9 @@ export async function getPlanSummary(
       currency: p.currency ?? "ARS",
     }));
 
-  const downgradeOptions: UpgradeOption[] = (allPlans ?? [])
-    .filter(
-      (p) =>
-        (PLAN_HIERARCHY[p.code] ?? 0) < currentRank &&
-        typeof p.price_monthly === "number"
-    )
-    .sort((a, b) => (PLAN_HIERARCHY[b.code] ?? 0) - (PLAN_HIERARCHY[a.code] ?? 0))
-    .map((p) => ({
-      code: p.code,
-      name: p.name,
-      price_monthly: p.price_monthly as number,
-      currency: p.currency ?? "ARS",
-    }));
+  // Downgrade deshabilitado por decisión de producto (no se baja de plan ni hay
+  // prorrateo). Devolvemos siempre vacío para que la UI no ofrezca bajar de plan.
+  const downgradeOptions: UpgradeOption[] = [];
 
   return {
     plan_code: currentPlanCode,
@@ -2037,6 +2041,18 @@ export async function acceptBusinessInvitation(
 
   let alreadyMember = false;
   if (!existingMember?.id) {
+    // Revalidar el límite de usuarios al ACEPTAR (no solo al invitar): si el plan
+    // bajó o se emitieron invitaciones de más, esto evita superar el tope del plan.
+    const [activeMembers, planSummary] = await Promise.all([
+      countBusinessMembers(invitation.business_id),
+      getPlanSummary(invitation.business_id),
+    ]);
+    if (typeof planSummary.users_limit === "number" && activeMembers >= planSummary.users_limit) {
+      throw new TeamManagementError(
+        "El equipo alcanzó el límite de usuarios del plan. Pedile al dueño que mejore el plan para sumarte.",
+        409
+      );
+    }
     const { error: insertError } = await supabase.from("business_members").insert({
       business_id: invitation.business_id,
       user_id: userId,

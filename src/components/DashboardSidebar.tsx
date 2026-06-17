@@ -60,6 +60,9 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
     Array<{ business_id: string; business_name: string; role: string }>
   >([]);
   const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
+  const [showDisconnect, setShowDisconnect] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/businesses", { cache: "no-store" })
@@ -88,9 +91,14 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
   }
 
   async function handleDisconnectWA() {
-    if (!confirm("¿Desconectar el número? Tendrás que escanear el QR de nuevo.")) return;
+    setDisconnecting(true);
+    setDisconnectError(null);
     const res = await fetch("/api/connection/disconnect", { method: "POST" });
-    if (!res.ok) { alert("No se pudo desconectar."); return; }
+    if (!res.ok) {
+      setDisconnectError("No se pudo desconectar. Probá de nuevo.");
+      setDisconnecting(false);
+      return;
+    }
     const startedAt = Date.now();
     while (Date.now() - startedAt < 15000) {
       try {
@@ -98,6 +106,8 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
         if (s.ok) {
           const status = await s.json() as { status?: string };
           if (status.status === "disconnected" || status.status === "qr") {
+            setShowDisconnect(false);
+            setDisconnecting(false);
             onDisconnect();
             return;
           }
@@ -105,7 +115,10 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
       } catch {}
       await new Promise((r) => setTimeout(r, 1000));
     }
-    alert("La desconexión sigue en proceso.");
+    // Tardó más de lo esperado: cerramos igual y refrescamos el estado.
+    setShowDisconnect(false);
+    setDisconnecting(false);
+    onDisconnect();
   }
 
   async function handleLogout() {
@@ -205,11 +218,12 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
           </span>
           {phone && role === "owner" && (
             <button
-              onClick={handleDisconnectWA}
+              onClick={() => { setDisconnectError(null); setShowDisconnect(true); }}
+              aria-label="Desconectar WhatsApp"
               title="Desconectar WhatsApp"
-            style={{ fontSize: 14, lineHeight: 1, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
+              style={{ fontSize: 11.5, fontWeight: 600, color: "var(--danger-ink)", background: "none", border: "none", cursor: "pointer", padding: "4px 6px", flexShrink: 0 }}
             >
-              ×
+              Desconectar
             </button>
           )}
         </div>
@@ -228,6 +242,28 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
           Cerrar sesión
         </button>
       </div>
+
+      {showDisconnect && (
+        <div className="atd-overlay" style={{ zIndex: 160 }} onClick={() => !disconnecting && setShowDisconnect(false)}>
+          <div className="atd-modal" style={{ width: "min(92vw, 380px)", padding: 22 }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>Desconectar WhatsApp</h3>
+            <p style={{ margin: "8px 0 0", fontSize: 13.5, color: "var(--ink-3)", lineHeight: 1.5 }}>
+              Tu asistente va a dejar de responder hasta que vuelvas a conectar. Para reconectar vas a tener que escanear el QR de nuevo. Tus conversaciones y datos se mantienen.
+            </p>
+            {disconnectError && (
+              <p role="alert" style={{ margin: "12px 0 0", fontSize: 13, color: "var(--danger-ink)" }}>{disconnectError}</p>
+            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button className="atd-btn secondary" style={{ flex: 1 }} disabled={disconnecting} onClick={() => setShowDisconnect(false)}>
+                Cancelar
+              </button>
+              <button className="atd-btn danger" style={{ flex: 1 }} disabled={disconnecting} onClick={handleDisconnectWA}>
+                {disconnecting ? "Desconectando…" : "Desconectar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

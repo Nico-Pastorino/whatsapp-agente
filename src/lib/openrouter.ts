@@ -20,10 +20,14 @@ const BASE_URL = process.env.OPENAI_BASE_URL?.trim() || undefined;
 const client = new OpenAI({
   apiKey: API_KEY,
   ...(BASE_URL && { baseURL: BASE_URL }),
+  // Anti-cuelgue: sin timeout, una llamada colgada dejaba el buffer de la
+  // conversación en "procesando" para siempre. 30s + 2 reintentos.
+  timeout: 30_000,
+  maxRetries: 2,
 });
 
 const transcriptionClient = process.env.OPENAI_API_KEY?.trim()
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY.trim() })
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY.trim(), timeout: 30_000, maxRetries: 2 })
   : null;
 
 // Model: soporta OPENAI_MODEL (primario) y OPENROUTER_MODEL (alias legacy).
@@ -141,7 +145,9 @@ export async function generateReply(history: Message[], businessId: string): Pro
     { role: "system", content: systemPrompt },
     ...history.map((m) => ({
       role: m.role === "user" ? ("user" as const) : ("assistant" as const),
-      content: m.content,
+      // El mensaje del cliente es input no confiable: lo sanitizamos para
+      // neutralizar intentos de prompt-injection ("ignora lo anterior", etc.).
+      content: m.role === "user" ? sanitizeForPrompt(m.content, 2000) : m.content,
     })),
   ];
 
@@ -238,7 +244,7 @@ export async function analyzeConversationAction(
     },
     ...history.slice(-12).map((m) => ({
       role: m.role === "user" ? ("user" as const) : ("assistant" as const),
-      content: m.content,
+      content: m.role === "user" ? sanitizeForPrompt(m.content, 2000) : m.content,
     })),
   ];
 
