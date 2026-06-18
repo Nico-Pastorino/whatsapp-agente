@@ -33,6 +33,7 @@ export type {
   BusinessHourRow,
   ScheduleExceptionRow,
   BusinessScheduleSettings,
+  SlotCheckResult,
 } from "./data-access";
 
 export {
@@ -60,6 +61,7 @@ export {
   getBusinessProfile,
   getBusinessSchedule,
   saveBusinessSchedule,
+  checkSlotAvailability,
   getBestOutgoingJidForContact,
   getBestOutgoingJidForConversation,
   getConnectionState,

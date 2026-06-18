@@ -158,3 +158,98 @@ export function getAvailableSlots(input: AvailabilityInput): string[] {
     .filter((start) => isSlotFree(start, duration, busy, exceptions))
     .map(minutesToHHMM);
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Helpers de zona horaria (puros, basados en Intl). Sirven para convertir entre
+// un instante UTC (lo que se guarda en starts_at) y la hora "de pared" local del
+// negocio (lo que el cliente y el horario configurado entienden).
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface ZonedParts {
+  year: number;
+  month: number; // 1-12
+  day: number; // 1-31
+  weekday: number; // 0=Domingo .. 6=Sábado
+  minutes: number; // minutos desde la medianoche local
+  dateStr: string; // "YYYY-MM-DD" local
+}
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+};
+
+/** Descompone un instante (Date) en su hora de pared local en `timeZone`. */
+export function getZonedParts(date: Date, timeZone: string): ZonedParts {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const parts: Record<string, string> = {};
+  for (const p of dtf.formatToParts(date)) parts[p.type] = p.value;
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = Number(parts.day);
+  let hour = Number(parts.hour);
+  if (hour === 24) hour = 0; // algunos entornos devuelven "24" para medianoche
+  const minute = Number(parts.minute);
+  return {
+    year,
+    month,
+    day,
+    weekday: WEEKDAY_INDEX[parts.weekday] ?? new Date(date).getUTCDay(),
+    minutes: hour * 60 + minute,
+    dateStr: `${parts.year}-${parts.month}-${parts.day}`,
+  };
+}
+
+/** Offset de la zona (ms) para un instante dado: localComoUTC − instanteReal. */
+function tzOffsetMs(date: Date, timeZone: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const parts: Record<string, string> = {};
+  for (const p of dtf.formatToParts(date)) parts[p.type] = p.value;
+  let hour = Number(parts.hour);
+  if (hour === 24) hour = 0;
+  const asUTC = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    hour,
+    Number(parts.minute),
+    Number(parts.second)
+  );
+  return asUTC - date.getTime();
+}
+
+/**
+ * Convierte una hora de pared local (año/mes/día + minutos desde medianoche) en
+ * la zona `timeZone` al instante UTC correspondiente. Exacto en zonas sin DST
+ * (p. ej. Argentina); en zonas con DST resuelve con una corrección de un paso.
+ */
+export function zonedWallTimeToUTC(
+  year: number,
+  month: number,
+  day: number,
+  minutes: number,
+  timeZone: string
+): Date {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const guessUTC = Date.UTC(year, month - 1, day, hour, minute, 0);
+  const offset = tzOffsetMs(new Date(guessUTC), timeZone);
+  return new Date(guessUTC - offset);
+}

@@ -2,6 +2,16 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { getBusinessId, getWorkerInstanceName } from "./env";
 import { getSupabaseAdminClient } from "./supabase";
 import {
+  getAvailableSlots,
+  getZonedParts,
+  zonedWallTimeToUTC,
+  parseHHMM,
+  minutesToHHMM,
+  type DayException,
+  type BusyRange,
+  type TimeInterval,
+} from "./availability";
+import {
   extractPhoneFromJid,
   extractPhoneNumberIfKnown,
   normalizeWhatsAppJid,
@@ -3728,6 +3738,8 @@ export interface AppointmentInput {
   conversation_id?: string | null;
   contact_id?: string | null;
   source?: "ai" | "human";
+  duration_minutes?: number | null;
+  ends_at?: string | null;
 }
 
 const APPOINTMENT_STATUSES: AppointmentStatus[] = ["pending", "confirmed", "cancelled", "done"];
@@ -3832,6 +3844,8 @@ export async function createAppointment(
       customer_phone: input.customer_phone ? normalizePhoneNumber(input.customer_phone) : null,
       service: input.service ?? null,
       starts_at: input.starts_at ?? null,
+      duration_minutes: input.duration_minutes ?? null,
+      ends_at: input.ends_at ?? null,
       notes: input.notes ?? null,
       status,
       source: input.source === "ai" ? "ai" : "human",
@@ -4176,4 +4190,113 @@ export async function saveBusinessSchedule(
       }))
     );
   }
+}
+
+export interface SlotCheckResult {
+  /** Hay horarios estructurados cargados (si no, no se valida y no se bloquea). */
+  configured: boolean;
+  /** El horario pedido está dentro de horario y libre. */
+  available: boolean;
+  durationMinutes: number;
+  endsAtISO: string | null;
+  /** Hasta 3 horarios libres alternativos del mismo día (ISO UTC). */
+  alternativesISO: string[];
+  /** Mismas alternativas como etiqueta local "HH:MM" (para mostrarle al cliente). */
+  alternativesLabels: string[];
+  reason: "ok" | "not_configured" | "closed" | "outside_hours" | "occupied" | "past";
+}
+
+/**
+ * Valida un horario propuesto contra el horario estructurado del negocio, las
+ * excepciones y los turnos ya tomados. FUENTE DE VERDAD de la disponibilidad
+ * (la IA nunca asume). Fail-open: si el negocio no cargó horarios, devuelve
+ * configured=false / available=true para no bloquear el flujo actual.
+ */
+export async function checkSlotAvailability(
+  startsAtISO: string,
+  businessId = getBusinessId()
+): Promise<SlotCheckResult> {
+  const startsAt = new Date(startsAtISO);
+  const schedule = await getBusinessSchedule(businessId);
+  const tz = schedule.settings.timezone;
+  const duration = schedule.settings.default_duration_minutes;
+  const interval = schedule.settings.slot_interval_minutes;
+  const lead = schedule.settings.booking_lead_minutes;
+
+  const endsAtISO = Number.isNaN(startsAt.getTime())
+    ? null
+    : new Date(startsAt.getTime() + duration * 60_000).toISOString();
+
+  if (schedule.hours.length === 0 || Number.isNaN(startsAt.getTime())) {
+    return { configured: false, available: true, durationMinutes: duration, endsAtISO, alternativesISO: [], alternativesLabels: [], reason: "not_configured" };
+  }
+
+  const local = getZonedParts(startsAt, tz);
+  const reqMin = local.minutes;
+
+  const weekdayIntervals: TimeInterval[] = schedule.hours
+    .filter((h) => h.weekday === local.weekday)
+    .map((h) => ({ open: h.open_time, close: h.close_time }));
+
+  const dayExceptions: DayException[] = schedule.exceptions
+    .filter((e) => e.exception_date === local.dateStr)
+    .map((e) => ({
+      kind: e.kind,
+      startMin: e.start_time ? parseHHMM(e.start_time) : null,
+      endMin: e.end_time ? parseHHMM(e.end_time) : null,
+    }));
+
+  const dayStartUTC = zonedWallTimeToUTC(local.year, local.month, local.day, 0, tz);
+  const dayEndUTC = new Date(dayStartUTC.getTime() + 24 * 60 * 60_000);
+  const supabase = getSupabaseAdminClient();
+  const { data: dayAppts } = await supabase
+    .from("appointments")
+    .select("starts_at, duration_minutes")
+    .eq("business_id", businessId)
+    .in("status", ["pending", "confirmed"])
+    .gte("starts_at", dayStartUTC.toISOString())
+    .lt("starts_at", dayEndUTC.toISOString());
+
+  const busy: BusyRange[] = (dayAppts ?? [])
+    .filter((a) => a.starts_at)
+    .map((a) => {
+      const p = getZonedParts(new Date(a.starts_at as string), tz);
+      const dur = (a.duration_minutes as number | null) ?? duration;
+      return { startMin: p.minutes, endMin: p.minutes + dur };
+    });
+
+  const nowParts = getZonedParts(new Date(), tz);
+  const nowMinutesIfToday = nowParts.dateStr === local.dateStr ? nowParts.minutes : null;
+
+  const slots = getAvailableSlots({
+    weekdayIntervals,
+    exceptions: dayExceptions,
+    busy,
+    config: { slotIntervalMinutes: interval, defaultDurationMinutes: duration, leadMinutes: lead },
+    nowMinutesIfToday,
+  });
+
+  const reqHHMM = minutesToHHMM(reqMin);
+  const available = slots.includes(reqHHMM);
+
+  let reason: SlotCheckResult["reason"] = available ? "ok" : "occupied";
+  if (!available) {
+    if (dayExceptions.some((e) => e.kind === "closed") || weekdayIntervals.length === 0) reason = "closed";
+    else if (nowMinutesIfToday != null && reqMin < nowMinutesIfToday + lead) reason = "past";
+    else {
+      const insideInterval = weekdayIntervals.some((iv) => {
+        const o = parseHHMM(iv.open);
+        const c = parseHHMM(iv.close);
+        return o != null && c != null && reqMin >= o && reqMin + duration <= c;
+      });
+      reason = insideInterval ? "occupied" : "outside_hours";
+    }
+  }
+
+  const alternativesLabels = slots.filter((s) => s !== reqHHMM).slice(0, 3);
+  const alternativesISO = alternativesLabels.map((s) =>
+    zonedWallTimeToUTC(local.year, local.month, local.day, parseHHMM(s) ?? 0, tz).toISOString()
+  );
+
+  return { configured: true, available, durationMinutes: duration, endsAtISO, alternativesISO, alternativesLabels, reason };
 }

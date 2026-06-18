@@ -16,6 +16,7 @@ import {
   enqueueInternalNotification,
   createAppointment,
   listAppointments,
+  checkSlotAvailability,
   updateConversationSummary,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
@@ -559,38 +560,62 @@ async function processBufferedReply(
         return !Number.isNaN(createdAt) && Date.now() - createdAt < 15 * 60 * 1000;
       });
 
+      let bookingReplyHandled = false;
       if (!duplicateRecent) {
         const appointment = action.appointment!;
         const startsAt = new Date(appointment.starts_at!).toISOString();
-        const notes = [
-          appointment.notes,
-          action.summary ? `Resumen: ${action.summary}` : null,
-          `Últimos mensajes:\n${groupedText}`,
-        ].filter(Boolean).join("\n");
 
-        const created = await createAppointment(
-          {
-            customer_name: appointment.customer_name,
-            customer_phone: fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid),
-            service: appointment.service,
-            starts_at: startsAt,
-            notes,
-            status: "pending",
-            source: "ai",
-            conversation_id: conversationId,
-            contact_id: buffer.contactId,
-          },
-          businessId
-        ).catch((err) => {
-          console.error(`[appointments/${businessId}] create from AI falló:`, err);
-          return null;
-        });
-        createdAppointmentId = created?.id ?? null;
+        // Fase 2 — disponibilidad real: la VERDAD es el backend, no la IA.
+        // Fail-open: si no hay horarios cargados o la validación falla, se crea
+        // la solicitud como antes (modelo "solicitud → confirma humano").
+        const slot = await checkSlotAvailability(startsAt, businessId).catch(() => null);
+
+        if (slot && slot.configured && !slot.available) {
+          // El horario pedido no entra: no creamos turno, ofrecemos alternativas.
+          if (slot.alternativesLabels.length > 0) {
+            reply = `Para ese horario no me queda lugar 🙈 Tengo ${slot.alternativesLabels.join(" o ")}. ¿Cuál te viene bien?`;
+          } else if (slot.reason === "closed") {
+            reply = "Ese día no atendemos. ¿Querés que veamos otro día?";
+          } else {
+            reply = "Para ese día no me queda lugar. ¿Probamos con otro día u horario?";
+          }
+          bookingReplyHandled = true;
+          console.log(`[appointments/${businessId}] slot rechazado reason=${slot.reason} alts=${slot.alternativesLabels.length}`);
+        } else {
+          const notes = [
+            appointment.notes,
+            action.summary ? `Resumen: ${action.summary}` : null,
+            `Últimos mensajes:\n${groupedText}`,
+          ].filter(Boolean).join("\n");
+
+          const created = await createAppointment(
+            {
+              customer_name: appointment.customer_name,
+              customer_phone: fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid),
+              service: appointment.service,
+              starts_at: startsAt,
+              duration_minutes: slot?.durationMinutes ?? null,
+              ends_at: slot?.endsAtISO ?? null,
+              notes,
+              status: "pending",
+              source: "ai",
+              conversation_id: conversationId,
+              contact_id: buffer.contactId,
+            },
+            businessId
+          ).catch((err) => {
+            console.error(`[appointments/${businessId}] create from AI falló:`, err);
+            return null;
+          });
+          createdAppointmentId = created?.id ?? null;
+        }
       }
 
-      reply =
-        action.customer_reply ??
-        "Perfecto, te dejo la reserva solicitada 🙌\nLa paso para confirmar y te avisamos apenas quede confirmada.";
+      if (!bookingReplyHandled) {
+        reply =
+          action.customer_reply ??
+          "Perfecto, te dejo la reserva solicitada 🙌\nLa paso para confirmar y te avisamos apenas quede confirmada.";
+      }
     } else if (action.event === "appointment_request" && action.customer_reply) {
       reply = action.customer_reply;
     } else if ((action.event === "human_handoff" || action.event === "hot_lead") && action.customer_reply) {
