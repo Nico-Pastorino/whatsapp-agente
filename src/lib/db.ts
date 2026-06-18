@@ -29,6 +29,10 @@ export type {
   AppointmentStatus,
   PendingInternalNotification,
   InternalNotificationEvent,
+  BusinessSchedule,
+  BusinessHourRow,
+  ScheduleExceptionRow,
+  BusinessScheduleSettings,
 } from "./data-access";
 
 export {
@@ -54,6 +58,8 @@ export {
   getBusinessInvitationByToken,
   getBusinessMembers,
   getBusinessProfile,
+  getBusinessSchedule,
+  saveBusinessSchedule,
   getBestOutgoingJidForContact,
   getBestOutgoingJidForConversation,
   getConnectionState,

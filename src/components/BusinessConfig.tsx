@@ -6,6 +6,7 @@ import DashboardContentShell from "./DashboardContentShell";
 import TemplateSelector from "./TemplateSelector";
 import AssistantTester from "./AssistantTester";
 import KnowledgeSourcesSection from "./KnowledgeSourcesSection";
+import ScheduleEditor from "./ScheduleEditor";
 import { TONE_PRESETS, buildAssistantChecklist, assistantProgress } from "@/lib/onboarding";
 
 interface Profile {
@@ -653,13 +654,22 @@ export default function BusinessConfig() {
             </button>
           </div>
           {profile.booking_enabled && (
-            <textarea
-              value={profile.booking_config}
-              onChange={(e) => updateField("booking_config", e.target.value)}
-              rows={6}
-              placeholder={`Ej:\nServicios: corte ($8.000, 45 min), color ($20.000, 2 hs)\nDías y horarios: Mar a Sáb de 10 a 19 hs (último turno 18 hs)\nNo atendemos domingos ni lunes.\nSeña: pedimos transferencia del 50% para confirmar.`}
-              className={`${inputClass} resize-none`}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              <ScheduleEditor />
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>Notas adicionales para el asistente</span>
+                <span style={{ fontSize: 12, color: "var(--muted, #888)" }}>
+                  Servicios, precios, seña y condiciones. El horario de arriba es la fuente de verdad de la disponibilidad.
+                </span>
+                <textarea
+                  value={profile.booking_config}
+                  onChange={(e) => updateField("booking_config", e.target.value)}
+                  rows={5}
+                  placeholder={`Ej:\nServicios: corte ($8.000, 45 min), color ($20.000, 2 hs)\nSeña: pedimos transferencia del 50% para confirmar.`}
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+            </div>
           )}
         </section>
 

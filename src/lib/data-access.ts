@@ -4029,3 +4029,151 @@ export async function setInternalNotificationError(
     .eq("id", id)
     .eq("business_id", businessId);
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Agenda profesional — horario estructurado + excepciones (Fase 1)
+// Fuente de verdad de la disponibilidad. La validación de slots vive en
+// src/lib/availability.ts (capa pura); acá sólo se lee/escribe en Supabase.
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface BusinessHourRow {
+  weekday: number; // 0=Domingo .. 6=Sábado
+  open_time: string; // "HH:MM"
+  close_time: string; // "HH:MM"
+}
+
+export interface ScheduleExceptionRow {
+  id?: string;
+  exception_date: string; // "YYYY-MM-DD"
+  kind: "closed" | "block" | "special";
+  start_time: string | null; // "HH:MM" | null
+  end_time: string | null; // "HH:MM" | null
+  reason: string;
+}
+
+export interface BusinessScheduleSettings {
+  timezone: string;
+  slot_interval_minutes: number;
+  default_duration_minutes: number;
+  booking_lead_minutes: number;
+  booking_horizon_days: number;
+}
+
+export interface BusinessSchedule {
+  hours: BusinessHourRow[];
+  exceptions: ScheduleExceptionRow[];
+  settings: BusinessScheduleSettings;
+}
+
+const DEFAULT_SCHEDULE_SETTINGS: BusinessScheduleSettings = {
+  timezone: "America/Argentina/Buenos_Aires",
+  slot_interval_minutes: 30,
+  default_duration_minutes: 30,
+  booking_lead_minutes: 0,
+  booking_horizon_days: 30,
+};
+
+function hhmm(value: unknown): string {
+  return typeof value === "string" ? value.slice(0, 5) : "";
+}
+
+export async function getBusinessSchedule(
+  businessId = getBusinessId()
+): Promise<BusinessSchedule> {
+  const supabase = getSupabaseAdminClient();
+  const [hoursRes, exceptionsRes, settingsRes] = await Promise.all([
+    supabase
+      .from("business_hours")
+      .select("weekday, open_time, close_time")
+      .eq("business_id", businessId)
+      .order("weekday", { ascending: true })
+      .order("open_time", { ascending: true }),
+    supabase
+      .from("schedule_exceptions")
+      .select("id, exception_date, kind, start_time, end_time, reason")
+      .eq("business_id", businessId)
+      .order("exception_date", { ascending: true }),
+    supabase
+      .from("business_settings")
+      .select("timezone, slot_interval_minutes, default_duration_minutes, booking_lead_minutes, booking_horizon_days")
+      .eq("business_id", businessId)
+      .maybeSingle(),
+  ]);
+
+  const s = settingsRes.data as Partial<BusinessScheduleSettings> | null;
+  return {
+    hours: (hoursRes.data ?? []).map((h) => ({
+      weekday: Number(h.weekday),
+      open_time: hhmm(h.open_time),
+      close_time: hhmm(h.close_time),
+    })),
+    exceptions: (exceptionsRes.data ?? []).map((e) => ({
+      id: e.id as string,
+      exception_date: String(e.exception_date),
+      kind: e.kind as ScheduleExceptionRow["kind"],
+      start_time: e.start_time ? hhmm(e.start_time) : null,
+      end_time: e.end_time ? hhmm(e.end_time) : null,
+      reason: (e.reason as string) ?? "",
+    })),
+    settings: {
+      timezone: s?.timezone ?? DEFAULT_SCHEDULE_SETTINGS.timezone,
+      slot_interval_minutes: s?.slot_interval_minutes ?? DEFAULT_SCHEDULE_SETTINGS.slot_interval_minutes,
+      default_duration_minutes: s?.default_duration_minutes ?? DEFAULT_SCHEDULE_SETTINGS.default_duration_minutes,
+      booking_lead_minutes: s?.booking_lead_minutes ?? DEFAULT_SCHEDULE_SETTINGS.booking_lead_minutes,
+      booking_horizon_days: s?.booking_horizon_days ?? DEFAULT_SCHEDULE_SETTINGS.booking_horizon_days,
+    },
+  };
+}
+
+/**
+ * Reemplaza el horario semanal y las excepciones del negocio, y actualiza los
+ * settings de agenda. Estrategia "replace-all" (borra + inserta) por simplicidad
+ * y consistencia: el editor manda siempre el estado completo.
+ */
+export async function saveBusinessSchedule(
+  input: { hours: BusinessHourRow[]; exceptions: ScheduleExceptionRow[]; settings: BusinessScheduleSettings },
+  businessId = getBusinessId()
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+
+  // Settings (la fila de business_settings ya existe para el negocio).
+  await supabase
+    .from("business_settings")
+    .update({
+      timezone: input.settings.timezone,
+      slot_interval_minutes: input.settings.slot_interval_minutes,
+      default_duration_minutes: input.settings.default_duration_minutes,
+      booking_lead_minutes: input.settings.booking_lead_minutes,
+      booking_horizon_days: input.settings.booking_horizon_days,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("business_id", businessId);
+
+  // Horario semanal: replace-all.
+  await supabase.from("business_hours").delete().eq("business_id", businessId);
+  if (input.hours.length > 0) {
+    await supabase.from("business_hours").insert(
+      input.hours.map((h) => ({
+        business_id: businessId,
+        weekday: h.weekday,
+        open_time: h.open_time,
+        close_time: h.close_time,
+      }))
+    );
+  }
+
+  // Excepciones: replace-all.
+  await supabase.from("schedule_exceptions").delete().eq("business_id", businessId);
+  if (input.exceptions.length > 0) {
+    await supabase.from("schedule_exceptions").insert(
+      input.exceptions.map((e) => ({
+        business_id: businessId,
+        exception_date: e.exception_date,
+        kind: e.kind,
+        start_time: e.start_time,
+        end_time: e.end_time,
+        reason: e.reason.slice(0, 200),
+      }))
+    );
+  }
+}
