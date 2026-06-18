@@ -50,7 +50,7 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
     features: [
       "1 número de WhatsApp",
       "Conversaciones ilimitadas",
-      "Hasta 20 productos en catálogo",
+      "Hasta 10 productos en catálogo",
       "Hasta 3 usuarios del equipo",
       "Plantilla básica de rubro",
       "Modo humano (tomás el control)",
@@ -67,7 +67,7 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
     features: [
       "Todo lo del Starter",
       "Plantillas comerciales por rubro",
-      "Hasta 150 productos en catálogo",
+      "Hasta 50 productos en catálogo",
       "Hasta 10 usuarios del equipo",
       "Avisos al encargado por WhatsApp",
       "Base de conocimiento para la IA",
@@ -84,7 +84,7 @@ export const PUBLIC_PLANS: Record<PublicPlanCode, PublicPlanDefinition> = {
     features: [
       "Todo lo del Growth",
       "Plantillas premium (todos los rubros)",
-      "Hasta 1.000 productos en catálogo",
+      "Hasta 500 productos en catálogo",
       "Hasta 25 usuarios del equipo",
       // NOTA TÉCNICA: "Hasta 3 números de WhatsApp" fue eliminado porque
       // el worker actualmente soporta 1 sesión por negocio. No prometer

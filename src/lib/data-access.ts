@@ -3665,8 +3665,19 @@ export async function toggleBusinessItemActive(
   return updateBusinessItem(businessId, itemId, { is_active: next });
 }
 
-// Items formatted for AI prompt — no internal_notes, active only, max 50
+// Items formatted for AI prompt — no internal_notes, active only.
 // Featured items first, then by sort_order/created_at.
+//
+// El tope de cuántos ítems se TRAEN (no cuántos se mandan al modelo) es
+// configurable. Antes estaba fijo en 50, lo que dejaba ciegos a los negocios
+// con catálogos grandes (plan Pro: hasta 1000 productos): el modelo nunca veía
+// del ítem 51 en adelante. Ahora se trae un universo más amplio y la selección
+// fina por relevancia se hace en ai-context.ts (selectRelevantCatalogItems).
+const CATALOG_PROMPT_FETCH_LIMIT = (() => {
+  const raw = Number.parseInt(process.env.CATALOG_PROMPT_FETCH_LIMIT ?? "", 10);
+  return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 2000) : 400;
+})();
+
 export async function listActiveItemsForPrompt(
   businessId = getBusinessId()
 ): Promise<CatalogItem[]> {
@@ -3680,7 +3691,7 @@ export async function listActiveItemsForPrompt(
     .order("is_featured", { ascending: false }) // featured primero
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true })
-    .limit(50);
+    .limit(CATALOG_PROMPT_FETCH_LIMIT);
   if (error) throw error;
   return (data ?? []).map((row) => mapRowToCatalogItem(row as Record<string, unknown>));
 }

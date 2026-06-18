@@ -94,7 +94,104 @@ function formatItem(item: CatalogItem, prefix = "-"): string {
   return parts.join(" | ");
 }
 
-function appendCatalog(lines: string[], items: CatalogItem[]): void {
+// Cuántos ítems "regulares" (no destacados) se incluyen en el prompt tras la
+// selección por relevancia. Los destacados y las promos activas se incluyen
+// SIEMPRE aparte (no descuentan de este tope).
+const MAX_REGULAR_ITEMS_IN_PROMPT = (() => {
+  const raw = Number.parseInt(process.env.CATALOG_PROMPT_MAX_ITEMS ?? "", 10);
+  return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 120) : 40;
+})();
+
+const RELEVANCE_STOPWORDS = new Set([
+  "que", "los", "las", "del", "una", "uno", "unos", "unas", "por", "para", "con",
+  "como", "cuanto", "cuanta", "tienen", "tenes", "hay", "quiero", "necesito",
+  "busco", "info", "informacion", "precio", "precios", "hola", "buenas", "dia",
+  "tardes", "favor", "the", "and", "una", "este", "esta", "esos", "esas",
+]);
+
+function normalizeForMatch(input: string | null | undefined): string {
+  return (input ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+function queryTokens(query: string | null | undefined): string[] {
+  if (!query) return [];
+  return Array.from(
+    new Set(
+      normalizeForMatch(query)
+        .replace(/[^a-z0-9áéíóúñ\s]/gi, " ")
+        .split(/\s+/)
+        .filter((tok) => tok.length >= 3 && !RELEVANCE_STOPWORDS.has(tok))
+    )
+  ).slice(0, 24);
+}
+
+function scoreItem(item: CatalogItem, tokens: string[]): number {
+  if (tokens.length === 0) return 0;
+  const name = normalizeForMatch(item.name);
+  const category = normalizeForMatch(item.category);
+  const description = normalizeForMatch(item.description);
+  let score = 0;
+  for (const tok of tokens) {
+    if (name.includes(tok)) score += 3;
+    if (category.includes(tok)) score += 2;
+    if (description.includes(tok)) score += 1;
+  }
+  return score;
+}
+
+/**
+ * Selección de catálogo consciente de la consulta. Para catálogos grandes
+ * (plan Pro: cientos/miles de ítems) no podemos mandar todo: elegimos los más
+ * relevantes al mensaje del cliente. Garantías:
+ *  - Destacados y promos activas: SIEMPRE incluidos.
+ *  - Si hay consulta: top-K regulares por relevancia (luego orden natural).
+ *  - Sin consulta o sin coincidencias: primeros K en el orden natural (igual
+ *    que el comportamiento previo, pero con K configurable y mayor).
+ */
+export function selectRelevantCatalogItems(
+  items: CatalogItem[],
+  query: string | null | undefined,
+  maxRegular = MAX_REGULAR_ITEMS_IN_PROMPT
+): CatalogItem[] {
+  if (items.length === 0) return [];
+  const featured = items.filter((item) => item.is_featured);
+  const promos = items.filter((item) => !item.is_featured && isPromotionActive(item));
+  const regular = items.filter((item) => !item.is_featured && !isPromotionActive(item));
+
+  const tokens = queryTokens(query);
+  let chosenRegular: CatalogItem[];
+  if (tokens.length > 0) {
+    const scored = regular
+      .map((item, idx) => ({ item, idx, score: scoreItem(item, tokens) }))
+      .sort((a, b) => (b.score - a.score) || (a.idx - b.idx));
+    const withScore = scored.filter((s) => s.score > 0).map((s) => s.item);
+    // Si hay coincidencias, priorizalas; completá hasta maxRegular con el orden natural.
+    if (withScore.length >= maxRegular) {
+      chosenRegular = withScore.slice(0, maxRegular);
+    } else {
+      const chosenIds = new Set(withScore.map((i) => i.id));
+      const filler = regular.filter((i) => !chosenIds.has(i.id)).slice(0, maxRegular - withScore.length);
+      chosenRegular = [...withScore, ...filler];
+    }
+  } else {
+    chosenRegular = regular.slice(0, maxRegular);
+  }
+
+  // Únicos preservando: destacados → promos → regulares elegidos.
+  const seen = new Set<string>();
+  const result: CatalogItem[] = [];
+  for (const item of [...featured, ...promos, ...chosenRegular]) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    result.push(item);
+  }
+  return result;
+}
+
+function appendCatalog(lines: string[], items: CatalogItem[], maxRegular = MAX_REGULAR_ITEMS_IN_PROMPT): void {
   if (items.length === 0) {
     lines.push("No hay productos o servicios estructurados cargados.");
     return;
@@ -123,8 +220,8 @@ function appendCatalog(lines: string[], items: CatalogItem[]): void {
     }
   }
 
-  lines.push("", "Catalogo completo:");
-  for (const item of regular.slice(0, 50)) lines.push(formatItem(item));
+  lines.push("", "Catalogo (seleccion relevante a la consulta):");
+  for (const item of regular.slice(0, maxRegular)) lines.push(formatItem(item));
 }
 
 // Presupuesto del texto libre del negocio (no del catálogo, que es la fuente
@@ -133,12 +230,19 @@ const MAX_KNOWLEDGE_CHARS = 2000;
 const MAX_BOOKING_CHARS = 1200;
 const MAX_DESCRIPTION_CHARS = 700;
 
-// "knowledge_pack" cacheado: el contexto del negocio cambia poco, pero el worker
-// lo reconstruía leyendo Supabase en CADA mensaje (perfil + catálogo + fuentes).
-// Cacheamos el resultado por business_id con TTL corto: menos lecturas/egress y
-// menos latencia. Tras editar datos, los cambios se ven dentro del TTL (≈60s).
+// Datos crudos del negocio cacheados: el worker reconstruía el contexto leyendo
+// Supabase en CADA mensaje (perfil + catálogo + fuentes). Cacheamos los DATOS
+// (no el prompt final) por business_id con TTL corto: menos lecturas/egress y
+// menos latencia. El prompt se arma por mensaje porque ahora la selección de
+// catálogo depende de la consulta del cliente (retrieval por relevancia).
+// Tras editar datos, los cambios se ven dentro del TTL (≈60s).
+type RawBusinessData = {
+  profile: Awaited<ReturnType<typeof getBusinessProfile>>;
+  items: CatalogItem[];
+  externalSources: Awaited<ReturnType<typeof getEnabledSourcesContent>>;
+};
 interface ContextCacheEntry {
-  value: BusinessAIContext | null;
+  value: RawBusinessData | null;
   expiresAt: number;
 }
 const contextCache = new Map<string, ContextCacheEntry>();
@@ -149,22 +253,34 @@ export function invalidateBusinessAIContext(businessId: string): void {
   contextCache.delete(businessId);
 }
 
-export async function buildBusinessAIContext(businessId: string): Promise<BusinessAIContext | null> {
+async function getRawBusinessData(businessId: string): Promise<RawBusinessData | null> {
   const cached = contextCache.get(businessId);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
-  const value = await buildBusinessAIContextUncached(businessId);
-  contextCache.set(businessId, { value, expiresAt: Date.now() + CONTEXT_CACHE_TTL_MS });
-  return value;
-}
-
-async function buildBusinessAIContextUncached(businessId: string): Promise<BusinessAIContext | null> {
   const [profile, items, externalSources] = await Promise.all([
     getBusinessProfile(businessId).catch(() => null),
     listActiveItemsForPrompt(businessId).catch(() => []),
     getEnabledSourcesContent(businessId).catch(() => []),
   ]);
+  const value: RawBusinessData | null = profile ? { profile, items, externalSources } : null;
+  contextCache.set(businessId, { value, expiresAt: Date.now() + CONTEXT_CACHE_TTL_MS });
+  return value;
+}
 
-  if (!profile) return null;
+/**
+ * Arma el contexto del negocio para el prompt. `query` (mensaje del cliente) es
+ * opcional: cuando se pasa, el catálogo se selecciona por relevancia a esa
+ * consulta (clave para catálogos grandes). Sin query, usa el orden natural.
+ */
+export async function buildBusinessAIContext(
+  businessId: string,
+  query?: string | null
+): Promise<BusinessAIContext | null> {
+  const raw = await getRawBusinessData(businessId);
+  if (!raw || !raw.profile) return null;
+  const { profile, items: allItems, externalSources } = raw;
+
+  // Selección de catálogo consciente de la consulta.
+  const items = selectRelevantCatalogItems(allItems, query);
 
   const lines: string[] = [];
   lines.push("CONTEXTO CONFIABLE DEL NEGOCIO");
@@ -220,9 +336,11 @@ async function buildBusinessAIContextUncached(businessId: string): Promise<Busin
     prompt,
     stats: {
       hasProfile: true,
-      catalogItems: items.length,
-      featuredItems: items.filter((item) => item.is_featured).length,
-      activePromotions: items.filter((item) => isPromotionActive(item)).length,
+      // Total real del catálogo (no sólo lo enviado), para que hasCatalog y los
+      // logs reflejen el universo completo aunque sólo mandemos una selección.
+      catalogItems: allItems.length,
+      featuredItems: allItems.filter((item) => item.is_featured).length,
+      activePromotions: allItems.filter((item) => isPromotionActive(item)).length,
       hasKnowledgeBase: Boolean(knowledge.trim()),
       externalSources: externalSources.length,
       promptChars: prompt.length,

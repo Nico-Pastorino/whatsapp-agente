@@ -30,11 +30,22 @@ const transcriptionClient = process.env.OPENAI_API_KEY?.trim()
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY.trim(), timeout: 30_000, maxRetries: 2 })
   : null;
 
-// Model: soporta OPENAI_MODEL (primario) y OPENROUTER_MODEL (alias legacy).
+// Model base: soporta OPENAI_MODEL (primario) y OPENROUTER_MODEL (alias legacy).
 const MODEL =
   process.env.OPENAI_MODEL?.trim() ||
   process.env.OPENROUTER_MODEL?.trim() ||
   "gpt-4o-mini";
+
+// Modelo del paso de RESPUESTA al cliente (el que más impacta en precisión y en
+// seguir reglas duras tipo "plan canje desde iPhone 13"). Se puede subir a un
+// modelo más fuerte (gpt-4o / gpt-4.1) SÓLO acá, sin encarecer el análisis.
+// Fallback seguro: usa el modelo base si no se configura (no cambia el costo
+// hasta que definas AI_REPLY_MODEL en el entorno del worker).
+const REPLY_MODEL = process.env.AI_REPLY_MODEL?.trim() || MODEL;
+
+// Modelo del paso de ANÁLISIS interno (JSON de intención/acción). Conviene
+// mantenerlo barato; por defecto sigue al modelo base.
+const ANALYSIS_MODEL = process.env.AI_ANALYSIS_MODEL?.trim() || MODEL;
 
 const AUDIO_TRANSCRIPTION_MODEL =
   process.env.AUDIO_TRANSCRIPTION_MODEL?.trim() ||
@@ -116,8 +127,12 @@ function normalizeAction(raw: Record<string, unknown> | null): ConversationActio
   };
 }
 
-async function buildSystemPrompt(businessId: string, conversationSummary?: string | null): Promise<string> {
-  const context = await buildBusinessAIContext(businessId);
+async function buildSystemPrompt(
+  businessId: string,
+  conversationSummary?: string | null,
+  query?: string | null
+): Promise<string> {
+  const context = await buildBusinessAIContext(businessId, query);
   if (!context) return SYSTEM_PROMPT;
 
   console.log(
@@ -141,7 +156,8 @@ async function buildSystemPrompt(businessId: string, conversationSummary?: strin
 export async function generateReply(
   history: Message[],
   businessId: string,
-  conversationSummary?: string | null
+  conversationSummary?: string | null,
+  query?: string | null
 ): Promise<string> {
   if (!API_KEY) {
     throw new Error(
@@ -149,7 +165,12 @@ export async function generateReply(
     );
   }
 
-  const systemPrompt = await buildSystemPrompt(businessId, conversationSummary);
+  // `query` = último mensaje (agrupado) del cliente. Si no se pasa, lo inferimos
+  // del historial para que la selección de catálogo por relevancia funcione igual.
+  const effectiveQuery =
+    query?.trim() || [...history].reverse().find((m) => m.role === "user")?.content || null;
+
+  const systemPrompt = await buildSystemPrompt(businessId, conversationSummary, effectiveQuery);
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
@@ -162,7 +183,7 @@ export async function generateReply(
   ];
 
   const response = await client.chat.completions.create({
-    model: MODEL,
+    model: REPLY_MODEL,
     messages,
     // 220 tokens alcanzan para 1-3 líneas de WhatsApp y desalientan párrafos largos.
     max_tokens: 220,
@@ -240,7 +261,11 @@ export async function analyzeConversationAction(
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
   const actionSignals =
     /(turno|reserva|reservar|agendar|cita|horario|mañana|hoy|pasado|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|hablar|persona|asesor|encargad|precio|stock|disponible|confirmar|consult|me interesa|quiero comprar)/i;
-  if (!profile.booking_enabled && !actionSignals.test(lastUser)) return null;
+  // Memoria en hilos largos: aunque no haya señales de acción ni agenda, si la
+  // conversación ya es larga corremos el análisis igual para refrescar el
+  // RESUMEN (summary) y no perder contexto más allá de la ventana de historial.
+  const isLongThread = history.length >= 10;
+  if (!profile.booking_enabled && !actionSignals.test(lastUser) && !isLongThread) return null;
 
   const now = new Date();
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -278,7 +303,7 @@ export async function analyzeConversationAction(
   ];
 
   const response = await client.chat.completions.create({
-    model: MODEL,
+    model: ANALYSIS_MODEL,
     messages,
     max_tokens: 450,
     temperature: 0.1,

@@ -532,7 +532,7 @@ async function processBufferedReply(
     return;
   }
 
-  const history = await getRecentHistory(conversationId, 20, businessId);
+  const history = await getRecentHistory(conversationId, 30, businessId);
   const groupedHistory = buildGroupedHistory(history, items);
   const action = await analyzeConversationAction(groupedHistory, businessId, {
     customerName: fresh.name,
@@ -606,7 +606,7 @@ async function processBufferedReply(
 
   if (!reply) {
     console.log(`[bot/${businessId}] Llamando LLM con ${groupedHistory.length} mensajes, grouped=${items.length}...`);
-    reply = await generateReply(groupedHistory, businessId, action?.summary ?? null);
+    reply = await generateReply(groupedHistory, businessId, action?.summary ?? null, groupedText);
   }
 
   const lastAssistant = [...history].reverse().find((message) => message.role === "assistant");

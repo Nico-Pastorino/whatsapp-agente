@@ -352,7 +352,7 @@ insert into plans (
     'ARS',
     null,
     null,
-    20,
+    10,
     3,
     1,
     '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "template_tiers": ["basic"]}'::jsonb
@@ -364,7 +364,7 @@ insert into plans (
     'ARS',
     null,
     null,
-    150,
+    50,
     10,
     1,
     '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "knowledge_base": true, "appointments": true, "template_tiers": ["basic", "commercial"]}'::jsonb
@@ -376,7 +376,7 @@ insert into plans (
     'ARS',
     null,
     null,
-    1000,
+    500,
     25,
     3,
     '{"shared_inbox": true, "ai_assistant": true, "human_handoff": true, "usage_visibility": true, "knowledge_base": true, "appointments": true, "priority_support": true, "template_tiers": ["basic", "commercial", "premium"]}'::jsonb
