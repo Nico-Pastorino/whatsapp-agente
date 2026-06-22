@@ -18,7 +18,6 @@ import {
   listAppointments,
   checkSlotAvailability,
   updateAppointment,
-  enqueueOutbox,
   getNotifyPhone,
   getLatestPendingAppointment,
   updateConversationSummary,
@@ -252,15 +251,10 @@ async function handleOwnerAppointmentCommand(input: {
 
   const when = formatApptWhen(appt.starts_at);
   const who = appt.customer_name || appt.customer_phone || "el cliente";
-  const notifyCustomer = async (text: string) => {
-    if (!appt.conversation_id) return false;
-    try {
-      await enqueueOutbox(appt.conversation_id, text, businessId);
-      return true;
-    } catch {
-      return false;
-    }
-  };
+  // El aviso al cliente lo dispara updateAppointment en la transición de estado
+  // (centralizado: aplica tanto al panel como a este comando). Acá solo
+  // actualizamos y confirmamos al encargado.
+  const toldCustomer = Boolean(appt.conversation_id);
 
   if (cmd === "reschedule") {
     await ack(`Para reprogramar el turno de ${who} (${when}), entrá al panel → Reservas → Reprogramar y elegí un horario libre.`);
@@ -271,8 +265,7 @@ async function handleOwnerAppointmentCommand(input: {
     await updateAppointment(appt.id, { status: "confirmed" }, businessId).catch((err) =>
       console.error(`[appointments/${businessId}] confirm falló:`, err)
     );
-    const told = await notifyCustomer(`¡Listo! Te confirmamos el turno para ${when} ✅ Te esperamos 🙌`);
-    await ack(`✅ Confirmado: ${who} · ${when}.${told ? " Le avisé al cliente." : ""}`);
+    await ack(`✅ Confirmado: ${who} · ${when}.${toldCustomer ? " Le avisé al cliente." : ""}`);
     console.log(`[appointments/${businessId}] confirmado por encargado appt=${appt.id}`);
     return;
   }
@@ -281,8 +274,7 @@ async function handleOwnerAppointmentCommand(input: {
   await updateAppointment(appt.id, { status: "cancelled" }, businessId).catch((err) =>
     console.error(`[appointments/${businessId}] reject falló:`, err)
   );
-  const told = await notifyCustomer("Perdón, no vamos a poder tomar ese turno 🙏 Si querés, coordinamos otro horario y te lo dejamos.");
-  await ack(`❌ Rechazado: ${who} · ${when}.${told ? " Le avisé al cliente." : ""}`);
+  await ack(`❌ Rechazado: ${who} · ${when}.${toldCustomer ? " Le avisé al cliente." : ""}`);
   console.log(`[appointments/${businessId}] rechazado por encargado appt=${appt.id}`);
 }
 

@@ -3871,12 +3871,31 @@ export async function createAppointment(
   return appointment;
 }
 
+/** "para el vie 19 jun 16:00" o "" si no hay fecha. */
+function appointmentWhenSuffix(startsAt: string | null): string {
+  if (!startsAt) return "";
+  const d = new Date(startsAt);
+  if (Number.isNaN(d.getTime())) return "";
+  return ` para el ${d.toLocaleString("es-AR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+}
+
 export async function updateAppointment(
   id: string,
   patch: AppointmentInput,
   businessId = getBusinessId()
 ): Promise<Appointment> {
   const supabase = getSupabaseAdminClient();
+
+  // Estado previo: para avisar al cliente SOLO en la transición (confirmar/cancelar),
+  // se confirme desde el panel o por WhatsApp. Evita avisos repetidos.
+  const { data: prev } = await supabase
+    .from("appointments")
+    .select("status")
+    .eq("id", id)
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const prevStatus = (prev?.status as AppointmentStatus | undefined) ?? undefined;
+
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (patch.customer_name !== undefined) update.customer_name = patch.customer_name;
   if (patch.customer_phone !== undefined)
@@ -3896,7 +3915,32 @@ export async function updateAppointment(
     .select("*")
     .single();
   if (error) throw error;
-  return data as Appointment;
+  const appointment = data as Appointment;
+
+  // Aviso automático al CLIENTE en la transición de estado (centralizado acá para
+  // que funcione tanto desde el panel como desde el comando 1/2/3 del encargado).
+  // Encola en outbox (lo envía el worker). Best-effort: nunca rompe la actualización.
+  try {
+    const newStatus = appointment.status;
+    const transitioned = prevStatus !== newStatus;
+    if (transitioned && appointment.conversation_id) {
+      let customerMsg: string | null = null;
+      if (newStatus === "confirmed") {
+        customerMsg = `¡Listo! Te confirmamos el turno${appointmentWhenSuffix(appointment.starts_at)} ✅ Te esperamos 🙌`;
+      } else if (newStatus === "cancelled") {
+        customerMsg = `Tuvimos que cancelar el turno${appointmentWhenSuffix(appointment.starts_at)} 🙏 Si querés, coordinamos otro horario y te lo dejamos.`;
+      }
+      if (customerMsg) {
+        await enqueueOutbox(appointment.conversation_id, customerMsg, businessId).catch((err) =>
+          console.error(`[appointments/${businessId}] aviso al cliente falló:`, err)
+        );
+      }
+    }
+  } catch (err) {
+    console.error(`[appointments/${businessId}] notificacion de transicion falló:`, err);
+  }
+
+  return appointment;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
