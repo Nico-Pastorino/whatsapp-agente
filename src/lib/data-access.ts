@@ -3952,8 +3952,33 @@ function buildNewAppointmentMessage(a: Appointment): string {
     }
   }
   if (a.notes) lines.push(`Mensaje: ${a.notes}`);
-  lines.push("Revisar en el panel de Atende.");
+  // Fase 3: el encargado puede resolver desde acá mismo, sin entrar al panel.
+  lines.push("");
+  lines.push("Respondé: *1* confirmar · *2* rechazar · *3* reprogramar");
   return lines.join("\n");
+}
+
+/** Teléfono del encargado (notify_phone) normalizado, o null si no está cargado. */
+export async function getNotifyPhone(businessId = getBusinessId()): Promise<string | null> {
+  const profile = await getBusinessProfile(businessId).catch(() => null);
+  if (!profile?.notify_phone) return null;
+  return normalizePhoneNumber(profile.notify_phone) || null;
+}
+
+/** Última reserva en estado 'pending' del negocio (para confirmar/rechazar por WhatsApp). */
+export async function getLatestPendingAppointment(
+  businessId = getBusinessId()
+): Promise<Appointment | null> {
+  const supabase = getSupabaseAdminClient();
+  const { data } = await supabase
+    .from("appointments")
+    .select("*")
+    .eq("business_id", businessId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as Appointment) ?? null;
 }
 
 /**

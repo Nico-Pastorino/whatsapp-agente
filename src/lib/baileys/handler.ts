@@ -17,6 +17,10 @@ import {
   createAppointment,
   listAppointments,
   checkSlotAvailability,
+  updateAppointment,
+  enqueueOutbox,
+  getNotifyPhone,
+  getLatestPendingAppointment,
   updateConversationSummary,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
@@ -195,6 +199,93 @@ async function getAgentPhone(businessId: string): Promise<string | null> {
   }
 }
 
+// ── Fase 3: confirmación de turnos por WhatsApp desde el lado del encargado ──
+
+type OwnerCommand = "confirm" | "reject" | "reschedule";
+
+/** Detecta 1/2/3 o palabras explícitas. Acotado para evitar falsos positivos. */
+function parseOwnerCommand(text: string): OwnerCommand | null {
+  const t = text.trim().toLowerCase();
+  if (t.length > 24) return null;
+  if (t === "1" || /^confirm/.test(t)) return "confirm";
+  if (t === "2" || /^rechaz/.test(t) || /^cancel/.test(t)) return "reject";
+  if (t === "3" || /^reprogram/.test(t)) return "reschedule";
+  return null;
+}
+
+/** Compara teléfonos por los últimos 8 dígitos (tolera prefijos 54/9/0). */
+function samePhone(a: string | null, b: string | null): boolean {
+  if (!a || !b) return false;
+  const da = a.replace(/\D/g, "");
+  const db = b.replace(/\D/g, "");
+  if (!da || !db) return false;
+  const tail = (s: string) => s.slice(-8);
+  return tail(da) === tail(db) && tail(da).length >= 8;
+}
+
+function formatApptWhen(iso: string | null): string {
+  if (!iso) return "sin fecha";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "sin fecha";
+  return d.toLocaleString("es-AR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * El encargado responde 1/2/3 al aviso de reserva. Actuamos sobre la última
+ * reserva pendiente del negocio, avisamos al cliente y confirmamos al encargado.
+ * Best-effort y aislado: cualquier fallo NO interrumpe el flujo normal.
+ */
+async function handleOwnerAppointmentCommand(input: {
+  businessId: string;
+  cmd: OwnerCommand;
+  ownerJid: string;
+  sock: WASocket;
+}): Promise<void> {
+  const { businessId, cmd, ownerJid, sock } = input;
+  const ack = (text: string) => sock.sendMessage(ownerJid, { text }).catch(() => undefined);
+
+  const appt = await getLatestPendingAppointment(businessId).catch(() => null);
+  if (!appt) {
+    await ack("No tenés reservas pendientes para confirmar 🙌");
+    return;
+  }
+
+  const when = formatApptWhen(appt.starts_at);
+  const who = appt.customer_name || appt.customer_phone || "el cliente";
+  const notifyCustomer = async (text: string) => {
+    if (!appt.conversation_id) return false;
+    try {
+      await enqueueOutbox(appt.conversation_id, text, businessId);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  if (cmd === "reschedule") {
+    await ack(`Para reprogramar el turno de ${who} (${when}), entrá al panel → Reservas → Reprogramar y elegí un horario libre.`);
+    return;
+  }
+
+  if (cmd === "confirm") {
+    await updateAppointment(appt.id, { status: "confirmed" }, businessId).catch((err) =>
+      console.error(`[appointments/${businessId}] confirm falló:`, err)
+    );
+    const told = await notifyCustomer(`¡Listo! Te confirmamos el turno para ${when} ✅ Te esperamos 🙌`);
+    await ack(`✅ Confirmado: ${who} · ${when}.${told ? " Le avisé al cliente." : ""}`);
+    console.log(`[appointments/${businessId}] confirmado por encargado appt=${appt.id}`);
+    return;
+  }
+
+  // reject
+  await updateAppointment(appt.id, { status: "cancelled" }, businessId).catch((err) =>
+    console.error(`[appointments/${businessId}] reject falló:`, err)
+  );
+  const told = await notifyCustomer("Perdón, no vamos a poder tomar ese turno 🙏 Si querés, coordinamos otro horario y te lo dejamos.");
+  await ack(`❌ Rechazado: ${who} · ${when}.${told ? " Le avisé al cliente." : ""}`);
+  console.log(`[appointments/${businessId}] rechazado por encargado appt=${appt.id}`);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getMessageContent(msg: any): any {
   return (
@@ -336,6 +427,25 @@ async function processMessage(sock: WASocket, msg: any, businessId: string): Pro
   if (remoteJid.endsWith("@lid")) {
     console.log(`[identity/${businessId}] lid metadata keys=${Object.keys(msg ?? {}).join(",")}`);
     console.log(`[identity/${businessId}] derived phone from metadata=${phoneNumberIfKnown ?? ""}`);
+  }
+
+  // ── Fase 3: comandos del encargado por WhatsApp (confirmar/rechazar/reprogramar) ──
+  // Si el mensaje viene del número de avisos (notify_phone) y es un comando 1/2/3,
+  // lo resolvemos sobre la reserva pendiente y NO seguimos con el flujo de IA.
+  // Best-effort y aislado: cualquier error cae al flujo normal.
+  try {
+    const senderPhone = phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
+    const command = parseOwnerCommand(text);
+    if (command && senderPhone) {
+      const notifyPhone = await getNotifyPhone(businessId).catch(() => null);
+      if (samePhone(senderPhone, notifyPhone)) {
+        console.log(`[appointments/${businessId}] comando del encargado: ${command}`);
+        await handleOwnerAppointmentCommand({ businessId, cmd: command, ownerJid: remoteJid, sock });
+        return;
+      }
+    }
+  } catch (err) {
+    console.error(`[appointments/${businessId}] comando encargado falló (sigo normal):`, err);
   }
 
   const convo = await getOrCreateConversation({

@@ -64,6 +64,8 @@ export {
   saveBusinessSchedule,
   checkSlotAvailability,
   listAvailableSlotsForDate,
+  getNotifyPhone,
+  getLatestPendingAppointment,
   getBestOutgoingJidForContact,
   getBestOutgoingJidForConversation,
   getConnectionState,
