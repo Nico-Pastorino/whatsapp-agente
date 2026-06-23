@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateAppointment, getAppointmentById } from "@/lib/db";
+import { updateAppointment, getAppointmentById, deleteAppointment } from "@/lib/db";
 import type { AppointmentInput } from "@/lib/db";
 import { toDashboardAuthResponse, withActiveDashboardBusinessContext } from "@/lib/route-auth";
 
 export const dynamic = "force-dynamic";
 
 const VALID_STATUS = ["pending", "confirmed", "cancelled", "done"];
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await withActiveDashboardBusinessContext(async ({ businessId }) => {
+      const { id } = await params;
+      const existing = await getAppointmentById(id, businessId);
+      if (!existing) {
+        return NextResponse.json({ error: "Reserva no encontrada." }, { status: 404 });
+      }
+      await deleteAppointment(id, businessId);
+      return NextResponse.json({ ok: true });
+    });
+  } catch (error) {
+    return toDashboardAuthResponse(error);
+  }
+}
 
 export async function PATCH(
   req: NextRequest,

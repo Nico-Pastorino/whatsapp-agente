@@ -3976,6 +3976,35 @@ export async function updateAppointment(
   return appointment;
 }
 
+/** Borra una reserva (hard delete). */
+export async function deleteAppointment(
+  id: string,
+  businessId = getBusinessId()
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("appointments")
+    .delete()
+    .eq("id", id)
+    .eq("business_id", businessId);
+  if (error) throw error;
+}
+
+/** Borra todas las reservas completadas y canceladas. Devuelve cuántas borró. */
+export async function deleteClosedAppointments(
+  businessId = getBusinessId()
+): Promise<number> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("appointments")
+    .delete()
+    .eq("business_id", businessId)
+    .in("status", ["done", "cancelled"])
+    .select("id");
+  if (error) throw error;
+  return (data ?? []).length;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // AVISOS INTERNOS AL ENCARGADO
 // ════════════════════════════════════════════════════════════════════════════
@@ -4025,9 +4054,14 @@ function buildNewAppointmentMessage(a: Appointment, timezone: string): string {
   const when = formatApptDateTime(a.starts_at, timezone);
   if (when) lines.push(`Día/hora: ${when}`);
   if (a.notes) lines.push(`Mensaje: ${a.notes}`);
-  // Fase 3: el encargado puede resolver desde acá mismo, sin entrar al panel.
+  // Gestión desde la app: el encargado confirma/cancela/reprograma en Reservas.
   lines.push("");
-  lines.push("Respondé: *1* confirmar · *2* rechazar · *3* reprogramar");
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  lines.push(
+    appUrl
+      ? `Entrá a la app para confirmar el turno 👉 ${appUrl.replace(/\/$/, "")}/app/agenda`
+      : "Entrá a la app y confirmá el turno en la sección Reservas."
+  );
   return lines.join("\n");
 }
 

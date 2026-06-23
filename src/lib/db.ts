@@ -129,6 +129,8 @@ export {
   getAppointmentMonthlyCount,
   createAppointment,
   updateAppointment,
+  deleteAppointment,
+  deleteClosedAppointments,
   AppointmentLimitError,
   planAllowsInternalNotifications,
   enqueueInternalNotification,

@@ -200,6 +200,25 @@ export default function AgendaScreen() {
     }
   }
 
+  async function removeAppointment(a: Appointment) {
+    if (typeof window !== "undefined" && !window.confirm("¿Eliminar esta reserva? No se puede deshacer.")) return;
+    setAppointments((prev) => prev.filter((x) => x.id !== a.id));
+    try {
+      await fetch(`/api/appointments/${a.id}`, { method: "DELETE" });
+    } finally {
+      load();
+    }
+  }
+
+  async function clearClosed() {
+    if (typeof window !== "undefined" && !window.confirm("¿Vaciar todas las completadas y canceladas? No se puede deshacer.")) return;
+    try {
+      await fetch("/api/appointments/clear", { method: "POST" });
+    } finally {
+      load();
+    }
+  }
+
   const fetchSlots = useCallback(async (date: string) => {
     if (!date) return;
     setSlotsLoading(true);
@@ -377,7 +396,7 @@ export default function AgendaScreen() {
                         </p>
                         <div className="agenda-card-grid">
                           {g.items.map((a) => (
-                            <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} onReschedule={openReschedule} />
+                            <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} onReschedule={openReschedule} onDelete={removeAppointment} />
                           ))}
                         </div>
                       </div>
@@ -388,19 +407,24 @@ export default function AgendaScreen() {
                 {upcoming.length > 0 && view === "list" && (
                   <div className="agenda-card-grid" style={{ marginBottom: 22 }}>
                     {upcoming.map((a) => (
-                      <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} onReschedule={openReschedule} />
+                      <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} onReschedule={openReschedule} onDelete={removeAppointment} />
                     ))}
                   </div>
                 )}
 
                 {past.length > 0 && (
                   <>
-                    <p style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", margin: "0 0 10px" }}>
-                      Completadas / canceladas
-                    </p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 10px" }}>
+                      <p style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", margin: 0 }}>
+                        Completadas / canceladas
+                      </p>
+                      <button onClick={clearClosed} className="atd-chip" style={{ color: "var(--danger-ink)" }}>
+                        Vaciar
+                      </button>
+                    </div>
                     <div className="agenda-card-grid" style={{ opacity: 0.72 }}>
                       {past.map((a) => (
-                        <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} onReschedule={openReschedule} />
+                        <AppointmentCard key={a.id} a={a} onEdit={openEdit} onStatus={changeStatus} onReschedule={openReschedule} onDelete={removeAppointment} />
                       ))}
                     </div>
                   </>
@@ -569,11 +593,13 @@ function AppointmentCard({
   onEdit,
   onStatus,
   onReschedule,
+  onDelete,
 }: {
   a: Appointment;
   onEdit: (a: Appointment) => void;
   onStatus: (a: Appointment, status: AppointmentStatus) => void;
   onReschedule: (a: Appointment) => void;
+  onDelete: (a: Appointment) => void;
 }) {
   const meta = STATUS_META[a.status];
   const isClosed = a.status === "cancelled" || a.status === "done";
@@ -616,6 +642,7 @@ function AppointmentCard({
         {a.status !== "cancelled" && (
           <button onClick={() => onStatus(a, "cancelled")} className="atd-chip" style={{ color: "var(--danger-ink)" }}>Cancelar</button>
         )}
+        <button onClick={() => onDelete(a)} className="atd-chip" style={{ color: "var(--danger-ink)" }} title="Eliminar definitivamente">Eliminar</button>
       </div>
     </div>
   );
