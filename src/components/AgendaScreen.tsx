@@ -80,12 +80,13 @@ function dayHeading(iso: string): string {
 }
 
 type StatusFilter = "all" | AppointmentStatus;
-type ViewMode = "list" | "day";
+type ViewMode = "list" | "day" | "week";
 
 export default function AgendaScreen() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [view, setView] = useState<ViewMode>("day");
+  const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
@@ -318,7 +319,7 @@ export default function AgendaScreen() {
 
             {/* Vista: Día / Lista */}
             <div className="atd-card" style={{ display: "flex", gap: 6, marginBottom: 12, padding: 8 }}>
-              {([["day", "Día"], ["list", "Lista"]] as [ViewMode, string][]).map(([key, label]) => (
+              {([["day", "Día"], ["week", "Semana"], ["list", "Lista"]] as [ViewMode, string][]).map(([key, label]) => (
                 <button
                   key={key}
                   onClick={() => setView(key)}
@@ -387,6 +388,17 @@ export default function AgendaScreen() {
               </div>
             ) : (
               <>
+                {view === "week" && (
+                  <WeekCalendar
+                    appointments={filtered}
+                    weekOffset={weekOffset}
+                    onPrev={() => setWeekOffset((w) => w - 1)}
+                    onNext={() => setWeekOffset((w) => w + 1)}
+                    onToday={() => setWeekOffset(0)}
+                    onSelect={openEdit}
+                  />
+                )}
+
                 {upcoming.length > 0 && view === "day" && (
                   <div style={{ marginBottom: 22, display: "flex", flexDirection: "column", gap: 20 }}>
                     {groupedUpcoming.map((g) => (
@@ -412,7 +424,7 @@ export default function AgendaScreen() {
                   </div>
                 )}
 
-                {past.length > 0 && (
+                {past.length > 0 && view !== "week" && (
                   <>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 10px" }}>
                       <p style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--muted)", margin: 0 }}>
@@ -643,6 +655,159 @@ function AppointmentCard({
           <button onClick={() => onStatus(a, "cancelled")} className="atd-chip" style={{ color: "var(--danger-ink)" }}>Cancelar</button>
         )}
         <button onClick={() => onDelete(a)} className="atd-chip" style={{ color: "var(--danger-ink)" }} title="Eliminar definitivamente">Eliminar</button>
+      </div>
+    </div>
+  );
+}
+
+function startOfWeekMonday(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay(); // 0=Dom..6=Sáb
+  x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day)); // retroceder al lunes
+  return x;
+}
+
+function durationOf(a: Appointment): number {
+  if (a.duration_minutes && a.duration_minutes > 0) return a.duration_minutes;
+  if (a.starts_at && a.ends_at) {
+    const diff = (new Date(a.ends_at).getTime() - new Date(a.starts_at).getTime()) / 60000;
+    if (diff > 0) return diff;
+  }
+  return 30;
+}
+
+function WeekCalendar({
+  appointments,
+  weekOffset,
+  onPrev,
+  onNext,
+  onToday,
+  onSelect,
+}: {
+  appointments: Appointment[];
+  weekOffset: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+  onSelect: (a: Appointment) => void;
+}) {
+  const base = new Date();
+  base.setDate(base.getDate() + weekOffset * 7);
+  const weekStart = startOfWeekMonday(base);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const weekStartMs = weekStart.getTime();
+  const weekEndMs = weekStartMs + 7 * 86_400_000;
+
+  const inWeek = appointments.filter((a) => {
+    if (!a.starts_at) return false;
+    const t = new Date(a.starts_at).getTime();
+    return !Number.isNaN(t) && t >= weekStartMs && t < weekEndMs;
+  });
+
+  // Rango horario: 8–20 por defecto, expandido para que entren todos los turnos.
+  let minH = 8;
+  let maxH = 20;
+  for (const a of inWeek) {
+    const s = new Date(a.starts_at!);
+    const startMin = s.getHours() * 60 + s.getMinutes();
+    const endMin = startMin + durationOf(a);
+    minH = Math.min(minH, Math.floor(startMin / 60));
+    maxH = Math.max(maxH, Math.ceil(endMin / 60));
+  }
+  minH = Math.max(0, minH);
+  maxH = Math.min(24, maxH);
+  const HOUR = 52;
+  const gridH = (maxH - minH) * HOUR;
+  const hours = Array.from({ length: maxH - minH + 1 }, (_, i) => minH + i);
+  const todayKey = dateKey(new Date());
+  const weekLabel = `${days[0].toLocaleDateString("es-AR", { day: "2-digit", month: "short" })} – ${days[6].toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}`;
+
+  return (
+    <div className="atd-card" style={{ padding: 12, marginBottom: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button onClick={onPrev} className="atd-chip" aria-label="Semana anterior">←</button>
+          <button onClick={onToday} className="atd-chip">Hoy</button>
+          <button onClick={onNext} className="atd-chip" aria-label="Semana siguiente">→</button>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", textTransform: "capitalize" }}>{weekLabel}</span>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: 680, display: "grid", gridTemplateColumns: "44px repeat(7, 1fr)" }}>
+          {/* Encabezado */}
+          <div />
+          {days.map((d, i) => {
+            const isToday = dateKey(d) === todayKey;
+            return (
+              <div key={i} style={{ textAlign: "center", padding: "2px 0 8px", fontSize: 11.5, fontWeight: 600, color: isToday ? "var(--accent-ink)" : "var(--ink-2)" }}>
+                <div style={{ textTransform: "capitalize" }}>{d.toLocaleDateString("es-AR", { weekday: "short" })}</div>
+                <div style={{ fontSize: 14, marginTop: 1 }}>{d.getDate()}</div>
+              </div>
+            );
+          })}
+
+          {/* Eje horario */}
+          <div style={{ position: "relative", height: gridH }}>
+            {hours.map((h, i) => (
+              <div key={h} style={{ position: "absolute", top: i * HOUR - 6, right: 6, fontSize: 10, color: "var(--muted)" }}>
+                {String(h).padStart(2, "0")}:00
+              </div>
+            ))}
+          </div>
+
+          {/* Columnas por día */}
+          {days.map((d, di) => {
+            const dk = dateKey(d);
+            const evs = inWeek.filter((a) => dateKey(new Date(a.starts_at!)) === dk);
+            return (
+              <div key={di} style={{ position: "relative", height: gridH, borderLeft: "1px solid var(--hairline)" }}>
+                {hours.map((h, i) => (
+                  <div key={h} style={{ position: "absolute", top: i * HOUR, left: 0, right: 0, height: 1, background: "var(--hairline)" }} />
+                ))}
+                {evs.map((a) => {
+                  const s = new Date(a.starts_at!);
+                  const startMin = s.getHours() * 60 + s.getMinutes();
+                  const top = ((startMin - minH * 60) / 60) * HOUR;
+                  const height = Math.max(22, (durationOf(a) / 60) * HOUR);
+                  const meta = STATUS_META[a.status];
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => onSelect(a)}
+                      title={`${a.customer_name || "Reserva"}${a.service ? " · " + a.service : ""}`}
+                      style={{
+                        position: "absolute",
+                        top,
+                        height,
+                        left: 2,
+                        right: 2,
+                        background: meta.bg,
+                        color: meta.color,
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "2px 5px",
+                        fontSize: 10.5,
+                        textAlign: "left",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        lineHeight: 1.15,
+                      }}
+                    >
+                      <strong>{timeOf(s)}</strong> {a.customer_name || "Reserva"}
+                      {a.service ? ` · ${a.service}` : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
