@@ -18,6 +18,7 @@ import {
   listAppointments,
   checkSlotAvailability,
   updateAppointment,
+  enqueueOutbox,
   getNotifyPhone,
   getLatestPendingAppointment,
   getBusinessTimezone,
@@ -260,7 +261,25 @@ async function handleOwnerAppointmentCommand(input: {
   const toldCustomer = Boolean(appt.conversation_id);
 
   if (cmd === "reschedule") {
-    await ack(`Para reprogramar el turno de ${who} (${when}), entrá al panel → Reservas → Reprogramar y elegí un horario libre.`);
+    // Reprogramar: le pedimos al cliente que elija otro horario. Su respuesta la
+    // toma el asistente (analiza fecha/hora y valida disponibilidad). El turno
+    // anterior queda pendiente para que lo reacomodes/canceles desde el panel.
+    let toldClient = false;
+    if (appt.conversation_id) {
+      const msg = `Hola! Necesitamos reprogramar tu turno${appt.starts_at ? ` del ${when}` : ""} 🙏 ¿Qué otro día y horario te queda cómodo?`;
+      try {
+        await enqueueOutbox(appt.conversation_id, msg, businessId);
+        toldClient = true;
+      } catch (err) {
+        console.error(`[appointments/${businessId}] aviso reprogramar al cliente falló:`, err);
+      }
+    }
+    if (toldClient) {
+      await ack(`📅 Le pedí al cliente (${who}) que elija otro horario para reprogramar el turno${appt.starts_at ? ` del ${when}` : ""}. Cuando responda, el asistente lo toma.`);
+    } else {
+      await ack(`Para reprogramar el turno de ${who}${appt.starts_at ? ` (${when})` : ""}, entrá al panel → Reservas → Reprogramar (esta reserva no tiene un chat asociado para avisarle al cliente).`);
+    }
+    console.log(`[appointments/${businessId}] reprogramar solicitado por encargado appt=${appt.id} toldClient=${toldClient}`);
     return;
   }
 
