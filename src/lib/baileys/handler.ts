@@ -20,6 +20,7 @@ import {
   updateAppointment,
   getNotifyPhone,
   getLatestPendingAppointment,
+  getBusinessTimezone,
   updateConversationSummary,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
@@ -222,11 +223,12 @@ function samePhone(a: string | null, b: string | null): boolean {
   return tail(da) === tail(db) && tail(da).length >= 8;
 }
 
-function formatApptWhen(iso: string | null): string {
+function formatApptWhen(iso: string | null, timezone: string): string {
   if (!iso) return "sin fecha";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "sin fecha";
-  return d.toLocaleString("es-AR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  // timeZone explícito: el worker corre en UTC y sin esto la hora sale corrida.
+  return d.toLocaleString("es-AR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: timezone });
 }
 
 /**
@@ -249,7 +251,8 @@ async function handleOwnerAppointmentCommand(input: {
     return;
   }
 
-  const when = formatApptWhen(appt.starts_at);
+  const tz = await getBusinessTimezone(businessId).catch(() => "America/Argentina/Buenos_Aires");
+  const when = formatApptWhen(appt.starts_at, tz);
   const who = appt.customer_name || appt.customer_phone || "el cliente";
   // El aviso al cliente lo dispara updateAppointment en la transición de estado
   // (centralizado: aplica tanto al panel como a este comando). Acá solo

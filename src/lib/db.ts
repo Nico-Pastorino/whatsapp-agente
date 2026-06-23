@@ -66,6 +66,7 @@ export {
   listAvailableSlotsForDate,
   getNotifyPhone,
   getLatestPendingAppointment,
+  getBusinessTimezone,
   getBestOutgoingJidForContact,
   getBestOutgoingJidForConversation,
   getConnectionState,

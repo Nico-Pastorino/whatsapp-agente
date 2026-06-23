@@ -3859,11 +3859,12 @@ export async function createAppointment(
   const appointment = data as Appointment;
 
   // Aviso interno (si el negocio lo configuró y el plan lo permite).
+  const apptTz = await getBusinessTimezone(businessId).catch(() => DEFAULT_BUSINESS_TIMEZONE);
   await enqueueInternalNotification(
     {
       event_type: "new_appointment",
       dedup_key: `appt:${appointment.id}`,
-      content: buildNewAppointmentMessage(appointment),
+      content: buildNewAppointmentMessage(appointment, apptTz),
     },
     businessId
   ).catch((err) => console.error(`[notify/${businessId}] enqueue new_appointment falló:`, err));
@@ -3871,12 +3872,43 @@ export async function createAppointment(
   return appointment;
 }
 
-/** "para el vie 19 jun 16:00" o "" si no hay fecha. */
-function appointmentWhenSuffix(startsAt: string | null): string {
+// Zona horaria por defecto si el negocio no tiene una configurada.
+const DEFAULT_BUSINESS_TIMEZONE = "America/Argentina/Buenos_Aires";
+
+/** Zona horaria del negocio (de business_settings). Default: AR. */
+export async function getBusinessTimezone(businessId = getBusinessId()): Promise<string> {
+  const supabase = getSupabaseAdminClient();
+  const { data } = await supabase
+    .from("business_settings")
+    .select("timezone")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  return (data?.timezone as string) || DEFAULT_BUSINESS_TIMEZONE;
+}
+
+/**
+ * Formatea un instante (ISO/UTC) a la hora LOCAL del negocio. CRÍTICO para los
+ * mensajes que arma el servidor: sin `timeZone` se imprime el UTC y aparece
+ * corrido (ej: 14:30 en vez de 11:30 en Argentina).
+ */
+function formatApptDateTime(startsAt: string | null, timezone: string): string {
   if (!startsAt) return "";
   const d = new Date(startsAt);
   if (Number.isNaN(d.getTime())) return "";
-  return ` para el ${d.toLocaleString("es-AR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+  return d.toLocaleString("es-AR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: timezone,
+  });
+}
+
+/** "para el vie 19 jun 16:00" (en hora del negocio) o "" si no hay fecha. */
+function appointmentWhenSuffix(startsAt: string | null, timezone: string): string {
+  const formatted = formatApptDateTime(startsAt, timezone);
+  return formatted ? ` para el ${formatted}` : "";
 }
 
 export async function updateAppointment(
@@ -3924,11 +3956,12 @@ export async function updateAppointment(
     const newStatus = appointment.status;
     const transitioned = prevStatus !== newStatus;
     if (transitioned && appointment.conversation_id) {
+      const tz = await getBusinessTimezone(businessId);
       let customerMsg: string | null = null;
       if (newStatus === "confirmed") {
-        customerMsg = `¡Listo! Te confirmamos el turno${appointmentWhenSuffix(appointment.starts_at)} ✅ Te esperamos 🙌`;
+        customerMsg = `¡Listo! Te confirmamos el turno${appointmentWhenSuffix(appointment.starts_at, tz)} ✅ Te esperamos 🙌`;
       } else if (newStatus === "cancelled") {
-        customerMsg = `Tuvimos que cancelar el turno${appointmentWhenSuffix(appointment.starts_at)} 🙏 Si querés, coordinamos otro horario y te lo dejamos.`;
+        customerMsg = `Tuvimos que cancelar el turno${appointmentWhenSuffix(appointment.starts_at, tz)} 🙏 Si querés, coordinamos otro horario y te lo dejamos.`;
       }
       if (customerMsg) {
         await enqueueOutbox(appointment.conversation_id, customerMsg, businessId).catch((err) =>
@@ -3984,17 +4017,13 @@ export async function planAllowsInternalNotifications(
   return sub?.status === "active" || sub?.status === "trial";
 }
 
-function buildNewAppointmentMessage(a: Appointment): string {
+function buildNewAppointmentMessage(a: Appointment, timezone: string): string {
   const lines = ["📅 *Nueva reserva solicitada*"];
   if (a.customer_name) lines.push(`Cliente: ${a.customer_name}`);
   if (a.customer_phone) lines.push(`WhatsApp: ${a.customer_phone}`);
   if (a.service) lines.push(`Servicio: ${a.service}`);
-  if (a.starts_at) {
-    const d = new Date(a.starts_at);
-    if (!Number.isNaN(d.getTime())) {
-      lines.push(`Día/hora: ${d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}`);
-    }
-  }
+  const when = formatApptDateTime(a.starts_at, timezone);
+  if (when) lines.push(`Día/hora: ${when}`);
   if (a.notes) lines.push(`Mensaje: ${a.notes}`);
   // Fase 3: el encargado puede resolver desde acá mismo, sin entrar al panel.
   lines.push("");
