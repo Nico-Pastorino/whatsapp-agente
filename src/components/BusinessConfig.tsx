@@ -120,6 +120,77 @@ const RULE_EXAMPLES = [
   "La seña para reservar es del 50%",
 ];
 
+// ── Datos frecuentes ESTRUCTURADOS ──────────────────────────────────────────
+// Antes era un único textarea libre (engorroso y producía "muros de texto" que
+// empeoraban las respuestas de la IA). Ahora son campos guiados que se componen
+// y parsean al MISMO campo `extra` (sin cambios de backend).
+const PAYMENT_OPTIONS = [
+  "Efectivo",
+  "Transferencia",
+  "Débito",
+  "Crédito",
+  "Mercado Pago",
+  "Cuotas",
+  "Dólares (USD)",
+];
+
+interface InfoFields {
+  horarios: string;
+  direccion: string;
+  pagos: string[];
+  enviosMode: "" | "si" | "no";
+  enviosDetalle: string;
+  notas: string;
+}
+
+const EMPTY_INFO: InfoFields = {
+  horarios: "", direccion: "", pagos: [], enviosMode: "", enviosDetalle: "", notas: "",
+};
+
+function normalizeKey(input: string): string {
+  return input.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+}
+
+/** Compone los campos guiados a texto etiquetado para guardar en `extra`. */
+function composeInfo(f: InfoFields): string {
+  const lines: string[] = [];
+  if (f.horarios.trim()) lines.push(`Horarios: ${f.horarios.trim()}`);
+  if (f.direccion.trim()) lines.push(`Ubicación: ${f.direccion.trim()}`);
+  if (f.pagos.length) lines.push(`Medios de pago: ${f.pagos.join(", ")}`);
+  if (f.enviosMode === "si") lines.push(`Envíos: Sí${f.enviosDetalle.trim() ? ` — ${f.enviosDetalle.trim()}` : ""}`);
+  else if (f.enviosMode === "no") lines.push("Envíos: No hacemos envíos");
+  if (f.notas.trim()) lines.push(f.notas.trim());
+  return lines.join("\n");
+}
+
+/** Parser tolerante: reconoce las etiquetas conocidas; lo demás va a Notas
+ *  (así no se pierde nada del texto libre legacy). */
+function parseInfo(extra: string): InfoFields {
+  const f: InfoFields = { ...EMPTY_INFO, pagos: [] };
+  const notas: string[] = [];
+  for (const rawLine of (extra ?? "").split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const m = /^([^:]{2,40}):\s*(.+)$/.exec(line);
+    const key = m ? normalizeKey(m[1]) : "";
+    const val = m ? m[2].trim() : "";
+    if (key === "horarios" || key === "horario") { f.horarios = val; continue; }
+    if (key === "ubicacion" || key === "direccion") { f.direccion = val; continue; }
+    if (["medios de pago", "metodos de pago", "metodo de pago", "pago", "pagos"].includes(key)) {
+      f.pagos = val.split(/[,/]|\sy\s/).map((s) => s.trim()).filter(Boolean);
+      continue;
+    }
+    if (key === "envios" || key === "envio") {
+      if (/^no\b|no hacemos/i.test(val)) { f.enviosMode = "no"; }
+      else { f.enviosMode = "si"; f.enviosDetalle = val.replace(/^s[ií]\s*[—\-:]*\s*/i, "").trim(); }
+      continue;
+    }
+    notas.push(line);
+  }
+  f.notas = notas.join("\n");
+  return f;
+}
+
 function SectionHeader({
   label,
   title,
@@ -205,6 +276,8 @@ export default function BusinessConfig() {
   const [faqLegacy, setFaqLegacy] = useState("");
   const [newFaqQ, setNewFaqQ] = useState("");
   const [newFaqA, setNewFaqA] = useState("");
+  // Datos frecuentes estructurados (espejo de profile.extra).
+  const [info, setInfo] = useState<InfoFields>(EMPTY_INFO);
 
   const reloadProfile = useCallback(() => {
     fetch("/api/business")
@@ -227,6 +300,7 @@ export default function BusinessConfig() {
         setRules(parsed.rules);
         setFaqs(parsed.faqs);
         setFaqLegacy(parsed.legacy);
+        setInfo(parseInfo(data.extra ?? ""));
         setLoading(false);
       });
     fetch("/api/business/items", { cache: "no-store" })
@@ -248,6 +322,23 @@ export default function BusinessConfig() {
   function updateField(field: keyof Profile, value: string) {
     setProfile((p) => ({ ...p, [field]: value }));
     setSaved(false);
+  }
+
+  // Actualiza un campo guiado de "Datos frecuentes" y recompone profile.extra
+  // (lo que se guarda). Una sola fuente de verdad: el form estructurado.
+  function applyInfo(patch: Partial<InfoFields>) {
+    const next = { ...info, ...patch };
+    setInfo(next);
+    setProfile((p) => ({ ...p, extra: composeInfo(next) }));
+    setSaved(false);
+  }
+
+  function togglePago(option: string) {
+    applyInfo({
+      pagos: info.pagos.includes(option)
+        ? info.pagos.filter((p) => p !== option)
+        : [...info.pagos, option],
+    });
   }
 
   async function handleSave() {
@@ -444,15 +535,89 @@ export default function BusinessConfig() {
           <SectionHeader
             label="Respuestas"
             title="Datos frecuentes"
-            description="Horarios, ubicación, pagos y envíos."
+            description="Completá lo que te pregunten seguido. El asistente lo responde solo."
           />
-          <textarea
-            value={profile.extra}
-            onChange={(e) => updateField("extra", e.target.value)}
-            rows={5}
-            placeholder={`Ej:\nHorario: martes a sábado de 10 a 19\nUbicación: Av. Siempre Viva 742\nPago: efectivo, transferencia y tarjeta\nReservas: pedir nombre, día y horario`}
-            className={`${inputClass} resize-none`}
-          />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Horarios */}
+            <label style={{ display: "block" }}>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>🕒 Horarios de atención</span>
+              <input
+                value={info.horarios}
+                onChange={(e) => applyInfo({ horarios: e.target.value })}
+                placeholder="Ej: Lun a Vie de 9 a 18, Sáb de 9 a 13"
+                className={inputClass}
+              />
+            </label>
+
+            {/* Dirección */}
+            <label style={{ display: "block" }}>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>📍 Dirección / ubicación</span>
+              <input
+                value={info.direccion}
+                onChange={(e) => applyInfo({ direccion: e.target.value })}
+                placeholder="Ej: Av. Siempre Viva 742, Springfield"
+                className={inputClass}
+              />
+            </label>
+
+            {/* Medios de pago (chips) */}
+            <div>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>💳 Medios de pago</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {Array.from(new Set([...PAYMENT_OPTIONS, ...info.pagos])).map((opt) => {
+                  const on = info.pagos.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => togglePago(opt)}
+                      aria-pressed={on}
+                      style={{
+                        fontSize: 13, padding: "8px 14px", borderRadius: 999, cursor: "pointer",
+                        border: `1.5px solid ${on ? "var(--green)" : "var(--hairline-2)"}`,
+                        background: on ? "var(--green-tint)" : "var(--surface-2)",
+                        color: on ? "var(--green-ink)" : "var(--ink-2)",
+                        fontWeight: on ? 600 : 400,
+                      }}
+                    >
+                      {on ? "✓ " : ""}{opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Envíos */}
+            <div>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>🚚 ¿Hacés envíos?</span>
+              <div className="atd-seg" style={{ maxWidth: 240 }}>
+                <button type="button" className={info.enviosMode === "si" ? "on" : ""} style={{ flex: 1, justifyContent: "center" }} onClick={() => applyInfo({ enviosMode: "si" })}>Sí</button>
+                <button type="button" className={info.enviosMode === "no" ? "on" : ""} style={{ flex: 1, justifyContent: "center" }} onClick={() => applyInfo({ enviosMode: "no", enviosDetalle: "" })}>No</button>
+              </div>
+              {info.enviosMode === "si" && (
+                <input
+                  value={info.enviosDetalle}
+                  onChange={(e) => applyInfo({ enviosDetalle: e.target.value })}
+                  placeholder="Zona y costo. Ej: CABA $2000, interior por correo"
+                  className={inputClass}
+                  style={{ marginTop: 8 }}
+                />
+              )}
+            </div>
+
+            {/* Notas / otra info */}
+            <label style={{ display: "block" }}>
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>📝 Otra info útil <span style={{ color: "var(--muted)", fontWeight: 400 }}>(opcional)</span></span>
+              <textarea
+                value={info.notas}
+                onChange={(e) => applyInfo({ notas: e.target.value })}
+                rows={3}
+                placeholder="Garantía, qué incluye, aclaraciones… lo que no entre arriba."
+                className={`${inputClass} resize-none`}
+              />
+            </label>
+          </div>
 
           <div className="business-quick-links">
             <Link href="/app/catalog" className="business-quick-link">
