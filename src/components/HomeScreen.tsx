@@ -49,6 +49,13 @@ interface ValueData {
   avgResponseSec: number | null;
 }
 
+// Chats que requieren intervención humana (preview accionable en Inicio).
+interface PendingChat {
+  id: string;
+  name: string;
+  preview: string;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const [data, setData] = useState<HomeData>({
@@ -65,6 +72,7 @@ export default function HomeScreen() {
   });
   const [steps, setSteps] = useState<ActivationStep[]>([]);
   const [value, setValue] = useState<ValueData | null>(null);
+  const [pendingChats, setPendingChats] = useState<PendingChat[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
 
@@ -93,16 +101,24 @@ export default function HomeScreen() {
       readJson("/api/stats"),
     ]).then(([plan, biz, conn, items, convs, team, stats]) => {
       if (!mounted) return;
-      const conversations: Array<{ last_message_at?: number; needs_attention?: boolean; mode?: string }> =
+      const conversations: Array<{ id?: string; name?: string; last_message_at?: number; needs_attention?: boolean; mode?: string; last_message_preview?: string }> =
         Array.isArray(convs) ? convs : [];
 
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayTs = todayStart.getTime() / 1000;
       const todayConvs = conversations.filter((c) => (c.last_message_at ?? 0) >= todayTs).length;
-      const needsAttention = conversations.filter(
-        (c) => c.needs_attention && c.mode !== "AI"
-      ).length;
+      const attentionConvs = conversations
+        .filter((c) => c.needs_attention && c.mode !== "AI")
+        .sort((a, b) => (b.last_message_at ?? 0) - (a.last_message_at ?? 0));
+      const needsAttention = attentionConvs.length;
+      setPendingChats(
+        attentionConvs.slice(0, 3).map((c) => ({
+          id: c.id ?? "",
+          name: (c.name ?? "").trim() || "Cliente sin nombre",
+          preview: (c.last_message_preview ?? "").trim(),
+        }))
+      );
 
       const isConnected = conn?.status === "connected";
       const productCount = items?.count ?? items?.items?.length ?? 0;
@@ -174,6 +190,25 @@ export default function HomeScreen() {
     return () => { mounted = false; };
   }, []);
 
+  // Acción contextual del botón central del tab bar (mobile). Cuando el usuario
+  // ya está en Inicio, ese botón (antes un no-op) ejecuta "lo más importante
+  // ahora" según el estado del negocio. Se re-registra cuando cambia el estado.
+  useEffect(() => {
+    function handlePrimary() {
+      if (!data.waConnected) {
+        router.push("/app/connect");
+      } else if (data.needsAttention > 0) {
+        router.push("/app/conversations");
+      } else if (data.productCount === 0) {
+        setShowWizard(true);
+      } else {
+        router.push("/app/business#probar-asistente");
+      }
+    }
+    window.addEventListener("atende:home-primary", handlePrimary);
+    return () => window.removeEventListener("atende:home-primary", handlePrimary);
+  }, [data.waConnected, data.needsAttention, data.productCount, router]);
+
   if (loading) {
     return (
       <div className="liquid-scroll">
@@ -189,7 +224,6 @@ export default function HomeScreen() {
   const doneCount = steps.filter((s) => s.done).length;
   const totalSteps = steps.length;
   const pct = totalSteps ? Math.round((doneCount / totalSteps) * 100) : 0;
-  const nextStep = steps.find((s) => !s.done) ?? null;
   const allDone = doneCount === totalSteps;
 
   return (
@@ -304,17 +338,26 @@ export default function HomeScreen() {
             <div style={{ height: 9, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden", border: "1px solid var(--glass-border)" }}>
               <div style={{ width: `${pct}%`, height: "100%", borderRadius: 999, background: "linear-gradient(90deg, var(--green), var(--green-soft))", transition: "width .35s var(--ease-ios)" }} />
             </div>
-            {!allDone && nextStep && (
-              <button
-                onClick={() => router.push(nextStep.href)}
-                className="liquid-panel"
-                style={{ marginTop: 14, width: "100%", padding: 13, border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", color: "var(--ink)" }}
-              >
-                <span style={{ width: 22, height: 22, borderRadius: 999, border: "1.5px solid var(--green)", flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 14, fontWeight: 650 }}>{nextStep.label}</span>
-                <Arrow size={16} style={{ color: "var(--muted)" }} />
-              </button>
-            )}
+            {/* Los 4 pasos completos (antes sólo se mostraba el próximo y quedaba
+                un hueco vacío). De un vistazo se ve qué falta y qué ya está. */}
+            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+              {steps.map((step) => (
+                <button
+                  key={step.key}
+                  onClick={() => router.push(step.href)}
+                  className="liquid-panel"
+                  style={{ width: "100%", padding: 12, border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", color: "var(--ink)", opacity: step.done ? 0.62 : 1 }}
+                >
+                  {step.done ? (
+                    <span style={{ width: 22, height: 22, borderRadius: 999, background: "var(--green)", color: "var(--on-green)", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>✓</span>
+                  ) : (
+                    <span style={{ width: 22, height: 22, borderRadius: 999, border: "1.5px solid var(--green)", flexShrink: 0 }} />
+                  )}
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 650, textDecoration: step.done ? "line-through" : "none" }}>{step.label}</span>
+                  {!step.done && <Arrow size={16} style={{ color: "var(--muted)" }} />}
+                </button>
+              ))}
+            </div>
           </section>
         </div>
 
@@ -358,6 +401,55 @@ export default function HomeScreen() {
             </div>
           </button>
         )}
+
+        {/* Preview accionable: chats que requieren intervención humana. */}
+        {pendingChats.length > 0 && (
+          <section className="liquid-card" style={{ padding: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--accent)", flexShrink: 0 }} />
+              <span style={{ fontSize: 14, fontWeight: 720, color: "var(--ink)" }}>Chats que necesitan tu atención</span>
+              <span className="atd-badge" style={{ marginLeft: "auto" }}>{data.needsAttention}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {pendingChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => router.push(`/app/conversations?c=${chat.id}`)}
+                  className="liquid-panel"
+                  style={{ width: "100%", padding: 12, border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", color: "var(--ink)" }}
+                >
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 14, fontWeight: 650, color: "var(--ink)" }}>{chat.name}</span>
+                    {chat.preview && (
+                      <span style={{ display: "block", fontSize: 12.5, color: "var(--ink-3)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{chat.preview}</span>
+                    )}
+                  </span>
+                  <Arrow size={16} style={{ color: "var(--muted)", flexShrink: 0 }} />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Accesos rápidos a las 2 acciones más comunes. */}
+        <div className="liquid-grid cols-2" style={{ gap: 12 }}>
+          <button
+            onClick={() => router.push("/app/business#probar-asistente")}
+            className="liquid-card"
+            style={{ padding: 18, textAlign: "left", cursor: "pointer", color: "var(--ink)", border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12 }}
+          >
+            <span style={{ fontSize: 22, flexShrink: 0 }}>✨</span>
+            <span style={{ display: "block", fontSize: 14.5, fontWeight: 700 }}>Probar el asistente</span>
+          </button>
+          <button
+            onClick={() => router.push("/app/catalog")}
+            className="liquid-card"
+            style={{ padding: 18, textAlign: "left", cursor: "pointer", color: "var(--ink)", border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12 }}
+          >
+            <span style={{ fontSize: 22, flexShrink: 0 }}>📦</span>
+            <span style={{ display: "block", fontSize: 14.5, fontWeight: 700 }}>Agregar producto</span>
+          </button>
+        </div>
 
         <div className="liquid-grid cols-3">
           {[
