@@ -40,6 +40,15 @@ interface ActivationStep {
   href: string;
 }
 
+// Valor generado por el asistente (datos reales de /api/stats). Sólo owner/admin
+// reciben respuesta; si viene null (operador o sin acceso) no se muestra la tarjeta.
+interface ValueData {
+  aiRepliesMonth: number;
+  weekConversations: number;
+  weeklyTrendPct: number | null;
+  avgResponseSec: number | null;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const [data, setData] = useState<HomeData>({
@@ -55,6 +64,7 @@ export default function HomeScreen() {
     teamCount: 1,
   });
   const [steps, setSteps] = useState<ActivationStep[]>([]);
+  const [value, setValue] = useState<ValueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
 
@@ -80,7 +90,8 @@ export default function HomeScreen() {
       readJson("/api/business/items"),
       readJson("/api/conversations"),
       readJson("/api/team"),
-    ]).then(([plan, biz, conn, items, convs, team]) => {
+      readJson("/api/stats"),
+    ]).then(([plan, biz, conn, items, convs, team, stats]) => {
       if (!mounted) return;
       const conversations: Array<{ last_message_at?: number; needs_attention?: boolean; mode?: string }> =
         Array.isArray(convs) ? convs : [];
@@ -127,6 +138,23 @@ export default function HomeScreen() {
         { key: "test", label: "Probá cómo responde", done: conversations.length > 0, href: "/app/business#probar-asistente" },
       ];
       setSteps(activation);
+
+      // Tarjeta de valor: sólo si /api/stats respondió (owner/admin con acceso)
+      // y hay algo de actividad real que mostrar. Datos 100% reales, sin inventar.
+      if (stats && typeof stats === "object") {
+        const aiReplies = Number(stats.ai_replies_this_month ?? 0);
+        const weekConvs = Number(stats.this_week_conversations ?? 0);
+        if (aiReplies > 0 || weekConvs > 0) {
+          setValue({
+            aiRepliesMonth: aiReplies,
+            weekConversations: weekConvs,
+            weeklyTrendPct:
+              typeof stats.weekly_trend_pct === "number" ? stats.weekly_trend_pct : null,
+            avgResponseSec:
+              typeof stats.avg_ai_response_sec === "number" ? stats.avg_ai_response_sec : null,
+          });
+        }
+      }
 
       setData({
         plan: plan ?? null,
@@ -266,6 +294,47 @@ export default function HomeScreen() {
             )}
           </section>
         </div>
+
+        {data.waConnected && value && (
+          <button
+            onClick={() => router.push("/app/stats")}
+            className="liquid-card"
+            style={{ padding: 20, textAlign: "left", cursor: "pointer", color: "var(--ink)", border: "1px solid var(--green)", width: "100%" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <span style={{ fontSize: 18 }}>💪</span>
+              <span style={{ fontSize: 14, fontWeight: 720, color: "var(--ink)" }}>Lo que hizo tu asistente</span>
+              <Arrow size={15} style={{ color: "var(--muted)", marginLeft: "auto" }} />
+            </div>
+            <div className="liquid-grid cols-3" style={{ gap: 12 }}>
+              <div>
+                <div className="serif" style={{ fontSize: 32, lineHeight: 0.95, color: "var(--green)" }}>{value.aiRepliesMonth}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>respuestas automáticas este mes</div>
+              </div>
+              <div>
+                <div className="serif" style={{ fontSize: 32, lineHeight: 0.95 }}>{value.weekConversations}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>
+                  conversaciones esta semana
+                  {value.weeklyTrendPct !== null && value.weeklyTrendPct !== 0 && (
+                    <span style={{ color: value.weeklyTrendPct > 0 ? "var(--green)" : "var(--ink-3)", fontWeight: 600 }}>
+                      {" "}{value.weeklyTrendPct > 0 ? "↑" : "↓"}{Math.abs(value.weeklyTrendPct)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="serif" style={{ fontSize: 32, lineHeight: 0.95 }}>
+                  {value.avgResponseSec !== null
+                    ? value.avgResponseSec < 60
+                      ? `${value.avgResponseSec}s`
+                      : `${Math.round(value.avgResponseSec / 60)}m`
+                    : "—"}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>tiempo de respuesta promedio</div>
+              </div>
+            </div>
+          </button>
+        )}
 
         <div className="liquid-grid cols-3">
           {[

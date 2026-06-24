@@ -130,16 +130,22 @@ export default function OnboardingWizard({ onClose }: { onClose: () => void }) {
 
         {step === 3 && (
           <>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>¡Listo para probar! 🎉</h3>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>Último paso: conectá tu WhatsApp 🚀</h3>
             <p style={{ margin: "6px 0 16px", fontSize: 13.5, color: "var(--ink-3)" }}>
-              Ya quedaron cargadas reglas de ejemplo de tu rubro. Revisalas y editalas con tus valores reales (precios, condiciones, qué aceptás y qué no) para que el asistente responda exacto.
+              Ya cargamos reglas de ejemplo de tu rubro. Conectá el número del negocio y tu asistente empieza a responder de verdad. ¿Querés ver cómo responde antes? Probalo acá mismo.
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button className="atd-btn primary" onClick={() => { onClose(); router.push("/app/business#reglas-negocio"); }}>
-                Revisar mis reglas
+              <button className="atd-btn primary" onClick={() => { onClose(); router.push("/app/connect"); }}>
+                Conectar mi WhatsApp
               </button>
               <button className="atd-btn secondary" onClick={() => { onClose(); router.push("/app/business#probar-asistente"); }}>
-                Probar el asistente
+                Probar el asistente primero
+              </button>
+              <button
+                onClick={() => { onClose(); router.push("/app/business#reglas-negocio"); }}
+                style={{ marginTop: 2, fontSize: 13, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+              >
+                Revisar mis reglas primero
               </button>
             </div>
           </>

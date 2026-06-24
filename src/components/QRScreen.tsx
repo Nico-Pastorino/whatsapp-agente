@@ -129,14 +129,22 @@ export default function QRScreen({ onConnected }: Props) {
     : null;
 
   // ── Selector de método: QR vs código ────────────────────────────────────────
+  // En celular, "Con código" es el camino recomendado (no necesitás otra
+  // pantalla para escanear), así que va primero y marcado. En desktop/tablet,
+  // el QR sigue primero (es lo natural cuando vinculás desde otra pantalla).
+  const codeButton = (
+    <button key="code" className={method === "code" ? "on" : ""} onClick={() => setMethod("code")} style={{ flex: 1, justifyContent: "center" }}>
+      {isMobile ? "Con código ✓" : "Con código"}
+    </button>
+  );
+  const qrButton = (
+    <button key="qr" className={method === "qr" ? "on" : ""} onClick={() => setMethod("qr")} style={{ flex: 1, justifyContent: "center" }}>
+      Escanear QR
+    </button>
+  );
   const methodToggle = (
     <div className="atd-seg" style={{ width: "100%", maxWidth: 360, margin: "0 auto 14px" }}>
-      <button className={method === "qr" ? "on" : ""} onClick={() => setMethod("qr")} style={{ flex: 1, justifyContent: "center" }}>
-        Escanear QR
-      </button>
-      <button className={method === "code" ? "on" : ""} onClick={() => setMethod("code")} style={{ flex: 1, justifyContent: "center" }}>
-        Con código
-      </button>
+      {isMobile ? [codeButton, qrButton] : [qrButton, codeButton]}
     </div>
   );
 
