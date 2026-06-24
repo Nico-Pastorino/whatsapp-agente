@@ -8,6 +8,7 @@ import {
   recordHumanMessageUsage,
   setMode,
   setNeedsAttention,
+  setHotLead,
   updateHumanActivity,
 } from "@/lib/db";
 import { toDashboardAuthResponse, withDashboardBusinessContext, withVerifiedActiveDashboardBusinessContext } from "@/lib/route-auth";
@@ -95,6 +96,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       // Clear the attention flag as soon as a human responds.
       if (conv.needs_attention) {
         await setNeedsAttention(id, false, businessId).catch(() => undefined);
+      }
+      // Un humano tomó el chat → el lead caliente ya está atendido.
+      if (conv.hot_lead) {
+        await setHotLead(id, false, businessId).catch(() => undefined);
       }
 
       const message = await insertMessage(id, "human", content, null, businessId);

@@ -49,7 +49,7 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
   async function load() {
     const [conn, convs, appts] = await Promise.all([
       fetchJson<{ status?: string }>("/api/connection/status"),
-      fetchJson<Array<{ id: string; name?: string; mode?: string; needs_attention?: boolean; last_message_preview?: string; last_message_at?: number }>>("/api/conversations"),
+      fetchJson<Array<{ id: string; name?: string; mode?: string; needs_attention?: boolean; hot_lead?: boolean; last_message_preview?: string; last_message_at?: number }>>("/api/conversations"),
       fetchJson<{ appointments?: Array<{ id: string; status?: string; customer_name?: string }> }>("/api/appointments"),
     ]);
 
@@ -63,6 +63,19 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
         title: "WhatsApp desconectado",
         desc: "El asistente no está respondiendo. Reconectá ahora.",
         href: "/app/connect",
+      });
+    }
+
+    // 1.5) Leads calientes: la IA detectó intención clara de compra/reserva.
+    const hotLeads = all
+      .filter((c) => c.hot_lead)
+      .sort((a, b) => (b.last_message_at ?? 0) - (a.last_message_at ?? 0));
+    for (const c of hotLeads.slice(0, 5)) {
+      list.push({
+        id: `hot-${c.id}`, kind: "danger", emoji: "🔥", counts: true,
+        title: `${(c.name ?? "").trim() || "Un cliente"} está por comprar`,
+        desc: (c.last_message_preview ?? "").trim().slice(0, 70) || "Mostró interés de compra. Cerralo vos.",
+        href: `/app/conversations?c=${c.id}`,
       });
     }
 

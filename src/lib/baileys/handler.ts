@@ -13,6 +13,7 @@ import {
   checkAccountAccess,
   setMode,
   setNeedsAttention,
+  setHotLead,
   enqueueInternalNotification,
   createAppointment,
   listAppointments,
@@ -731,6 +732,12 @@ async function processBufferedReply(
   }
 
   if (action?.event === "hot_lead" && action.confidence >= 0.7 && !shouldHandoff) {
+    // Marca la conversación como lead caliente para mostrarla en el centro de
+    // notificaciones de la app (🔥). Se limpia cuando un humano la atiende o se
+    // genera una reserva. No bloquea: si falla, igual va el aviso a WhatsApp.
+    await setHotLead(conversationId, true, businessId).catch((err) =>
+      console.error(`[notify/${businessId}] setHotLead falló:`, err)
+    );
     const day = new Date().toISOString().slice(0, 10);
     const customerPhone = fresh.phone_number ?? phoneNumberIfKnown ?? extractPhoneFromJid(remoteJid);
     const who = fresh.name || customerPhone || "Un cliente";

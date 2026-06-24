@@ -100,6 +100,7 @@ export {
   setConnectionState,
   setMode,
   setNeedsAttention,
+  setHotLead,
   updateHumanActivity,
   returnInactiveConversationsToAI,
   HUMAN_INACTIVITY_MINUTES,

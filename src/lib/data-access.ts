@@ -63,6 +63,7 @@ export interface Conversation {
   has_safe_outgoing_jid: boolean;
   needs_phone_mapping: boolean;
   needs_attention: boolean;
+  hot_lead: boolean;
   last_message_at: number | null;
   created_at: number;
   assigned_to: string | null;
@@ -144,6 +145,7 @@ interface ConversationRow {
   display_name: string | null;
   mode: "AI" | "HUMAN";
   needs_attention: boolean;
+  hot_lead?: boolean;
   last_message_at: string | null;
   created_at: string;
   assigned_to: string | null;
@@ -652,6 +654,7 @@ function mapConversationRow(row: ConversationRow): Conversation {
     has_safe_outgoing_jid: false,
     needs_phone_mapping: false,
     needs_attention: row.needs_attention ?? false,
+    hot_lead: row.hot_lead ?? false,
     last_message_at: toUnixSeconds(row.last_message_at),
     created_at: toUnixSeconds(row.created_at) ?? 0,
     assigned_to: row.assigned_to ?? null,
@@ -992,7 +995,7 @@ async function getConversationRowById(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, hot_lead, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .eq("id", conversationId)
@@ -2641,7 +2644,7 @@ export async function getOrCreateConversation(input: {
       updated_at: new Date().toISOString(),
     })
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, hot_lead, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .single();
   if (createError || !created) throw createError ?? new Error("conversation insert failed");
@@ -2689,6 +2692,23 @@ export async function setNeedsAttention(
   const { error } = await supabase
     .from("conversations")
     .update({ needs_attention: value, updated_at: new Date().toISOString() })
+    .eq("business_id", businessId)
+    .eq("id", conversationId);
+  if (error) throw error;
+}
+
+// Marca/limpia el flag de "lead caliente" (intención clara de compra/reserva).
+// Lo setea el worker al detectar el evento hot_lead; se limpia cuando alguien
+// toma el chat, responde desde el panel o se genera una reserva.
+export async function setHotLead(
+  conversationId: string,
+  value: boolean,
+  businessId = getBusinessId()
+): Promise<void> {
+  const supabase = getSupabaseAdminClient();
+  const { error } = await supabase
+    .from("conversations")
+    .update({ hot_lead: value, updated_at: new Date().toISOString() })
     .eq("business_id", businessId)
     .eq("id", conversationId);
   if (error) throw error;
@@ -2761,7 +2781,7 @@ export async function listConversations(
   const { data, error } = await supabase
     .from("conversations")
     .select(
-      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
+      "id, business_id, contact_id, phone_jid, last_inbound_jid, display_name, mode, needs_attention, hot_lead, last_message_at, created_at, assigned_to, human_last_activity, contact:contacts!conversations_contact_id_fkey(id, display_name, phone_number, primary_jid)"
     )
     .eq("business_id", businessId)
     .order("last_message_at", { ascending: false, nullsFirst: false })
@@ -3857,6 +3877,11 @@ export async function createAppointment(
     .single();
   if (error) throw error;
   const appointment = data as Appointment;
+
+  // El lead se concretó en una reserva → limpiamos el flag de lead caliente.
+  if (input.conversation_id) {
+    await setHotLead(input.conversation_id, false, businessId).catch(() => undefined);
+  }
 
   // Aviso interno (si el negocio lo configuró y el plan lo permite).
   const apptTz = await getBusinessTimezone(businessId).catch(() => DEFAULT_BUSINESS_TIMEZONE);
