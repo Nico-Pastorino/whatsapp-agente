@@ -292,14 +292,14 @@ export default function HomeScreen() {
         )}
 
         <div className="home-overview-grid">
-          <section className="liquid-card" style={{ padding: 26, minHeight: 250, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: data.waConnected ? "var(--green)" : "var(--accent)", marginBottom: 16 }}>
+          <section className="liquid-card" style={{ padding: 28, minHeight: 230, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 700, color: data.waConnected ? "var(--green)" : "var(--accent)" }}>
               <span className={`atd-dot ${data.waConnected ? "live" : ""}`} style={data.waConnected ? undefined : { background: "currentColor" }} />
               {data.waConnected ? "WhatsApp conectado" : "Próxima acción"}
             </div>
             <div style={{ display: "grid", gap: 22, alignItems: "end" }}>
               <div>
-                <h2 style={{ fontSize: "clamp(34px, 4.4vw, 68px)", lineHeight: 0.95, fontWeight: 760, letterSpacing: 0, margin: 0, color: "var(--ink)", maxWidth: 760 }}>
+                <h2 style={{ fontSize: "clamp(28px, 3vw, 44px)", lineHeight: 1.02, fontWeight: 760, letterSpacing: 0, margin: 0, color: "var(--ink)", maxWidth: 620 }}>
                   {data.waConnected ? "Tu asistente está atendiendo." : "Conectá WhatsApp para empezar."}
                 </h2>
                 <p style={{ fontSize: 15, lineHeight: 1.6, margin: "16px 0 0", color: "var(--ink-3)", maxWidth: 680 }}>
@@ -320,7 +320,7 @@ export default function HomeScreen() {
             </div>
           </section>
 
-          <section className="liquid-card" style={{ padding: 20, minHeight: 250, display: "flex", flexDirection: "column" }}>
+          <section className="liquid-card" style={{ padding: 22, minHeight: 230, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, marginBottom: 12 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 17, fontWeight: 720, color: "var(--ink)" }}>Dejá Atendé listo</h3>
@@ -426,24 +426,26 @@ export default function HomeScreen() {
           </section>
         )}
 
-        {/* Accesos rápidos a las 2 acciones más comunes. */}
-        <div className="liquid-grid cols-2" style={{ gap: 12 }}>
-          <button
-            onClick={() => router.push("/app/business#probar-asistente")}
-            className="liquid-card"
-            style={{ padding: 18, textAlign: "left", cursor: "pointer", color: "var(--ink)", border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12 }}
-          >
-            <span style={{ fontSize: 22, flexShrink: 0 }}>✨</span>
-            <span style={{ display: "block", fontSize: 14.5, fontWeight: 700 }}>Probar el asistente</span>
-          </button>
-          <button
-            onClick={() => router.push("/app/catalog")}
-            className="liquid-card"
-            style={{ padding: 18, textAlign: "left", cursor: "pointer", color: "var(--ink)", border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 12 }}
-          >
-            <span style={{ fontSize: 22, flexShrink: 0 }}>📦</span>
-            <span style={{ display: "block", fontSize: 14.5, fontWeight: 700 }}>Agregar producto</span>
-          </button>
+        {/* Accesos rápidos a las acciones más comunes. */}
+        <div className="liquid-grid cols-2" style={{ gap: 14 }}>
+          {[
+            { emoji: "✨", title: "Probar el asistente", desc: "Mirá cómo responde antes de activarlo", href: "/app/business#probar-asistente" },
+            { emoji: "📦", title: "Agregar producto", desc: "Sumá lo que vendés para que pueda venderlo", href: "/app/catalog" },
+          ].map((qa) => (
+            <button
+              key={qa.title}
+              onClick={() => router.push(qa.href)}
+              className="liquid-card"
+              style={{ padding: 18, textAlign: "left", cursor: "pointer", color: "var(--ink)", border: "1px solid var(--glass-border)", display: "flex", alignItems: "center", gap: 14 }}
+            >
+              <span style={{ width: 46, height: 46, borderRadius: 14, background: "var(--surface-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>{qa.emoji}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>{qa.title}</span>
+                <span style={{ display: "block", fontSize: 12.5, color: "var(--ink-3)", marginTop: 2 }}>{qa.desc}</span>
+              </span>
+              <Arrow size={17} style={{ color: "var(--muted)", flexShrink: 0 }} />
+            </button>
+          ))}
         </div>
 
         <div className="liquid-grid cols-3">
