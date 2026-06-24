@@ -813,6 +813,12 @@ body {
   .app-mobile-content.has-trial-banner > .liquid-shell:not(.liquid-scroll) {
     padding-top: 84px;
   }
+  /* Espacio inferior para que el contenido no quede tapado por el tab bar
+     flotante (~84px + safe-area). Cubre todas las vistas de una. Se excluyen
+     las conversaciones, que ya reservan su propio espacio (lista y chat). */
+  .app-mobile-content:not(:has(.conversation-list)):not(:has(.conversation-panel)) {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
   .conversation-panel {
     position: relative;
   }

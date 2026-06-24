@@ -291,7 +291,7 @@ export default function QRScreen({ onConnected }: Props) {
           </div>
         </div>
 
-        <div style={{ padding: "4px 20px 110px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ padding: "4px 20px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
           {methodToggle}
 
           {method === "code" && (

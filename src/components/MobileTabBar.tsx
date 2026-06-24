@@ -50,12 +50,6 @@ export default function MobileTabBar({ activeView, role = "owner" }: Props) {
         <button
           key={key}
           onClick={() => {
-            // Botón central estando YA en Inicio: en vez de re-navegar (no-op),
-            // ejecuta la acción contextual más importante (la maneja HomeScreen).
-            if (key === "home" && active === "home") {
-              window.dispatchEvent(new Event("atende:home-primary"));
-              return;
-            }
             if (key === "chats") {
               window.dispatchEvent(new Event("atende:show-conversation-list"));
             }

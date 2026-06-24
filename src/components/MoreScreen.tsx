@@ -36,7 +36,7 @@ export default function MoreScreen({ role = "owner" }: { role?: DashboardRole })
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg)" }}>
-      <div style={{ padding: "14px 20px 110px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ padding: "14px 20px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="page-header">
           <div>
             <div className="page-sub">ajustes</div>

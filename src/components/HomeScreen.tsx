@@ -190,24 +190,19 @@ export default function HomeScreen() {
     return () => { mounted = false; };
   }, []);
 
-  // Acción contextual del botón central del tab bar (mobile). Cuando el usuario
-  // ya está en Inicio, ese botón (antes un no-op) ejecuta "lo más importante
-  // ahora" según el estado del negocio. Se re-registra cuando cambia el estado.
-  useEffect(() => {
-    function handlePrimary() {
-      if (!data.waConnected) {
-        router.push("/app/connect");
-      } else if (data.needsAttention > 0) {
-        router.push("/app/conversations");
-      } else if (data.productCount === 0) {
-        setShowWizard(true);
-      } else {
-        router.push("/app/business#probar-asistente");
+  // Acción primaria contextual de Inicio: "lo más importante ahora" según el
+  // estado del negocio. Se muestra como un botón GRANDE y etiquetado en el hero
+  // (visible y descubrible), no como un gesto oculto.
+  const primaryAction = !data.waConnected
+    ? { label: "Conectar WhatsApp", go: () => router.push("/app/connect") }
+    : data.needsAttention > 0
+    ? {
+        label: `Atender ${data.needsAttention} ${data.needsAttention === 1 ? "chat" : "chats"}`,
+        go: () => router.push("/app/conversations"),
       }
-    }
-    window.addEventListener("atende:home-primary", handlePrimary);
-    return () => window.removeEventListener("atende:home-primary", handlePrimary);
-  }, [data.waConnected, data.needsAttention, data.productCount, router]);
+    : data.productCount === 0
+    ? { label: "Configurá tu asistente", go: () => setShowWizard(true) }
+    : { label: "Probar el asistente", go: () => router.push("/app/business#probar-asistente") };
 
   if (loading) {
     return (
@@ -316,11 +311,11 @@ export default function HomeScreen() {
                 </p>
               </div>
               <button
-                onClick={() => router.push(data.waConnected ? "/app/conversations" : "/app/connect")}
-                className={`liquid-action ${data.waConnected ? "primary" : "accent"}`}
+                onClick={primaryAction.go}
+                className={`liquid-action ${data.waConnected && data.needsAttention === 0 ? "primary" : "accent"}`}
                 style={{ width: "fit-content" }}
               >
-                {data.waConnected ? "Abrir inbox" : "Conectar ahora"}
+                {primaryAction.label}
               </button>
             </div>
           </section>
