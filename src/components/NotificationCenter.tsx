@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Bell } from "./atende/Icons";
 
@@ -44,7 +45,22 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotifItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left?: number; right?: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Posiciona el panel (portal, fixed) respecto a la campana — así no lo recorta
+  // ningún contenedor con overflow/transform (el bug del corte en mobile).
+  function openMenu() {
+    const r = bellRef.current?.getBoundingClientRect();
+    if (r) {
+      const top = r.bottom + 8;
+      if (align === "left") setCoords({ top, left: Math.max(8, r.left) });
+      else setCoords({ top, right: Math.max(8, window.innerWidth - r.right) });
+    }
+    setOpen(true);
+  }
 
   async function load() {
     const [conn, convs, appts] = await Promise.all([
@@ -145,19 +161,29 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cerrar al hacer click afuera o con Escape.
+  // Cerrar al hacer click afuera (campana o panel), con Escape, o al scrollear.
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      const inBell = ref.current?.contains(t);
+      const inPanel = panelRef.current?.contains(t);
+      if (!inBell && !inPanel) setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
+    function onScroll() {
+      setOpen(false);
+    }
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
   }, []);
 
@@ -172,7 +198,8 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={bellRef}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         className="liquid-icon"
         style={{ position: "relative", cursor: "pointer", border: "1px solid var(--glass-border)" }}
         aria-label="Notificaciones"
@@ -186,18 +213,19 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
         )}
       </button>
 
-      {open && (
+      {open && coords && createPortal(
         <div
+          ref={panelRef}
           role="menu"
           style={{
-            position: "absolute",
-            top: "calc(100% + 10px)",
-            right: align === "right" ? 0 : "auto",
-            left: align === "left" ? 0 : "auto",
-            width: "min(360px, 88vw)",
-            maxHeight: "min(70vh, 520px)",
+            position: "fixed",
+            top: coords.top,
+            right: coords.right,
+            left: coords.left,
+            width: "min(360px, calc(100vw - 16px))",
+            maxHeight: "min(72vh, 540px)",
             overflowY: "auto",
-            zIndex: 200,
+            zIndex: 1000,
             borderRadius: 18,
             border: "1px solid var(--glass-border)",
             background: "var(--bg-elev, var(--surface))",
@@ -251,7 +279,8 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
               ))}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
