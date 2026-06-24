@@ -223,6 +223,29 @@ export default function HomeScreen() {
           </div>
         </header>
 
+        {/* Alerta fuerte: el negocio YA operó (tiene historial) pero WhatsApp está
+            desconectado → no está atendiendo y puede estar perdiendo mensajes.
+            Distinto del onboarding de un usuario nuevo (sin historial). */}
+        {!loading && !data.waConnected && data.totalConversations > 0 && (
+          <button
+            type="button"
+            onClick={() => router.push("/app/connect")}
+            className="liquid-card"
+            style={{ display: "flex", alignItems: "center", gap: 14, padding: 16, cursor: "pointer", textAlign: "left", width: "100%", border: "1px solid var(--danger)", background: "var(--danger-tint, rgba(192,57,43,0.08))" }}
+          >
+            <span style={{ fontSize: 24, flexShrink: 0 }}>⚠️</span>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: "block", fontSize: 15, fontWeight: 720, color: "var(--danger-ink, var(--danger))" }}>
+                Tu WhatsApp está desconectado
+              </span>
+              <span style={{ display: "block", fontSize: 13, color: "var(--ink-2)", marginTop: 2 }}>
+                El asistente no está respondiendo y podés estar perdiendo mensajes de clientes. Reconectá ahora.
+              </span>
+            </span>
+            <span className="liquid-action accent" style={{ flexShrink: 0 }}>Reconectar</span>
+          </button>
+        )}
+
         {!loading && data.productCount === 0 && (
           <button
             type="button"

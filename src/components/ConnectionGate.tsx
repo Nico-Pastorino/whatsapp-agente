@@ -101,6 +101,28 @@ function dedupeConversationsByContact(conversations: Conversation[]): Conversati
   });
 }
 
+// Estado de CARGA de conversaciones. Antes, mientras se hacía el fetch inicial,
+// se mostraba EmptyChats ("Todavía no hay chats / Conectá WhatsApp") aunque el
+// negocio tuviera 25 conversaciones — un parpadeo alarmante de ~2-4s. Ahora se
+// muestra este skeleton hasta que el primer load termina.
+function ChatsLoading() {
+  return (
+    <div className="liquid-shell liquid-enter" style={{ flex: 1, display: "flex", flexDirection: "column", padding: 16, gap: 12 }}>
+      <div className="liquid-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 999, background: "var(--surface-2)", flexShrink: 0, animation: "pulse 1.5s ease-in-out infinite" }} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+              <div style={{ height: 11, width: "42%", borderRadius: 6, background: "var(--surface-2)", animation: "pulse 1.5s ease-in-out infinite" }} />
+              <div style={{ height: 10, width: "72%", borderRadius: 6, background: "var(--surface-2)", animation: "pulse 1.5s ease-in-out infinite" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Empty state for conversations
 function EmptyChats() {
   return (
@@ -135,6 +157,9 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [initialChecked, setInitialChecked] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // ¿Terminó el primer fetch de conversaciones? Evita mostrar "no hay chats"
+  // mientras todavía estamos cargando (el bug del parpadeo).
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
   const [trialPlan, setTrialPlan] = useState<TrialPlanState | null>(null);
@@ -215,6 +240,7 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
       const res = await fetch("/api/conversations", { cache: "no-store" });
       if (!res.ok) return;
       const data: Conversation[] = await res.json();
+      setConversationsLoaded(true);
       const deduped = dedupeConversationsByContact(data);
       setConversations(deduped);
       // Si la URL pidió una conversación puntual (?c=...) y existe, seleccionarla una vez.
@@ -233,7 +259,11 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
           ? current
           : deduped[0]?.id ?? null
       );
-    } catch {}
+    } catch {} finally {
+      // Aun si falló el fetch, marcamos el primer intento como terminado para no
+      // quedar en el skeleton para siempre (el poll de 12s reintenta igual).
+      setConversationsLoaded(true);
+    }
   }
 
   async function loadPlan() {
@@ -342,7 +372,11 @@ export default function ConnectionGate({ currentView, role = "owner" }: Props) {
     mobileContent = content;
   } else {
     // conversations view
-    if (conversations.length === 0 && !phone) {
+    if (!conversationsLoaded && conversations.length === 0) {
+      // Todavía cargando el primer fetch → skeleton (no "no hay chats").
+      content = <ChatsLoading />;
+      mobileContent = content;
+    } else if (conversations.length === 0 && !phone) {
       content = <EmptyChats />;
       mobileContent = content;
     } else {

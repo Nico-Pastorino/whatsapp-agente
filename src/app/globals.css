@@ -90,8 +90,10 @@
   --surface-2:    rgba(255, 255, 255, 0.055);
   --ink:          #eef1ea;
   --ink-2:        #d2d7cf;
-  --ink-3:        #a9afa6;
-  --muted:        #828981;
+  /* Subidos para legibilidad: las etiquetas tenues (page-sub 11px, metas) eran
+     difíciles de leer sobre el fondo oscuro. Más claros, sin perder el estilo. */
+  --ink-3:        #bcc2b9;
+  --muted:        #9aa099;
   --hairline:     rgba(255, 255, 255, 0.09);
   --hairline-2:   rgba(255, 255, 255, 0.16);
   --hairline-3:   rgba(255, 255, 255, 0.26);

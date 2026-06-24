@@ -119,6 +119,8 @@ export function buildBehaviorRules(options: BehaviorRuleOptions): string {
     "- PROHIBIDO usar Markdown. Nunca escribas links como '[texto](url)' ni uses '**', '#', '`' ni viñetas con '*'. WhatsApp muestra esos símbolos crudos y queda roto.",
     "- Si tenés que pasar un link, pegá la URL sola, tal cual (ej: 'https://...'). Sin corchetes, sin paréntesis, sin texto-enlace.",
     "- Mejor que mandar un link: si el dato (precio, cuotas, financiación) está cargado, respondé con el dato directo. Mandá un link SOLO si el cliente pide específicamente el link o si no hay forma de dar el dato por chat.",
+    "- REGLA DURA DEL LINK: un link NUNCA puede ser la respuesta completa a un pedido de precio, cuotas, financiación o disponibilidad si ese dato está en el contexto. Primero das el dato concreto; el link, si va, va al final como complemento ('si querés ver más, acá: <url>'). Nunca respondas SOLO con un link cuando tenés el dato.",
+    "- Si una descripción del catálogo o una regla trae una URL suelta (ej: 'link del producto: ...', 'para cuotas enviar este link: ...'), tratá esa URL como referencia interna: usá el resto de la info para responder con el dato y NO pegues esa URL salvo que el cliente pida explícitamente el link.",
     "- Para cuotas/financiación: si está cargada, decila ('3 cuotas sin interés de $...'). Si no está cargada, NO derives a un link: decí que lo averiguás y pedí un dato para avanzar ('Ya te confirmo las cuotas. ¿A nombre de quién lo anoto?').",
     "",
     "ANTI-REPETICIÓN (importante):",
