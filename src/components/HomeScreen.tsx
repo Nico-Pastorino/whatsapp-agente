@@ -231,7 +231,11 @@ export default function HomeScreen() {
             <h1 className="page-title">{data.businessName}</h1>
           </div>
           <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-            <NotificationCenter />
+            {/* En desktop el centro de notificaciones vive en la sidebar (global);
+                acá solo se muestra en mobile para no duplicarlo. */}
+            <span className="md:hidden">
+              <NotificationCenter />
+            </span>
             <Avatar
               initials={data.businessName.slice(0, 2).toUpperCase()}
               size={42}

@@ -16,21 +16,18 @@ type NotifKind = "danger" | "warning" | "info";
 interface NotifItem {
   id: string;
   kind: NotifKind;
+  emoji: string;
   title: string;
   desc?: string;
   href: string;
+  /** Si suma al badge rojo (las informativas, como "chats nuevos hoy", no). */
+  counts: boolean;
 }
 
 const KIND_COLOR: Record<NotifKind, string> = {
   danger: "var(--danger)",
   warning: "var(--accent)",
   info: "var(--green)",
-};
-
-const KIND_EMOJI: Record<NotifKind, string> = {
-  danger: "⚠️",
-  warning: "📅",
-  info: "💬",
 };
 
 async function fetchJson<T>(url: string): Promise<T | null> {
@@ -42,7 +39,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   }
 }
 
-export default function NotificationCenter() {
+export default function NotificationCenter({ align = "right" }: { align?: "left" | "right" }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotifItem[]>([]);
@@ -57,39 +54,68 @@ export default function NotificationCenter() {
     ]);
 
     const list: NotifItem[] = [];
+    const all = Array.isArray(convs) ? convs : [];
 
+    // 1) WhatsApp desconectado (lo más urgente: el bot no responde).
     if (conn && conn.status && conn.status !== "connected") {
       list.push({
-        id: "wa-disconnected",
-        kind: "danger",
+        id: "wa-disconnected", kind: "danger", emoji: "⚠️", counts: true,
         title: "WhatsApp desconectado",
         desc: "El asistente no está respondiendo. Reconectá ahora.",
         href: "/app/connect",
       });
     }
 
+    // 2) Reservas / turnos por confirmar.
     const appointments = Array.isArray(appts?.appointments) ? appts!.appointments : [];
     const pending = appointments.filter((a) => a.status === "pending");
     if (pending.length > 0) {
       list.push({
-        id: "appointments-pending",
-        kind: "warning",
+        id: "appointments-pending", kind: "warning", emoji: "📅", counts: true,
         title: `${pending.length} ${pending.length === 1 ? "reserva por confirmar" : "reservas por confirmar"}`,
         desc: "Revisá y confirmá los turnos pendientes.",
         href: "/app/agenda",
       });
     }
 
-    const attention = (Array.isArray(convs) ? convs : [])
-      .filter((c) => c.needs_attention && c.mode !== "AI")
+    // 3) Chats derivados a una persona (modo HUMAN): necesitan que respondas vos.
+    const handoff = all
+      .filter((c) => c.needs_attention && c.mode === "HUMAN")
       .sort((a, b) => (b.last_message_at ?? 0) - (a.last_message_at ?? 0));
-    for (const c of attention.slice(0, 6)) {
+    for (const c of handoff.slice(0, 5)) {
       list.push({
-        id: `chat-${c.id}`,
-        kind: "info",
-        title: `${(c.name ?? "").trim() || "Un cliente"} necesita atención`,
-        desc: (c.last_message_preview ?? "").trim().slice(0, 70),
+        id: `handoff-${c.id}`, kind: "danger", emoji: "🙋", counts: true,
+        title: `${(c.name ?? "").trim() || "Un cliente"} necesita atención humana`,
+        desc: (c.last_message_preview ?? "").trim().slice(0, 70) || "Tomá el chat desde el inbox.",
         href: `/app/conversations?c=${c.id}`,
+      });
+    }
+
+    // 4) Consultas que el asistente dejó pendientes (sigue en modo AI pero quedó
+    //    debiendo un dato — "dame un momento y lo consulto"). Cargá la info.
+    const consult = all
+      .filter((c) => c.needs_attention && c.mode === "AI")
+      .sort((a, b) => (b.last_message_at ?? 0) - (a.last_message_at ?? 0));
+    for (const c of consult.slice(0, 5)) {
+      list.push({
+        id: `consult-${c.id}`, kind: "warning", emoji: "🤔", counts: true,
+        title: `${(c.name ?? "").trim() || "Un cliente"}: el asistente quedó debiendo info`,
+        desc: (c.last_message_preview ?? "").trim().slice(0, 70) || "Cargá el dato o respondé desde el panel.",
+        href: `/app/conversations?c=${c.id}`,
+      });
+    }
+
+    // 5) Resumen informativo: chats nuevos hoy (no suma al badge rojo).
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayTs = Math.floor(todayStart.getTime() / 1000);
+    const newToday = all.filter((c) => (c.last_message_at ?? 0) >= todayTs).length;
+    if (newToday > 0) {
+      list.push({
+        id: "new-today", kind: "info", emoji: "🆕", counts: false,
+        title: `${newToday} ${newToday === 1 ? "chat con actividad hoy" : "chats con actividad hoy"}`,
+        desc: "Mirá cómo viene el día en el inbox.",
+        href: "/app/conversations",
       });
     }
 
@@ -123,6 +149,7 @@ export default function NotificationCenter() {
   }, []);
 
   const count = items.length;
+  const badgeCount = items.filter((i) => i.counts).length;
 
   function go(href: string) {
     setOpen(false);
@@ -139,9 +166,9 @@ export default function NotificationCenter() {
         aria-expanded={open}
       >
         <Bell size={17} />
-        {count > 0 && (
+        {badgeCount > 0 && (
           <span className="atd-badge" style={{ position: "absolute", top: -5, right: -5 }}>
-            {count}
+            {badgeCount}
           </span>
         )}
       </button>
@@ -152,7 +179,8 @@ export default function NotificationCenter() {
           style={{
             position: "absolute",
             top: "calc(100% + 10px)",
-            right: 0,
+            right: align === "right" ? 0 : "auto",
+            left: align === "left" ? 0 : "auto",
             width: "min(360px, 88vw)",
             maxHeight: "min(70vh, 520px)",
             overflowY: "auto",
@@ -198,7 +226,7 @@ export default function NotificationCenter() {
                       background: `color-mix(in oklab, ${KIND_COLOR[item.kind]} 18%, transparent)`,
                     }}
                   >
-                    {KIND_EMOJI[item.kind]}
+                    {item.emoji}
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: 13.5, fontWeight: 650, color: "var(--ink)" }}>{item.title}</span>

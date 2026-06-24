@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Spark, Chat, Shop, Bolt, Layers, Users, QR, BarChart, Calendar, LifeBuoy, Logout } from "./atende/Icons";
 import ThemeToggle from "./ThemeToggle";
 import ModalPortal from "./ModalPortal";
+import NotificationCenter from "./NotificationCenter";
 import { canAccessView, type DashboardRole } from "@/lib/role-access";
 
 type DashboardView =
@@ -141,9 +142,12 @@ export default function DashboardSidebar({ activeView, phone, role = "owner", on
       flexShrink: 0,
       boxShadow: "inset -1px 0 0 rgba(255,255,255,0.04)",
     }}>
-      {/* Logo + business switcher */}
+      {/* Logo + centro de notificaciones + business switcher */}
       <div style={{ padding: "24px 18px 16px" }}>
-        <AtendeWordmark />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <AtendeWordmark />
+          <NotificationCenter align="left" />
+        </div>
         {businesses.length > 1 && (
           <select
             value={activeBusinessId ?? ""}
