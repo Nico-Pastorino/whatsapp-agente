@@ -615,6 +615,9 @@ function AppointmentCard({
 }) {
   const meta = STATUS_META[a.status];
   const isClosed = a.status === "cancelled" || a.status === "done";
+  // Acciones secundarias agrupadas en un menú "⋯" para no saturar la card en
+  // mobile (antes eran hasta 6 botones apilados).
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="atd-card" style={{ padding: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
@@ -640,22 +643,35 @@ function AppointmentCard({
           {meta.label}
         </span>
       </div>
-      <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+      {/* Acciones primarias siempre visibles + "⋯" para las secundarias. */}
+      <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
         {a.status !== "confirmed" && a.status !== "cancelled" && (
           <button onClick={() => onStatus(a, "confirmed")} className="atd-chip">Confirmar</button>
         )}
         {a.status !== "done" && a.status !== "cancelled" && (
           <button onClick={() => onStatus(a, "done")} className="atd-chip">Completar</button>
         )}
-        {!isClosed && (
-          <button onClick={() => onReschedule(a)} className="atd-chip">Reprogramar</button>
-        )}
-        <button onClick={() => onEdit(a)} className="atd-chip">Editar</button>
-        {a.status !== "cancelled" && (
-          <button onClick={() => onStatus(a, "cancelled")} className="atd-chip" style={{ color: "var(--danger-ink)" }}>Cancelar</button>
-        )}
-        <button onClick={() => onDelete(a)} className="atd-chip" style={{ color: "var(--danger-ink)" }} title="Eliminar definitivamente">Eliminar</button>
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className="atd-chip"
+          aria-expanded={menuOpen}
+          aria-label="Más acciones"
+        >
+          {menuOpen ? "Menos ✕" : "⋯ Más"}
+        </button>
       </div>
+      {menuOpen && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+          {!isClosed && (
+            <button onClick={() => onReschedule(a)} className="atd-chip">Reprogramar</button>
+          )}
+          <button onClick={() => onEdit(a)} className="atd-chip">Editar</button>
+          {a.status !== "cancelled" && (
+            <button onClick={() => onStatus(a, "cancelled")} className="atd-chip" style={{ color: "var(--danger-ink)" }}>Cancelar</button>
+          )}
+          <button onClick={() => onDelete(a)} className="atd-chip" style={{ color: "var(--danger-ink)" }} title="Eliminar definitivamente">Eliminar</button>
+        </div>
+      )}
     </div>
   );
 }

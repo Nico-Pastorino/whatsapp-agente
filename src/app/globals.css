@@ -610,6 +610,11 @@ body {
 .atd-btn.sm      { height: 40px; padding: 0 14px; font-size: 13px; }
 
 /* Chip de acción (turnos, etc.) */
+/* Oculta la barra de scroll manteniendo el scroll (para filas scrolleables
+   horizontalmente, como las pestañas del catálogo). */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 .atd-chip {
   display: inline-flex; align-items: center; justify-content: center;
   padding: 6px 12px;

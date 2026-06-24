@@ -1593,9 +1593,10 @@ export default function ItemCatalog() {
         )}
       </div>
 
-      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <div style={{ padding: "14px 0 0", overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--hairline)", paddingBottom: 0 }}>
+      {/* ── Tabs (scrolleables en horizontal con pista de fade a la derecha) ── */}
+      <div style={{ position: "relative" }}>
+        <div className="no-scrollbar" style={{ padding: "14px 0 0", overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--hairline)", paddingBottom: 0, paddingRight: 28, width: "max-content", minWidth: "100%" }}>
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -1633,6 +1634,9 @@ export default function ItemCatalog() {
             </button>
           ))}
         </div>
+        </div>
+        {/* Pista visual de que hay más pestañas hacia la derecha. */}
+        <div aria-hidden style={{ position: "absolute", top: 14, right: 0, bottom: 1, width: 30, pointerEvents: "none", background: "linear-gradient(to right, transparent, var(--bg))" }} />
       </div>
 
       {/* ── Search ────────────────────────────────────────────────────────── */}
