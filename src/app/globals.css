@@ -941,6 +941,15 @@ body {
     grid-column: 1 / -1;
   }
 }
+/* Columna apilada dentro del grid del Asistente: agrupa varias tarjetas en una
+   misma columna para BALANCEAR alturas y evitar huecos negros (antes una tarjeta
+   corta al lado de una larga dejaba un vacío enorme). */
+.business-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
 .business-priority-note {
   align-items: center;
   background: var(--green-tint);

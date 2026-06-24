@@ -458,6 +458,8 @@ export default function BusinessConfig() {
           </div>
         </section>
 
+        {/* Columna IZQUIERDA: Reglas + Tono (balancea altura con Datos frecuentes) */}
+        <div className="business-col">
         <section id="reglas-negocio" className="atd-card" style={{ padding: 20 }}>
           <SectionHeader
             label="Importante"
@@ -531,6 +533,52 @@ export default function BusinessConfig() {
           )}
         </section>
 
+        {/* Tono — movido a la columna izquierda para balancear con Datos frecuentes */}
+        <section id="tono-respuesta" className="atd-card" style={{ padding: 20 }}>
+          <SectionHeader
+            label="Estilo"
+            title="Cómo querés que hable"
+            description="Elegí un tono."
+          />
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
+            {TONE_PRESETS.map((tone) => {
+              const selected = profile.response_tone === tone.code;
+              return (
+                <button
+                  key={tone.code}
+                  type="button"
+                  onClick={() => {
+                    setProfile((p) => ({ ...p, response_tone: selected ? "" : tone.code }));
+                    setSaved(false);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "12px 14px", borderRadius: 12, cursor: "pointer", textAlign: "left",
+                    border: `1.5px solid ${selected ? "var(--green)" : "var(--hairline)"}`,
+                    background: selected ? "var(--green-tint)" : "var(--surface)",
+                    transition: "border-color 0.15s, background 0.15s",
+                  }}
+                >
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{tone.emoji}</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{tone.label}</span>
+                  </span>
+                  <span style={{
+                    width: 18, height: 18, borderRadius: 999, flexShrink: 0,
+                    background: selected ? "var(--green)" : "transparent",
+                    border: selected ? "none" : "1.5px solid var(--hairline-2)",
+                    color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700,
+                  }}>
+                    {selected ? "✓" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+        </div>
+        {/* Columna DERECHA: Datos frecuentes */}
+        <div className="business-col">
         <section id="info-clave" className="atd-card" style={{ padding: 20 }}>
           <SectionHeader
             label="Respuestas"
@@ -641,49 +689,7 @@ export default function BusinessConfig() {
             <KnowledgeSourcesSection />
           </section>
         )}
-
-        <section id="tono-respuesta" className="atd-card wide" style={{ padding: 20 }}>
-          <SectionHeader
-            label="Estilo"
-            title="Cómo querés que hable"
-            description="Elegí un tono."
-          />
-          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-            {TONE_PRESETS.map((tone) => {
-              const selected = profile.response_tone === tone.code;
-              return (
-                <button
-                  key={tone.code}
-                  type="button"
-                  onClick={() => {
-                    setProfile((p) => ({ ...p, response_tone: selected ? "" : tone.code }));
-                    setSaved(false);
-                  }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "12px 14px", borderRadius: 12, cursor: "pointer", textAlign: "left",
-                    border: `1.5px solid ${selected ? "var(--green)" : "var(--hairline)"}`,
-                    background: selected ? "var(--green-tint)" : "var(--surface)",
-                    transition: "border-color 0.15s, background 0.15s",
-                  }}
-                >
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{tone.emoji}</span>
-                  <span style={{ flex: 1 }}>
-                    <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{tone.label}</span>
-                  </span>
-                  <span style={{
-                    width: 18, height: 18, borderRadius: 999, flexShrink: 0,
-                    background: selected ? "var(--green)" : "transparent",
-                    border: selected ? "none" : "1.5px solid var(--hairline-2)",
-                    color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700,
-                  }}>
-                    {selected ? "✓" : ""}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        </div>
 
         <details className="atd-card business-advanced-card wide" style={{ padding: 20 }}>
           <AdvancedSummary
