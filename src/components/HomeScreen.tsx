@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Arrow } from "./atende/Icons";
+import { Arrow } from "./atende/Icons";
 import { Avatar } from "./atende/Icons";
 import OnboardingWizard from "./OnboardingWizard";
+import NotificationCenter from "./NotificationCenter";
 import {
   buildAssistantChecklist,
   assistantProgress,
@@ -230,19 +231,7 @@ export default function HomeScreen() {
             <h1 className="page-title">{data.businessName}</h1>
           </div>
           <div style={{ display: "flex", gap: 9, alignItems: "center" }}>
-            <button
-              onClick={() => router.push("/app/conversations")}
-              className="liquid-icon"
-              style={{ position: "relative", cursor: "pointer", border: "1px solid var(--glass-border)" }}
-              aria-label="Conversaciones"
-            >
-              <Bell size={17} />
-              {data.needsAttention > 0 && (
-                <span className="atd-badge" style={{ position: "absolute", top: -5, right: -5 }}>
-                  {data.needsAttention}
-                </span>
-              )}
-            </button>
+            <NotificationCenter />
             <Avatar
               initials={data.businessName.slice(0, 2).toUpperCase()}
               size={42}
