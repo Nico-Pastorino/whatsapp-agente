@@ -754,8 +754,8 @@ function WeekCalendar({
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", textTransform: "capitalize" }}>{weekLabel}</span>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 680, display: "grid", gridTemplateColumns: "44px repeat(7, 1fr)" }}>
+      <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ minWidth: 828, display: "grid", gridTemplateColumns: "44px repeat(7, minmax(112px, 1fr))" }}>
           {/* Encabezado */}
           <div />
           {days.map((d, i) => {

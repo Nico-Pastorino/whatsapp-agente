@@ -19,8 +19,10 @@ import {
   listAppointments,
   checkSlotAvailability,
   updateConversationSummary,
+  getBusinessTimezone,
   HUMAN_INACTIVITY_MINUTES,
 } from "../db";
+import { zonedWallTimeToUTC } from "../availability";
 
 // ── Dos niveles de escalamiento, con efectos distintos ──────────────────────
 //
@@ -98,6 +100,24 @@ const processingGroupIds = new Set<string>();
 function readPositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+/**
+ * Convierte la hora que devolvió la IA (fecha + hora de pared del cliente, sin
+ * zona horaria) al instante UTC real usando la zona del negocio. Ignora a
+ * propósito cualquier 'Z'/offset que la IA haya agregado por error: la hora de
+ * reloj que escribió ES la hora local. Devuelve null si no puede parsear.
+ */
+function localWallTimeToUtcISO(raw: string, tz: string): string | null {
+  const m = /(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})/.exec(String(raw ?? ""));
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const minutes = Number(m[4]) * 60 + Number(m[5]);
+  if (minutes > 24 * 60) return null;
+  const utc = zonedWallTimeToUTC(year, month, day, minutes, tz);
+  return Number.isNaN(utc.getTime()) ? null : utc.toISOString();
 }
 
 function bufferKey(businessId: string, remoteJid: string): string {
@@ -564,7 +584,12 @@ async function processBufferedReply(
       let bookingReplyHandled = false;
       if (!duplicateRecent) {
         const appointment = action.appointment!;
-        const startsAt = new Date(appointment.starts_at!).toISOString();
+        // La IA devuelve la hora LOCAL de pared (sin TZ). La convertimos a UTC con
+        // la zona del negocio usando la función probada — así "13:30" queda 13:30
+        // local, sin el corrimiento de 3h que pasaba cuando la IA hacía la math de TZ.
+        const apptTz = await getBusinessTimezone(businessId).catch(() => "America/Argentina/Buenos_Aires");
+        const startsAt = localWallTimeToUtcISO(appointment.starts_at!, apptTz)
+          ?? new Date(appointment.starts_at!).toISOString();
 
         // Fase 2 — disponibilidad real: la VERDAD es el backend, no la IA.
         // Fail-open: si no hay horarios cargados o la validación falla, se crea

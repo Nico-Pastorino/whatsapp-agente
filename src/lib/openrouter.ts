@@ -274,7 +274,7 @@ export async function analyzeConversationAction(
       content: [
         "Analizá una conversación de WhatsApp para detectar acciones internas del negocio.",
         "Respondé SOLO JSON válido, sin markdown.",
-        `Fecha/hora actual ISO: ${now.toISOString()}. Zona horaria esperada para interpretar fechas relativas: America/Argentina/Buenos_Aires.`,
+        `Fecha y hora actual del negocio (hora LOCAL, America/Argentina/Buenos_Aires): ${now.toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", weekday: "long", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false })}. Interpretá "hoy", "mañana", "pasado" y los días de la semana SOBRE esta fecha local. Las horas que diga el cliente son hora local.`,
         `Agenda activada: ${profile.booking_enabled ? "sí" : "no"}.`,
         profile.booking_config ? `Reglas de agenda del negocio:\n${sanitizeForPrompt(profile.booking_config, 1200)}` : "No hay disponibilidad real configurada.",
         context.customerName ? `Nombre conocido del cliente: ${sanitizeForPrompt(context.customerName, 120)}` : "Nombre conocido del cliente: desconocido.",
@@ -287,7 +287,7 @@ export async function analyzeConversationAction(
         "- human_handoff: SOLO si el cliente pide explícitamente hablar con una persona, está claramente enojado/reclamando, o insiste después de que el asistente ya intentó resolver. NO uses human_handoff para dudas que solo requieren chequear un dato del negocio — en ese caso usá none.",
         "- hot_lead: el cliente muestra intención clara de compra o reserva, pero no corresponde crear turno todavía.",
         "",
-        "Para appointment_ready, appointment.starts_at debe ser ISO si se puede inferir fecha y hora. Si no hay año, usá la próxima fecha futura razonable.",
+        "Para appointment_ready, appointment.starts_at debe ser la fecha y hora LOCAL del negocio (la hora de pared que pidió el cliente) en formato 'YYYY-MM-DDTHH:MM', SIN 'Z', SIN offset y SIN zona horaria. Ejemplo: si el cliente pide mañana a las 13:30, devolvé exactamente '<fecha>T13:30'. NO conviertas a UTC, NO sumes ni restes horas: copiá la hora tal cual la dijo el cliente. Si no hay año, usá la próxima fecha futura razonable.",
         "Si falta nombre, servicio/motivo, día u hora, NO uses appointment_ready; usá appointment_request.",
         "El customer_reply para appointment_ready debe sonar como: 'Perfecto, te dejo la reserva solicitada 🙌 La paso para confirmar y te avisamos apenas quede confirmada.'",
         "Para human_handoff, customer_reply debe sonar humano: 'Dame un momento y lo consulto para responderte bien.'",
