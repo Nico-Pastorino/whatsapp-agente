@@ -51,13 +51,25 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Posiciona el panel (portal, fixed) respecto a la campana — así no lo recorta
-  // ningún contenedor con overflow/transform (el bug del corte en mobile).
+  // ningún contenedor con overflow/transform. En mobile usa ancho completo
+  // (sheet) para que nunca quede cortado; en desktop ancla bajo la campana.
   function openMenu() {
     const r = bellRef.current?.getBoundingClientRect();
-    if (r) {
-      const top = r.bottom + 8;
-      if (align === "left") setCoords({ top, left: Math.max(8, r.left) });
-      else setCoords({ top, right: Math.max(8, window.innerWidth - r.right) });
+    if (!r) {
+      setOpen(true);
+      return;
+    }
+    const vw = window.innerWidth;
+    const top = r.bottom + 8;
+    if (vw < 640) {
+      setCoords({ top, left: 12, right: 12 });
+    } else {
+      const width = 360;
+      if (align === "left") {
+        setCoords({ top, left: Math.min(Math.max(12, r.left), vw - width - 12) });
+      } else {
+        setCoords({ top, right: Math.min(Math.max(12, vw - r.right), vw - width - 12) });
+      }
     }
     setOpen(true);
   }
@@ -214,6 +226,12 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
       </button>
 
       {open && coords && createPortal(
+        <>
+          {/* Scrim: oscurece el fondo para que el panel destaque (mobile y desktop). */}
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(0,0,0,0.35)" }}
+          />
         <div
           ref={panelRef}
           role="menu"
@@ -222,16 +240,14 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
             top: coords.top,
             right: coords.right,
             left: coords.left,
-            width: "min(360px, calc(100vw - 16px))",
+            width: coords.left != null && coords.right != null ? "auto" : "min(360px, calc(100vw - 24px))",
             maxHeight: "min(72vh, 540px)",
             overflowY: "auto",
             zIndex: 1000,
             borderRadius: 18,
             border: "1px solid var(--glass-border)",
-            background: "var(--bg-elev, var(--surface))",
-            backdropFilter: "blur(30px) saturate(1.6)",
-            WebkitBackdropFilter: "blur(30px) saturate(1.6)",
-            boxShadow: "0 24px 60px -20px rgba(0,0,0,0.55)",
+            background: "var(--bg-elev)",
+            boxShadow: "0 24px 60px -16px rgba(0,0,0,0.6)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--hairline)" }}>
@@ -279,7 +295,8 @@ export default function NotificationCenter({ align = "right" }: { align?: "left"
               ))}
             </div>
           )}
-        </div>,
+        </div>
+        </>,
         document.body
       )}
     </div>
